@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>星屑ラーメン - Wikipedia風ページ</title>
+<style>
+/* 現行の Vector 2022 に見た目を寄せた Wikipedia風のページ。
+   CSS は本家から写さず、画面で測った値をもとに書き起こした。
+   外部の CSS・JS・フォント・画像は読まない。 */
+*{box-sizing:border-box}
+html{font-size:100%;-webkit-text-size-adjust:100%}
+body{margin:0;background:#fff;color:#202122;font-family:sans-serif}
+ul,ol{margin:0;padding:0}
+.nop{cursor:default}
+
+/* 記事の中身 */
+.art{font-size:16px;line-height:1.625;color:#202122;overflow-wrap:break-word}
+.art a{color:#36c;text-decoration:none}
+.art a:visited{color:#6a60b0}
+.art a:hover{color:#3056a9;text-decoration:underline}
+.art a.external{
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cg fill='none' stroke='%233366cc' stroke-width='1.2'%3E%3Cpath d='M5 2.5H2.5v7h7V7'/%3E%3Cpath d='M7 1.5h3.5V5M10.5 1.5 5.5 6.5'/%3E%3C/g%3E%3C/svg%3E") no-repeat center right;
+  background-size:.857em;padding-right:1em;
+}
+.art p{margin:.5em 0 1em}
+.art ul{margin:.3em 0 0 1.6em;list-style:disc}
+.art ol{margin:.3em 0 0 3.2em}
+.art li{margin-bottom:.1em}
+.art sup,.art sub{line-height:1}
+.art sup.reference{white-space:nowrap;font-weight:400;font-style:normal}
+.art sup.reference a{white-space:nowrap}
+.art sup.reference:target,.art .reflist li:target{background:#e8eeff}
+.site-sub{display:block;font-size:14px;margin:8px 0 0}
+
+/* 見出し（日本語版は h1・h2 とも sans-serif） */
+.mw-heading{display:flow-root;font-family:sans-serif;position:relative;scroll-margin-top:16px}
+.mw-heading h2,.mw-heading h3,.mw-heading h4{display:inline;margin:0;padding:0;font:inherit;color:#101418;scroll-margin-top:16px}
+.mw-heading2{font-size:1.5em;font-weight:normal;line-height:1.375;border-bottom:1px solid #a2a9b1;padding:.5em 0 .17em;margin:.25em 0}
+.mw-heading3{font-size:1.2em;font-weight:bold;line-height:1.6;padding:.5em 0 0;margin:.25em 0}
+.mw-heading4{font-size:1em;font-weight:bold;line-height:1.6;padding:.5em 0 0;margin:.25em 0}
+.mw-editsection{font-size:small;font-weight:normal;margin-left:1em;font-family:sans-serif;white-space:nowrap}
+.mw-editsection::before{content:"[";color:#54595d}
+.mw-editsection::after{content:"]";color:#54595d}
+.mw-editsection .nop{color:#36c}
+
+/* Infobox */
+.art table.infobox{
+  float:right;clear:right;width:22em;margin:.5em 0 .5em 1em;padding:.2em;
+  border:1px solid #a2a9b1;background:#f8f9fa;color:#000;text-align:left;
+  font-size:88%;line-height:1.5em;
+}
+.infobox caption{margin-top:.5em;font-size:125%;font-weight:bold;text-align:center}
+.infobox th,.infobox td{vertical-align:top}
+.infobox th{text-align:left;white-space:nowrap;padding:1px .7em 1px 2px;font-weight:bold}
+.infobox td{padding:1px}
+
+/* 脚注 */
+.art .reflist{font-size:90%}
+.art .reflist ol.references{font-size:100%;margin-top:.3em}
+.mw-cite-backlink{margin-right:.35em}
+.mw-cite-backlink a+a{margin-left:.25em}
+
+/* カテゴリ欄 */
+.catlinks{clear:both;margin-top:1em;padding:5px;border:1px solid #a2a9b1;background:#f8f9fa}
+.catlinks ul{display:inline;list-style:none;margin:0;padding:0}
+.catlinks li{display:inline-block;line-height:1.25em;margin:.125em 0;padding:0 .5em;border-left:1px solid #a2a9b1}
+.catlinks li:first-child{border-left:0;padding-left:.25em}
+
+/* ページの枠（上部バー・記事名の帯・タブ・左の目次） */
+.pc{max-width:1596px;margin:0 auto;padding:0 24px;background:#fff;min-height:100vh}
+.hdr{display:flex;align-items:center;gap:16px;min-height:50px;padding:8px 0}
+.hamb{display:inline-block;width:20px;height:14px;position:relative;flex:none;
+  background:linear-gradient(#54595d,#54595d) 0 0/100% 2px no-repeat,
+             linear-gradient(#54595d,#54595d) 0 6px/100% 2px no-repeat,
+             linear-gradient(#54595d,#54595d) 0 12px/100% 2px no-repeat}
+.logo{display:flex;align-items:center;gap:8px;flex:none;color:#202122;line-height:1}
+.logo-w{font:400 30px/1 "Linux Libertine",Georgia,Times,serif}
+.logo-t{font-size:11px;letter-spacing:.12em;color:#54595d;white-space:nowrap}
+.fakesearch{flex:1 1 auto;display:flex;max-width:500px;margin-right:12px;font-size:14px}
+.fakein{flex:1;display:flex;align-items:center;justify-content:space-between;min-height:32px;padding:4px 8px;
+  border:1px solid #a2a9b1;border-radius:2px;background:#fff;color:#72777d}
+.fakein svg{flex:none}
+.hdr-end{margin-left:auto;display:flex;gap:16px;align-items:center;font-size:14px;color:#36c}
+.hdr-end span{white-space:nowrap}
+.inner{display:block}
+.colstart{display:none}
+.main{min-width:0;max-width:948px}
+.titlebar{position:relative;display:flex;align-items:center;gap:12px;padding:28px 0 8px}
+.titlebar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:#a2a9b1}
+.firstHeading{margin:0;flex:1;font:normal 28.8px/1.375 sans-serif;color:#101418;overflow-wrap:anywhere}
+.langbtn{flex:none;font-size:14px;color:#36c;padding:4px 8px;white-space:nowrap}
+.toolbar{display:flex;justify-content:space-between;font-size:14px;box-shadow:0 1px #c8ccd1;margin-bottom:1px}
+.tabs{display:flex;margin:0;padding:0;list-style:none}
+.tabs li{margin:0 8px}
+.tabs .tab{position:relative;display:inline-flex;align-items:center;min-height:32px;color:#36c}
+.tabs .tab::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:transparent}
+.tabs .sel .tab{color:#202122}
+.tabs .sel .tab::after{background:#202122}
+.tocpop{position:relative;flex:none}
+.tocpop summary{list-style:none;cursor:pointer;padding:6px;margin:-6px}
+.tocpop summary::-webkit-details-marker{display:none}
+.tocpop-list{position:absolute;z-index:20;top:34px;left:0;min-width:200px;max-width:min(75vw,711px);width:max-content;
+  padding:8px 16px;background:#fff;border:1px solid #c8ccd1;border-radius:2px;box-shadow:0 2px 12px rgba(0,0,0,.2);font-size:14px;line-height:1.5}
+.pinlist ul{list-style:none;margin:0;padding:0}
+.pinlist li{padding-left:12px}
+.pinlist li li{padding-left:12px}
+.pinlist a{display:block;padding:6px 0;color:#36c;text-decoration:none}
+.pinlist a:hover{text-decoration:none;color:#3056a9}
+.pinlist li.act>a{font-weight:bold;color:#202122}
+.pinlist li ul{display:none}
+.pinlist li.exp>ul{display:block}
+.tocpop-list li ul{display:block}
+.pinlist .tocnumber{display:none}
+.ftc{padding-top:50px;padding-bottom:82px}
+.ft{border-top:1px solid #a2a9b1;padding:.75em 0}
+.ft ul{list-style:none;margin:0;padding:0}
+.ft li{font-size:.75em;line-height:1.4;padding:.5em 0;color:#202122}
+
+@media (min-width:1120px){
+  .pc{padding:0 44px}
+  .inner{display:grid;grid-template-columns:196px minmax(0,1fr);column-gap:24px}
+  .colstart{display:block;margin-top:2.8rem}
+  .sticky{position:sticky;top:24px;max-height:calc(100vh - 48px);overflow:hidden auto;padding-bottom:16px;font-size:14px}
+  .tochead{font-weight:bold;line-height:1.6;padding:0 0 .35em 0;margin-bottom:.35em;border-bottom:1px solid #eaecf0}
+  .tocpop{display:none}
+  .ftc{grid-column:2}
+}
+@media (min-width:1680px){
+  .pc{padding:0 52px}
+  .inner{grid-template-columns:248px minmax(0,1fr)}
+}
+@media (max-width:1119px){
+  .fakesearch{flex:0 0 auto;max-width:none;margin-left:auto;margin-right:0}
+  .fakesearch .fakein{border:0;background:transparent;padding:0 4px;min-height:32px}
+  .fakesearch .fakein span{display:none}
+  .hdr-end{margin-left:0}
+}
+@media (max-width:639px){
+  .logo-w{display:none}
+  .hdr-end{display:none}
+  .titlebar{flex-wrap:wrap;gap:8px}
+  .firstHeading{flex:1 1 70%}
+  .toolbar .tabs.r li:not(:last-child){display:none}
+  .art table.infobox{float:none;width:100%;margin:.5em 0;display:table}
+}
+</style>
+</head>
+<body>
+<div class="pc" id="top">
+  <header class="hdr">
+    <span class="hamb nop" aria-hidden="true" title="この部品は見た目だけで、押しても動きません"></span>
+    <span class="logo nop" aria-hidden="true" title="この部品は見た目だけで、押しても動きません"><span class="logo-w">W</span><span class="logo-t">WIKIPEDIA風</span></span>
+    <div class="fakesearch nop" aria-hidden="true" title="この部品は見た目だけで、押しても動きません"><div class="fakein"><span>Wikipedia風を検索</span><svg width="20" height="20" viewBox="0 0 20 20"><circle cx="8" cy="8" r="5.5" fill="none" stroke="#54595d" stroke-width="2"/><path d="M12.3 12.3 17.5 17.5" stroke="#54595d" stroke-width="2"/></svg></div></div>
+    <div class="hdr-end" aria-hidden="true"><span class="nop" title="この部品は見た目だけで、押しても動きません">アカウント作成</span><span class="nop" title="この部品は見た目だけで、押しても動きません">ログイン</span></div>
+  </header>
+  <div class="inner">
+    <aside class="colstart">
+      <nav class="sticky" aria-label="目次">
+        <div class="tochead">目次</div>
+        <div class="pinlist" data-toc="left">
+          <ul>
+            <li class="act" data-id=""><a href="#top">ページ先頭</a></li>
+<li data-id="section-1"><a href="#section-1"><span class="tocnumber">1</span><span class="toctext">概要</span></a></li>
+<li data-id="section-2"><a href="#section-2"><span class="tocnumber">2</span><span class="toctext">登場する店</span></a>
+<ul>
+<li data-id="section-2-1"><a href="#section-2-1"><span class="tocnumber">2.1</span><span class="toctext">屋台「天の川」</span></a>
+<ul>
+<li data-id="section-2-1-1"><a href="#section-2-1-1"><span class="tocnumber">2.1.1</span><span class="toctext">メニュー</span></a></li>
+</ul></li>
+<li data-id="section-2-2"><a href="#section-2-2"><span class="tocnumber">2.2</span><span class="toctext">常連客</span></a></li>
+</ul></li>
+<li data-id="section-3"><a href="#section-3"><span class="tocnumber">3</span><span class="toctext">年表</span></a></li>
+<li data-id="section-4"><a href="#section-4"><span class="tocnumber">4</span><span class="toctext">脚注</span></a>
+<ul>
+<li data-id="section-4-1"><a href="#section-4-1"><span class="tocnumber">4.1</span><span class="toctext">注釈</span></a></li>
+<li data-id="section-4-2"><a href="#section-4-2"><span class="tocnumber">4.2</span><span class="toctext">出典</span></a></li>
+</ul></li>
+<li data-id="section-5"><a href="#section-5"><span class="tocnumber">5</span><span class="toctext">関連項目</span></a></li>
+<li data-id="section-6"><a href="#section-6"><span class="tocnumber">6</span><span class="toctext">外部リンク</span></a></li>
+          </ul>
+        </div>
+      </nav>
+    </aside>
+    <main class="main">
+      <div class="titlebar">
+        <details class="tocpop">
+          <summary aria-label="目次"><span class="hamb" aria-hidden="true"></span></summary>
+          <nav class="tocpop-list pinlist" data-toc="pop" aria-label="目次">
+            <ul>
+              <li data-id=""><a href="#top">ページ先頭</a></li>
+<li data-id="section-1"><a href="#section-1"><span class="tocnumber">1</span><span class="toctext">概要</span></a></li>
+<li data-id="section-2"><a href="#section-2"><span class="tocnumber">2</span><span class="toctext">登場する店</span></a>
+<ul>
+<li data-id="section-2-1"><a href="#section-2-1"><span class="tocnumber">2.1</span><span class="toctext">屋台「天の川」</span></a>
+<ul>
+<li data-id="section-2-1-1"><a href="#section-2-1-1"><span class="tocnumber">2.1.1</span><span class="toctext">メニュー</span></a></li>
+</ul></li>
+<li data-id="section-2-2"><a href="#section-2-2"><span class="tocnumber">2.2</span><span class="toctext">常連客</span></a></li>
+</ul></li>
+<li data-id="section-3"><a href="#section-3"><span class="tocnumber">3</span><span class="toctext">年表</span></a></li>
+<li data-id="section-4"><a href="#section-4"><span class="tocnumber">4</span><span class="toctext">脚注</span></a>
+<ul>
+<li data-id="section-4-1"><a href="#section-4-1"><span class="tocnumber">4.1</span><span class="toctext">注釈</span></a></li>
+<li data-id="section-4-2"><a href="#section-4-2"><span class="tocnumber">4.2</span><span class="toctext">出典</span></a></li>
+</ul></li>
+<li data-id="section-5"><a href="#section-5"><span class="tocnumber">5</span><span class="toctext">関連項目</span></a></li>
+<li data-id="section-6"><a href="#section-6"><span class="tocnumber">6</span><span class="toctext">外部リンク</span></a></li>
+            </ul>
+          </nav>
+        </details>
+        <h1 class="firstHeading" id="firstHeading">星屑ラーメン</h1>
+        <span class="langbtn nop" aria-hidden="true" title="この部品は見た目だけで、押しても動きません">他の言語版 ▾</span>
+      </div>
+      <div class="toolbar" aria-hidden="true">
+        <ul class="tabs l"><li class="sel"><span class="tab nop" title="この部品は見た目だけで、押しても動きません">ページ</span></li><li><span class="tab nop" title="この部品は見た目だけで、押しても動きません">ノート</span></li></ul>
+        <ul class="tabs r"><li class="sel"><span class="tab nop" title="この部品は見た目だけで、押しても動きません">閲覧</span></li><li><span class="tab nop" title="この部品は見た目だけで、押しても動きません">編集</span></li><li><span class="tab nop" title="この部品は見た目だけで、押しても動きません">履歴を表示</span></li><li><span class="tab nop" title="この部品は見た目だけで、押しても動きません">ツール ▾</span></li></ul>
+      </div>
+      <div class="art">
+        <div class="site-sub">出典: フリー百科事典『ウィキペディア（Wikipedia）』風のページ</div>
+<table class="infobox">
+<caption>星屑ラーメン</caption>
+<tr><th scope="row">ジャンル</th><td>グルメ漫画</td></tr>
+<tr><th scope="row">作者</th><td>月見里 ほたる</td></tr>
+<tr><th scope="row">出版社</th><td>架空出版</td></tr>
+<tr><th scope="row">連載期間</th><td>2020年4月 - 2023年3月</td></tr>
+</table>
+<p><b>星屑ラーメン</b>（ほしくずらーめん）は、<a href="https://ja.wikipedia.org/wiki/%E6%9C%88%E8%A6%8B%E9%87%8C_%E3%81%BB%E3%81%9F%E3%82%8B" title="月見里 ほたる">月見里 ほたる</a>による日本の<a href="https://ja.wikipedia.org/wiki/%E3%82%B0%E3%83%AB%E3%83%A1%E6%BC%AB%E7%94%BB" title="グルメ漫画">グルメ漫画</a>。2020年4月から2023年3月まで連載された<sup id="cite_ref-1-1" class="reference"><a href="#cite_note-1">[1]</a></sup>。題名の読み方には補足がある<sup id="cite_ref-note-1-1" class="reference"><a href="#cite_note-note-1">[注 1]</a></sup>。</p>
+<div class="mw-heading mw-heading2"><h2 id="section-1">概要</h2><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<p>夜の街に現れる屋台のラーメン店を舞台にした作品。客の悩みを一杯のラーメンが解きほぐす、一話完結の形をとる<sup id="cite_ref-3-1" class="reference"><a href="#cite_note-3">[3]</a></sup><sup id="cite_ref-2-1" class="reference"><a href="#cite_note-2">[2]</a></sup>。</p>
+<div class="mw-heading mw-heading2"><h2 id="section-2">登場する店</h2><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<div class="mw-heading mw-heading3"><h3 id="section-2-1">屋台「天の川」</h3><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<p>主人公が営む屋台<sup id="cite_ref-note-2-1" class="reference"><a href="#cite_note-note-2">[注 2]</a></sup>。営業は夜のみで、メニューは三種類しかない。</p>
+<div class="mw-heading mw-heading4"><h4 id="section-2-1-1">メニュー</h4><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<ul>
+<li>醤油ラーメン</li>
+<li>塩ラーメン</li>
+<li>星屑ラーメン（季節限定）</li>
+</ul>
+<div class="mw-heading mw-heading3"><h3 id="section-2-2">常連客</h3><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<p>屋台に通う客が毎話入れ替わりで登場する。</p>
+<div class="mw-heading mw-heading2"><h2 id="section-3">年表</h2><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<ul>
+<li>2020年4月 - 連載開始</li>
+<li>2023年3月 - 連載終了<sup id="cite_ref-1-2" class="reference"><a href="#cite_note-1">[1]</a></sup></li>
+</ul>
+<div class="mw-heading mw-heading2"><h2 id="section-4">脚注</h2><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<div class="mw-heading mw-heading3"><h3 id="section-4-1">注釈</h3><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<div class="reflist">
+<ol class="references">
+<li id="cite_note-note-1"><span class="mw-cite-backlink"><a href="#cite_ref-note-1-1">↑</a></span> <span class="reference-text">題名の読みは単行本の表記による<sup id="cite_ref-2-2" class="reference"><a href="#cite_note-2">[2]</a></sup>。</span></li>
+<li id="cite_note-note-2"><span class="mw-cite-backlink"><a href="#cite_ref-note-2-1">↑</a></span> <span class="reference-text">作中の屋台は<a href="https://ja.wikipedia.org/wiki/%E6%9E%B6%E7%A9%BA%E3%81%AE%E5%B1%8B%E5%8F%B0%E6%96%87%E5%8C%96" title="架空の屋台文化">屋台</a>がモデルとされる。</span></li>
+</ol>
+</div>
+<div class="mw-heading mw-heading3"><h3 id="section-4-2">出典</h3><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<div class="reflist">
+<ol class="references">
+<li id="cite_note-1"><span class="mw-cite-backlink">↑ <a href="#cite_ref-1-1">a</a><a href="#cite_ref-1-2">b</a></span> <span class="reference-text">「新連載「星屑ラーメン」始まる」『架空新聞』2020年4月1日。</span></li>
+<li id="cite_note-2"><span class="mw-cite-backlink">↑ <a href="#cite_ref-2-1">a</a><a href="#cite_ref-2-2">b</a></span> <span class="reference-text">月見里 ほたる『星屑ラーメン 第1巻』架空出版、2020年9月1日、3-20頁、ISBN 978-4-00-000000-0。</span></li>
+<li id="cite_note-3"><span class="mw-cite-backlink"><a href="#cite_ref-3-1">↑</a></span> <span class="reference-text">「<a class="external" rel="nofollow" href="https://example.com/hoshikuzu">星屑ラーメン 公式サイト</a>」架空出版、2026年11月1日閲覧。</span></li>
+</ol>
+</div>
+<div class="mw-heading mw-heading2"><h2 id="section-5">関連項目</h2><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<ul>
+<li><a href="https://ja.wikipedia.org/wiki/%E6%9E%B6%E7%A9%BA%E3%81%AE%E5%B1%8B%E5%8F%B0%E6%96%87%E5%8C%96" title="架空の屋台文化">架空の屋台文化</a></li>
+<li><a href="https://ja.wikipedia.org/wiki/%E6%9C%88%E8%A6%8B%E9%87%8C_%E3%81%BB%E3%81%9F%E3%82%8B" title="月見里 ほたる">月見里 ほたる</a></li>
+</ul>
+<div class="mw-heading mw-heading2"><h2 id="section-6">外部リンク</h2><span class="mw-editsection"><span class="nop" title="この部品は見た目だけで、押しても動きません">編集</span></span></div>
+<ul>
+<li><a class="external" rel="nofollow" href="https://example.com/hoshikuzu">公式サイト</a></li>
+</ul>
+<div class="catlinks"><a href="https://ja.wikipedia.org/wiki/Special:Categories">カテゴリ</a>: <ul>
+<li><a href="https://ja.wikipedia.org/wiki/Category:%E6%9E%B6%E7%A9%BA%E3%81%AE%E6%BC%AB%E7%94%BB%E4%BD%9C%E5%93%81" title="Category:架空の漫画作品">架空の漫画作品</a></li>
+<li><a href="https://ja.wikipedia.org/wiki/Category:%E3%82%B0%E3%83%AB%E3%83%A1%E6%BC%AB%E7%94%BB" title="Category:グルメ漫画">グルメ漫画</a></li>
+</ul></div>
+      </div>
+    </main>
+    <div class="ftc">
+      <footer class="ft">
+        <ul>
+          <li>このページの最終更新日時は 2026年11月2日 (月) 12:00 (JST) です。</li>
+          <li>このページは Wikipedia そのものではなく、その見た目に寄せて作った Wikipedia風のページです。</li>
+        </ul>
+      </footer>
+    </div>
+  </div>
+</div>
+<script>
+/* 左の目次で、いま読んでいる節を強調する（なくても読める） */
+(function () {
+  var heads = Array.prototype.slice.call(document.querySelectorAll('.art h2[id],.art h3[id],.art h4[id]'));
+  var items = Array.prototype.slice.call(document.querySelectorAll('[data-toc="left"] li'));
+  if (!heads.length || !items.length) { return; }
+  var queued = false;
+  function spy() {
+    queued = false;
+    var active = '';
+    for (var i = 0; i < heads.length; i++) {
+      if (120 >= heads[i].getBoundingClientRect().top) { active = heads[i].id; } else { break; }
+    }
+    var current = null;
+    items.forEach(function (li) {
+      var on = li.getAttribute('data-id') === active;
+      li.classList.toggle('act', on);
+      if (on) { current = li; }
+    });
+    items.forEach(function (li) {
+      li.classList.toggle('exp', current !== null && li.contains(current));
+    });
+  }
+  window.addEventListener('scroll', function () {
+    if (!queued) { queued = true; window.requestAnimationFrame(spy); }
+  }, { passive: true });
+  spy();
+})();
+</script>
+</body>
+</html>
