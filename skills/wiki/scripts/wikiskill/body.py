@@ -22,6 +22,9 @@ _HEADING = re.compile(r"(#+)(?:[ \t]+(.*))?")
 _BULLET = re.compile(r"- (.*)")
 _NESTED_BULLET = re.compile(r"[ \t]+- ")
 
+_INDENT = " 	"
+"""行頭・行末から取り除く空白。全角空白は取り除かず、字下げの誤りとして検査（FULLWIDTH-SPACE）に回す。"""
+
 _MIN_HEADING_LEVEL = 2
 _MAX_HEADING_LEVEL = 4
 
@@ -59,6 +62,11 @@ class _Lines:
         self._texts = [text]
         self._numbers = [number]
 
+    @property
+    def first_line(self) -> int:
+        """先頭の行の原稿ファイル全体での行番号。"""
+        return self._numbers[0]
+
     def add(self, text: str, number: int) -> None:
         """続きの行を足す。"""
         self._texts.append(text)
@@ -81,9 +89,10 @@ class _Lines:
 class _SectionBuilder:
     """組み立て中の節。"""
 
-    def __init__(self, level: int, title: str) -> None:
+    def __init__(self, level: int, title: str, line: int) -> None:
         self.level = level
         self.title = title
+        self.line = line
         self.blocks: list[Block] = []
         self.children: list[_SectionBuilder] = []
 
@@ -94,6 +103,7 @@ class _SectionBuilder:
             self.title,
             tuple(self.blocks),
             tuple(child.build() for child in self.children),
+            line=self.line,
         )
 
 
@@ -114,7 +124,7 @@ class _BodyBuilder:
     ) -> tuple[tuple[Block, ...], tuple[Section, ...]]:
         """全行を読んで結果を返す。"""
         for number, raw in enumerate(lines, start=first_line):
-            self._read_line(raw.rstrip(), number)
+            self._read_line(raw.rstrip(_INDENT), number)
         self._flush()
         return tuple(self._lead), tuple(root.build() for root in self._roots)
 
@@ -134,17 +144,17 @@ class _BodyBuilder:
         bullet = _BULLET.fullmatch(line)
         if bullet is not None:
             self._flush_paragraph()
-            self._bullets.append(_Lines(bullet.group(1).strip(), number))
+            self._bullets.append(_Lines(bullet.group(1).strip(_INDENT), number))
         elif self._bullets:
             if line[0] not in " \t":
                 raise MarkupError(
                     "箇条書きの直後に空行なしで段落は続けられない（空行を入れる）", number
                 )
-            self._bullets[-1].add(line.strip(), number)
+            self._bullets[-1].add(line.strip(_INDENT), number)
         elif self._paragraph is None:
-            self._paragraph = _Lines(line.strip(), number)
+            self._paragraph = _Lines(line.strip(_INDENT), number)
         else:
-            self._paragraph.add(line.strip(), number)
+            self._paragraph.add(line.strip(_INDENT), number)
 
     def _start_section(self, level: int, title: str, number: int) -> None:
         if not _MIN_HEADING_LEVEL <= level <= _MAX_HEADING_LEVEL:
@@ -165,7 +175,7 @@ class _BodyBuilder:
                 number,
             )
 
-        section = _SectionBuilder(level, title)
+        section = _SectionBuilder(level, title, number)
         (self._stack[-1].children if self._stack else self._roots).append(section)
         self._stack.append(section)
 
@@ -179,11 +189,14 @@ class _BodyBuilder:
 
     def _flush_paragraph(self) -> None:
         if self._paragraph is not None:
-            self._container().append(Paragraph(self._paragraph.to_inline()))
+            self._container().append(
+                Paragraph(self._paragraph.to_inline(), line=self._paragraph.first_line)
+            )
             self._paragraph = None
 
     def _flush_bullets(self) -> None:
         if self._bullets:
             items = tuple(item.to_inline() for item in self._bullets)
-            self._container().append(BulletList(items))
+            item_lines = tuple(item.first_line for item in self._bullets)
+            self._container().append(BulletList(items, line=item_lines[0], item_lines=item_lines))
             self._bullets = []

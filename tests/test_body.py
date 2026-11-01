@@ -177,3 +177,13 @@ def test_箇条書きの項目の中の記法のエラーも行番号を持つ()
     with pytest.raises(MarkupError) as info:
         parse("- 良い\n- 悪い[^", first_line=20)
     assert info.value.line == 21
+
+
+def test_全角空白の字下げは本文に残して検査に回す() -> None:
+    lead, _ = parse("\u3000字下げした段落。\n\u3000二行目。")
+    assert lead == (para("\u3000字下げした段落。\u3000二行目。"),)
+
+
+def test_全角空白だけの行は空行として扱う() -> None:
+    lead, _ = parse("一つ目。\n\u3000\n二つ目。")
+    assert lead == (para("一つ目。"), para("二つ目。"))
