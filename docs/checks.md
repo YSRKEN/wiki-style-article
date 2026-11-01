@@ -58,7 +58,7 @@ for finding in check_article(read_article_file("原稿.md"), load_default_regist
 
 根拠は日本語版の方針「Wikipedia:検証可能性」の節「ウィキペディア自身及びウィキペディアの転載サイト」（WP:CIRCULAR、版 2025-06-18）。「ウィキペディアプロジェクトの記事自身やウィキペディアのミラー記事サイトを記事のソースとして用いてはなりません」とある。「Wikipedia:信頼できる情報源」（版 2026-08-30）も、他言語版を含むウィキペディア自身の引用を自己言及としてできないとし、ウィキで構築されたサイトへの投稿は使えないとしている。
 
-転載サイトの一覧は「Wikipedia:ウィキペディアを情報源とするサイト」（版 2026-10-24。載っているサイトの多くはサービス終了）から、転載が主なサイトを選んだ。`wikipedia.org`・`wikiwand.com`・`wikipedia.weblio.jp`・`wapedia.mobi`・`wiki5.ru`・`wpanda.net`・`findwiki.info`・`jibiki.info`・`wikipedia.7val.com`（`checks.references.WIKIPEDIA_HOSTS`）。`www.weblio.jp` 全体は他の辞書も載せるので含めず、ウィキペディアを写した `wikipedia.weblio.jp` だけを対象にした。`wikimedia.org`（コモンズなど）は記事ではないので対象外。
+転載サイトの一覧は「Wikipedia:ウィキペディアを情報源とするサイト」（版 2026-10-24。載っているサイトの多くはサービス終了）から、転載が主なサイトを選んだ。`wikipedia.org`・`wikiwand.com`・`wapedia.mobi`・`wiki5.ru`・`wpanda.net`・`findwiki.info`・`jibiki.info`・`wikipedia.7val.com`（`checks.references.WIKIPEDIA_HOSTS`）。一覧の Weblio（`www.weblio.jp`）は、ウィキペディアの写しを他の辞書と同じ `www.weblio.jp/content/<語>` に並べており、ホスト名では見分けられないので対象にしていない（2026-11-02 に確かめた）。`wikimedia.org`（コモンズなど）は記事ではないので対象外。
 
 ### B. 表記（Wikipedia:表記ガイド）
 
