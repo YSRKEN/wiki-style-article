@@ -57,6 +57,8 @@ type = "manga"
 | `title` | 必須 | 出典の題 |
 | `url`・`author`・`publisher`・`work`・`date`・`access_date`・`isbn`・`pages`・`note` | 任意 | いずれも文字列 |
 
+`url` は `http://` か `https://` で始まるアドレス。`date` は `YYYY-MM-DD`・`YYYY-MM`・`YYYY` のどれか、`access_date`（閲覧日）は `YYYY-MM-DD`（どちらも 0 詰めの半角で、実在する日付）。読み取りではこれらの形を見ず、検査（[checks.md](checks.md)）が見る。ウィキペディアとその転載サイトを `url` に書くとエラーになる。
+
 ### `[notes.<キー>]`（注釈）
 
 `text`（必須、文字列）に注釈の本文を書く。本文と同じ文中の記法（次節）が使える。
@@ -74,6 +76,7 @@ type = "manga"
 - 段落は空行で区切る。段落の中の改行は、日本語のため空白なしでつなぐ
 - 箇条書きは行頭の `- ` で始まる行の連なり。入れ子にはできない。字下げした行は前の項目の続きになる。年表や作品の一覧のために使う
 - 箇条書きの直後に、空行なしで段落を続けることはできない
+- 行頭・行末から取り除くのは半角の空白とタブだけ。全角空白の字下げは本文に残し、検査（`FULLWIDTH-SPACE`）がエラーにする
 
 ### 文中の記法
 
@@ -98,6 +101,8 @@ Article
 ```
 
 段落と箇条書きの中身は、文中の部品（`Text`・`Bold`・`RefMark`・`NoteMark`・`InternalLink`）の並び。隣り合う文字は一つの `Text` にまとめる。
+
+`Paragraph`・`BulletList`（と項目ごとの `item_lines`）・`Section`・`InfoboxField`・`Reference`・`Note`・`ExternalLink` は、原稿ファイル全体での行番号を `line` に持つ（段落と箇条書きの項目は先頭の行。出典は `[refs.キー]` の見出しの行で、項目ごとの行は `Reference.line_of("url")` で引く）。検査の結果に行を載せるためのもので、等しさの比較には使わない。検査は [checks.md](checks.md)。
 
 ## エラー
 

@@ -296,7 +296,7 @@ class _SettingsReader:
                     "infobox",
                     name,
                 )
-            fields.append(InfoboxField(name, value))
+            fields.append(InfoboxField(name, value, self._locator.find("infobox", name)))
         return tuple(fields)
 
     def _references(self, data: _Table) -> tuple[Reference, ...]:
@@ -325,6 +325,8 @@ class _SettingsReader:
                     key=key,
                     kind=kind,
                     title=self._str(table, "title", section, required=True) or "",
+                    line=self._locator.find(section),
+                    field_lines=tuple((name, self._locator.find(section, name)) for name in table),
                     **optional,
                 )
             )
@@ -344,7 +346,7 @@ class _SettingsReader:
             self._reject_unknown(table, ("text",), section)
             text = self._str(table, "text", section, required=True) or ""
             line = self._locator.find(section, "text")
-            result.append(Note(key, parse_inline(text, line)))
+            result.append(Note(key, parse_inline(text, line), line))
         return tuple(result)
 
     def _external_links(self, data: _Table) -> tuple[ExternalLink, ...]:
@@ -368,6 +370,7 @@ class _SettingsReader:
                     title=self._str(table, "title", "external_links", required=True, index=index)
                     or "",
                     url=self._str(table, "url", "external_links", required=True, index=index) or "",
+                    line=self._locator.find("external_links", None, index),
                 )
             )
         return tuple(result)
