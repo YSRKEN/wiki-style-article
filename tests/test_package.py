@@ -5,3 +5,12 @@ def test_公開する名前を取り込める() -> None:
     article = wikiskill.read_article('+++\ntitle = "題"\ntype = "meme"\n+++\n')
     assert isinstance(article, wikiskill.Article)
     assert issubclass(wikiskill.MarkupError, wikiskill.SourceError)
+
+
+def test_類型の定義と検査の入口を取り込める() -> None:
+    registry = wikiskill.load_default_registry()
+    assert isinstance(registry["manga"], wikiskill.ArticleType)
+    article = wikiskill.read_article('+++\ntitle = "題"\ntype = "meme"\n+++\n')
+    findings = wikiskill.check_article(article)
+    assert all(isinstance(f, wikiskill.Finding) for f in findings)
+    assert issubclass(wikiskill.UnknownTypeError, wikiskill.TypeRegistryError)
