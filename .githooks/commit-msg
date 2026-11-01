@@ -1,0 +1,27 @@
+#!/bin/sh
+# commit-msg フック: 件名が Conventional Commits の形で、説明が日本語かを検査する。
+#
+# 使い方: リポジトリの .githooks/ に置き、`git config core.hooksPath .githooks` で有効にする。
+# 日本語かどうかは「説明部に非 ASCII 文字が一つ以上ある」で近似している。
+
+msg_file="$1"
+subject=$(sed -n '/^#/d; /^[[:space:]]*$/d; p; q' "$msg_file")
+
+# git が自動で作る fixup!/squash! は rebase で消えるので通す
+case "$subject" in
+  "fixup! "*|"squash! "*|"amend! "*) exit 0 ;;
+esac
+
+types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+if ! printf '%s\n' "$subject" | grep -Eq "^($types)(\([^()]+\))?!?: .+"; then
+  echo "commit-msg: 件名が Conventional Commits の形ではない: $subject" >&2
+  echo "  例: feat(auth): ログイン画面を追加" >&2
+  echo "  使える type: $types" >&2
+  exit 1
+fi
+
+description=${subject#*: }
+if ! printf '%s' "$description" | LC_ALL=C grep -q "$(printf '[\200-\377]')"; then
+  echo "commit-msg: 件名の説明が日本語ではない: $description" >&2
+  exit 1
+fi
