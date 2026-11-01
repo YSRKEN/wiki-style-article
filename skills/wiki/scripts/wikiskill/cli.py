@@ -4,9 +4,11 @@
 
     python -m wikiskill build 原稿.md [--style plain] [--out-dir 出力先] [--updated 日時]
     python -m wikiskill check 原稿.md
+    python -m wikiskill type [類型の ID]
 
 ``build`` は原稿の隣（``--out-dir`` で変えられる）に ``<原稿の名前>.html`` と
 ``<原稿の名前>.wikitext`` を書き出す。``check`` は検査だけして何も書き出さない。
+``type`` は類型の一覧か、原稿の設定欄に貼る ``type`` と Infobox の雛形を出す。
 
 出力は 1 行に 1 件で、検査の指摘（``12 行目 [警告] RULE: …``）、件数のまとめ、
 書き出したファイルの順。終了コードは次のとおり。
@@ -34,7 +36,7 @@ from wikiskill.html_check import check_html
 from wikiskill.html_inline import HtmlError
 from wikiskill.html_writer import write_html
 from wikiskill.reader import read_article_file
-from wikiskill.types import load_default_registry
+from wikiskill.types import ArticleType, load_default_registry
 from wikiskill.wikitext import WIKITEXT_STYLES, WikitextError, WikitextStyle, write_wikitext
 
 __all__ = ["format_updated", "main", "run"]
@@ -61,6 +63,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except SystemExit as stop:
         # argparse は誤りでも --help でも抜けようとする。呼ぶ側へ終了コードで返す。
         return stop.code if isinstance(stop.code, int) else 2
+    if args.command == "type":
+        return _type(args.type_id)
     source = Path(args.source)
     if not source.is_file():
         print(f"原稿が見つからない: {source}", file=sys.stderr)
@@ -135,6 +139,11 @@ def _parser() -> argparse.ArgumentParser:
 
     check = commands.add_parser("check", help="検査だけして、何も書き出さない")
     check.add_argument("source", help="原稿のファイル（UTF-8 の Markdown）")
+
+    kind = commands.add_parser(
+        "type", help="類型の一覧を出す。ID を渡すと、原稿の設定欄に貼る Infobox の雛形を出す"
+    )
+    kind.add_argument("type_id", nargs="?", help="類型の ID（例 manga）。省くと一覧")
     return parser
 
 
@@ -173,6 +182,55 @@ def _build(source: Path, *, style: WikitextStyle, out_dir: Path, updated: str) -
         path.write_text(text, encoding="utf-8", newline="\n")
         print(f"書き出した: {path}")
     return 0
+
+
+def _type(type_id: str | None) -> int:
+    registry = load_default_registry()
+    if type_id is None:
+        print("# 基本型と、その下に字下げした細かい種類。原稿の type に ID を書く。")
+        for base in registry:
+            if base.is_base:
+                print(f"{base.id}  {base.name}")
+                for kind in registry.kinds_of(base.id):
+                    print(f"  {kind.id}  {kind.name}")
+        return 0
+    found = registry.find(type_id)
+    if found is None:
+        print(f"類型が見つからない: {type_id}（一覧は type を引数なしで流す）", file=sys.stderr)
+        return 2
+    print(_skeleton(found))
+    return 0
+
+
+def _skeleton(article_type: ArticleType) -> str:
+    """原稿の設定欄に貼る ``type`` と ``[infobox]`` の雛形。"""
+    guides = article_type.parents or (article_type.id,)
+    lines = [f"# {article_type.name}（{article_type.id}）"]
+    lines += [f"# 節の並びと書き方: references/types/{guide}.md" for guide in guides]
+    lines.append(f'type = "{article_type.id}"')
+    if not article_type.has_infobox:
+        lines.append("# この類型は Infobox を持たない。原稿に Infobox の欄は書かない。")
+        return "\n".join(lines)
+    templates = " ＋ ".join(part.template for part in article_type.infobox)
+    lines += [
+        f"# Infobox: {templates}",
+        "# 「必須」の項目は必ず埋める。ほかは分かる項目だけ埋め、分からない項目は行ごと消す。",
+        "",
+        "[infobox]",
+    ]
+    for part in article_type.infobox:
+        for field in part.fields:
+            notes = ["必須"] if field.required else []
+            if field.label == part.title_field:
+                notes.append("書かなければ記事名")
+            comment = f"  # {'、'.join(notes)}" if notes else ""
+            lines.append(f'{_toml_string(field.label)} = ""{comment}')
+    return "\n".join(lines)
+
+
+def _toml_string(text: str) -> str:
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
 
 
 def _read_and_check(source: Path) -> tuple[Finding, ...] | None:

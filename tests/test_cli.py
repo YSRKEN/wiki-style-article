@@ -211,6 +211,75 @@ def test_check_はエラーがあれば終了コード_1(tmp_path: Path) -> None
     assert main(["check", str(_write(tmp_path, _BROKEN))]) == 1
 
 
+# --- type -------------------------------------------------------------------------
+
+
+def test_type_は類型の一覧を基本型と細かい種類に分けて出す(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = main(["type"])
+
+    out = capsys.readouterr().out
+    lines = out.splitlines()
+    assert code == 0
+    assert "person-living  人物（存命）" in lines
+    # 細かい種類は寄せ先の下に字下げして出す
+    assert "  voice-actor  声優" in lines
+    assert lines.index("person-living  人物（存命）") < lines.index("  voice-actor  声優")
+    assert sum(1 for line in lines if line and not line.startswith(("  ", "#"))) == len(
+        [t for t in REGISTRY if t.is_base]
+    )
+
+
+def test_type_に_ID_を渡すと原稿に貼る雛形を出す(capsys: pytest.CaptureFixture[str]) -> None:
+    code = main(["type", "manga"])
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert 'type = "manga"' in out
+    assert "[infobox]" in out
+    assert '"作者" = ""  # 必須' in out
+    assert '"出版社" = ""  # 必須' in out
+    assert "references/types/manga.md" in out
+
+
+def test_type_の雛形は_TOML_として読めて項目は定義の順(capsys: pytest.CaptureFixture[str]) -> None:
+    import tomllib
+
+    main(["type", "manga"])
+
+    data = tomllib.loads(capsys.readouterr().out)
+    assert data["type"] == "manga"
+    assert list(data["infobox"]) == [f.label for f in REGISTRY["manga"].fields]
+
+
+def test_type_の細かい種類は寄せ先の参照ファイルを案内する(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    main(["type", "voice-actor"])
+
+    out = capsys.readouterr().out
+    assert "references/types/person-living.md" in out
+    assert "references/types/person-deceased.md" in out
+
+
+def test_type_の_Infobox_の無い類型は表を出さない(capsys: pytest.CaptureFixture[str]) -> None:
+    code = main(["type", "concept"])
+
+    out = capsys.readouterr().out
+    assert code == 0
+    assert 'type = "concept"' in out
+    assert "[infobox]" not in out
+    assert "Infobox を持たない" in out
+
+
+def test_type_の知らない_ID_は終了コード_2(capsys: pytest.CaptureFixture[str]) -> None:
+    code = main(["type", "no-such-type"])
+
+    assert code == 2
+    assert "類型が見つからない" in capsys.readouterr().err
+
+
 # --- 最終更新の日時 ---------------------------------------------------------------
 
 
