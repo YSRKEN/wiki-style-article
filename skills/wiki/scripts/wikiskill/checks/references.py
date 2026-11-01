@@ -31,6 +31,14 @@ WIKIPEDIA_HOSTS: tuple[str, ...] = (
 「Wikipedia:ウィキペディアを情報源とするサイト」が転載サイトとして挙げるもののうち、
 転載が主であるもの。Weblio はウィキペディアの写しを他の辞書と同じ
 ``www.weblio.jp/content/`` に並べており、ホスト名では見分けられないため含めない。
+ウィキペディアの写しだけを指す形は :data:`WIKIPEDIA_PATHS` で拾う。
+"""
+
+WIKIPEDIA_PATHS: tuple[tuple[str, str], ...] = (("weblio.jp", "/wkpja/"),)
+"""ホスト（とそのサブドメイン）とパスの頭の組で、ウィキペディアの写しだけを指す URL。
+
+Weblio の ``/wkpja/`` はウィキペディア日本語版の写しの分類で、``/wkpja/content/<語>`` は
+他の辞書と同じ ``/content/<語>`` へ転送される（2026-11-02 に確かめた）。
 """
 
 _WIKIPEDIA_NAME = re.compile(r"wikipedia|wikiwand|ウィキペディア|フリー百科事典", re.IGNORECASE)
@@ -167,14 +175,28 @@ def is_http_url(url: str) -> bool:
 
 
 def is_wikipedia_url(url: str) -> bool:
-    """ホスト名が :data:`WIKIPEDIA_HOSTS` のいずれか（のサブドメイン）に当たる。"""
+    """ウィキペディアかその転載サイトを指す URL か。
+
+    ホスト名が :data:`WIKIPEDIA_HOSTS` のいずれか（のサブドメイン）に当たるか、
+    :data:`WIKIPEDIA_PATHS` のホストとパスの頭の組に当たるとき真。
+    """
     try:
         host = urlsplit(url).hostname
     except ValueError:
         return False
     if not host:
         return False
-    return any(host == known or host.endswith("." + known) for known in WIKIPEDIA_HOSTS)
+    if any(_host_matches(host, known) for known in WIKIPEDIA_HOSTS):
+        return True
+    path = urlsplit(url).path
+    return any(
+        _host_matches(host, known) and path.startswith(head) for known, head in WIKIPEDIA_PATHS
+    )
+
+
+def _host_matches(host: str, known: str) -> bool:
+    """``host`` が ``known`` そのものか、そのサブドメインか。"""
+    return host == known or host.endswith("." + known)
 
 
 def is_full_date(text: str) -> bool:
