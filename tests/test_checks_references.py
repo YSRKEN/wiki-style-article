@@ -2,9 +2,28 @@ from pathlib import Path
 
 import pytest
 
-from helpers import Level, make_article, only, rules, run
+from helpers import Finding, Level, make_article, only, rules
+from helpers import run as run_all
 from wikiskill.checks import check_article
 from wikiskill.reader import read_article_file
+
+REFERENCE_RULES = {
+    "REF-UNDEFINED",
+    "NOTE-UNDEFINED",
+    "REF-UNUSED",
+    "NOTE-UNUSED",
+    "REF-WIKIPEDIA",
+    "REF-WIKIPEDIA-NAME",
+    "REF-DATE",
+    "REF-ACCESS-DATE",
+    "REF-URL",
+    "LINK-URL",
+}
+
+
+def run(body: str = "本文。", settings: str = "") -> tuple[Finding, ...]:
+    """出典に関わる規則の指摘だけを返す（本文の文体などの警告は別の試験で見る）。"""
+    return tuple(f for f in run_all(body, settings) if f.rule in REFERENCE_RULES)
 
 
 def ref(extra: str = "", key: str = "a") -> str:
