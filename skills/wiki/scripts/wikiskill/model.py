@@ -2,11 +2,15 @@
 
 記事 → 導入部と節の木 → 段落・箇条書き → 文中の部品、の順に入れ子になる。
 設定欄の中身（Infobox・出典・注釈など）は :class:`Settings` に型つきで入る。
+
+段落・箇条書き・節・Infobox の項目・出典・注釈・外部リンクは、原稿ファイル全体での行番号
+（1 始まり）を ``line`` に持つ。検査の結果に行を載せるためのもので、等しさの比較には使わない
+（``compare=False``）。段落と箇条書きの項目の行は、その先頭の行。
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal, TypeAlias
 
 RefKind = Literal["web", "book", "news"]
@@ -72,13 +76,19 @@ class Paragraph:
     """段落。"""
 
     content: tuple[Inline, ...]
+    line: int = field(default=0, compare=False)
 
 
 @dataclass(frozen=True)
 class BulletList:
-    """箇条書き（入れ子なし）。``items`` の各要素が一項目の中身。"""
+    """箇条書き（入れ子なし）。``items`` の各要素が一項目の中身。
+
+    ``line`` は最初の項目の行、``item_lines`` は各項目の先頭の行。
+    """
 
     items: tuple[tuple[Inline, ...], ...]
+    line: int = field(default=0, compare=False)
+    item_lines: tuple[int, ...] = field(default=(), compare=False)
 
 
 Block: TypeAlias = Paragraph | BulletList
@@ -93,6 +103,7 @@ class Section:
     title: str
     blocks: tuple[Block, ...]
     children: tuple[Section, ...]
+    line: int = field(default=0, compare=False)
 
 
 # --- 設定欄 ----------------------------------------------------------------
@@ -104,6 +115,7 @@ class InfoboxField:
 
     name: str
     value: str
+    line: int = field(default=0, compare=False)
 
 
 @dataclass(frozen=True)
@@ -122,6 +134,12 @@ class Reference:
     isbn: str | None = None
     pages: str | None = None
     note: str | None = None
+    line: int = field(default=0, compare=False)
+    field_lines: tuple[tuple[str, int], ...] = field(default=(), compare=False)
+
+    def line_of(self, name: str) -> int:
+        """項目 ``name``（``url`` など）が書かれた行。書かれていなければ表の見出しの行。"""
+        return dict(self.field_lines).get(name, self.line)
 
 
 @dataclass(frozen=True)
@@ -130,6 +148,7 @@ class Note:
 
     key: str
     text: tuple[Inline, ...]
+    line: int = field(default=0, compare=False)
 
 
 @dataclass(frozen=True)
@@ -138,6 +157,7 @@ class ExternalLink:
 
     title: str
     url: str
+    line: int = field(default=0, compare=False)
 
 
 @dataclass(frozen=True)

@@ -59,6 +59,11 @@ class _Lines:
         self._texts = [text]
         self._numbers = [number]
 
+    @property
+    def first_line(self) -> int:
+        """先頭の行の原稿ファイル全体での行番号。"""
+        return self._numbers[0]
+
     def add(self, text: str, number: int) -> None:
         """続きの行を足す。"""
         self._texts.append(text)
@@ -81,9 +86,10 @@ class _Lines:
 class _SectionBuilder:
     """組み立て中の節。"""
 
-    def __init__(self, level: int, title: str) -> None:
+    def __init__(self, level: int, title: str, line: int) -> None:
         self.level = level
         self.title = title
+        self.line = line
         self.blocks: list[Block] = []
         self.children: list[_SectionBuilder] = []
 
@@ -94,6 +100,7 @@ class _SectionBuilder:
             self.title,
             tuple(self.blocks),
             tuple(child.build() for child in self.children),
+            line=self.line,
         )
 
 
@@ -165,7 +172,7 @@ class _BodyBuilder:
                 number,
             )
 
-        section = _SectionBuilder(level, title)
+        section = _SectionBuilder(level, title, number)
         (self._stack[-1].children if self._stack else self._roots).append(section)
         self._stack.append(section)
 
@@ -179,11 +186,14 @@ class _BodyBuilder:
 
     def _flush_paragraph(self) -> None:
         if self._paragraph is not None:
-            self._container().append(Paragraph(self._paragraph.to_inline()))
+            self._container().append(
+                Paragraph(self._paragraph.to_inline(), line=self._paragraph.first_line)
+            )
             self._paragraph = None
 
     def _flush_bullets(self) -> None:
         if self._bullets:
             items = tuple(item.to_inline() for item in self._bullets)
-            self._container().append(BulletList(items))
+            item_lines = tuple(item.first_line for item in self._bullets)
+            self._container().append(BulletList(items, line=item_lines[0], item_lines=item_lines))
             self._bullets = []
