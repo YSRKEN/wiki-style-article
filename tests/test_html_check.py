@@ -221,3 +221,16 @@ def test_データuriの画像は外部の資源ではない() -> None:
     html = _page('<style>p{background:url("data:image/svg+xml,%3Csvg%3E")}</style><p>甲</p>')
 
     assert _rules(html) == []
+
+
+@pytest.mark.parametrize("type_id", [t.id for t in REGISTRY])
+def test_すべての類型で書き出しは検査を通る(type_id: str) -> None:
+    fields = "".join(f'"{f.label}" = "値"\n' for f in REGISTRY[type_id].fields)
+    infobox = f"[infobox]\n{fields}" if fields else ""
+    source = f'+++\ntitle = "試験"\ntype = "{type_id}"\n{infobox}+++\n導入。\n\n## 節\n\n本文。\n'
+    article = read_article(source)
+
+    html = write_html(article, REGISTRY[type_id], updated=UPDATED)
+
+    assert check_html(html) == ()
+    assert ('class="infobox"' in html) == bool(fields)

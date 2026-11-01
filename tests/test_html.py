@@ -511,3 +511,31 @@ def test_値のない末尾の部分は節も欄も作らない() -> None:
     assert "関連項目" not in out
     assert "外部リンク" not in out
     assert "catlinks" not in out
+
+
+# --- 雛形 -------------------------------------------------------------------------
+
+
+def test_雛形に知らない差し込み口があれば例外() -> None:
+    article = read_article(_src("本文。\n"))
+
+    with pytest.raises(HtmlError, match="NOPE"):
+        write_html(article, REGISTRY["concept"], updated=UPDATED, template="{{NOPE}}")
+
+
+def test_差し込み口だけの行は値が空なら行ごと消える() -> None:
+    article = read_article(_src("本文。\n"))
+    template = "<p>{{PAGE_TITLE}}</p>\n{{INFOBOX}}\n  {{LEAD}}\n{{CATEGORIES}}\nおわり\n"
+
+    out = write_html(article, REGISTRY["concept"], updated=UPDATED, template=template)
+
+    assert out == "<p>テスト記事</p>\n<p>本文。</p>\nおわり\n"
+
+
+def test_値の中の波括弧は差し込み口として置き換わらない() -> None:
+    article = read_article(_src("{{LEAD}} と {{PAGE_TITLE}}。\n"))
+    template = "{{LEAD}}\n"
+
+    out = write_html(article, REGISTRY["concept"], updated=UPDATED, template=template)
+
+    assert out == "<p>&#123;&#123;LEAD&#125;&#125; と &#123;&#123;PAGE_TITLE&#125;&#125;。</p>\n"
