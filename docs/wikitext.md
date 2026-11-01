@@ -9,7 +9,7 @@ from wikiskill.wikitext import write_wikitext
 
 article = read_article_file("article.md")
 article_type = load_default_registry()[article.settings.type_id]
-text = write_wikitext(article, article_type)                  # 本家の形（既定）
+text = write_wikitext(article, article_type)  # 本家の形（既定）
 plain = write_wikitext(article, article_type, style="plain")  # 素の記法
 ```
 
