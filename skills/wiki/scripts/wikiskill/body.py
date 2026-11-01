@@ -22,6 +22,9 @@ _HEADING = re.compile(r"(#+)(?:[ \t]+(.*))?")
 _BULLET = re.compile(r"- (.*)")
 _NESTED_BULLET = re.compile(r"[ \t]+- ")
 
+_INDENT = " 	"
+"""行頭・行末から取り除く空白。全角空白は取り除かず、字下げの誤りとして検査（FULLWIDTH-SPACE）に回す。"""
+
 _MIN_HEADING_LEVEL = 2
 _MAX_HEADING_LEVEL = 4
 
@@ -121,7 +124,7 @@ class _BodyBuilder:
     ) -> tuple[tuple[Block, ...], tuple[Section, ...]]:
         """全行を読んで結果を返す。"""
         for number, raw in enumerate(lines, start=first_line):
-            self._read_line(raw.rstrip(), number)
+            self._read_line(raw.rstrip(_INDENT), number)
         self._flush()
         return tuple(self._lead), tuple(root.build() for root in self._roots)
 
@@ -141,17 +144,17 @@ class _BodyBuilder:
         bullet = _BULLET.fullmatch(line)
         if bullet is not None:
             self._flush_paragraph()
-            self._bullets.append(_Lines(bullet.group(1).strip(), number))
+            self._bullets.append(_Lines(bullet.group(1).strip(_INDENT), number))
         elif self._bullets:
             if line[0] not in " \t":
                 raise MarkupError(
                     "箇条書きの直後に空行なしで段落は続けられない（空行を入れる）", number
                 )
-            self._bullets[-1].add(line.strip(), number)
+            self._bullets[-1].add(line.strip(_INDENT), number)
         elif self._paragraph is None:
-            self._paragraph = _Lines(line.strip(), number)
+            self._paragraph = _Lines(line.strip(_INDENT), number)
         else:
-            self._paragraph.add(line.strip(), number)
+            self._paragraph.add(line.strip(_INDENT), number)
 
     def _start_section(self, level: int, title: str, number: int) -> None:
         if not _MIN_HEADING_LEVEL <= level <= _MAX_HEADING_LEVEL:

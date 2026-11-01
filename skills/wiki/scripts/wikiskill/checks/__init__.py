@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from wikiskill.checks.finding import Finding, Level
+from wikiskill.checks.notation import check_notation
 from wikiskill.checks.references import check_references
 from wikiskill.model import Article
 
@@ -36,6 +37,6 @@ def check_article(article: Article) -> tuple[Finding, ...]:
     tuple[Finding, ...]
         行番号の昇順。同じ行ではエラーが先、そのあと規則の ID の順。
     """
-    findings = [*check_references(article)]
+    findings = [*check_references(article), *check_notation(article)]
     findings.sort(key=lambda f: (f.line, f.level is not Level.ERROR, f.rule))
     return tuple(findings)
