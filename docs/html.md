@@ -5,7 +5,7 @@
 ```python
 from wikiskill import read_article_file
 from wikiskill.types import load_default_registry
-from wikiskill.html import write_html
+from wikiskill.html_writer import write_html
 from wikiskill.html_check import check_html
 
 article = read_article_file("article.md")
@@ -148,7 +148,7 @@ Infobox                            （値のある項目が一つもなければ
 
 ## 例外
 
-どれも `wikiskill.html.HtmlError`（`ValueError` の仲間）。
+どれも `wikiskill.html_writer.HtmlError`（`ValueError` の仲間）。
 
 | 例外 | 原因 |
 | --- | --- |
@@ -177,4 +177,4 @@ Infobox                            （値のある項目が一つもなければ
 
 ## 注意
 
-`html.py` と `html_check.py` のファイル名は標準ライブラリの `html` と同じ綴りを含む。`wikiskill/` の中を `sys.path` の先頭にして実行すると標準ライブラリを隠してしまうので、パッケージの外から `wikiskill.html` として読む。
+書き出しのモジュールを `html.py` ではなく `html_writer.py` にしているのは、標準ライブラリの `html` と同じ名前にすると、`wikiskill/` の中を `sys.path` の先頭にして実行したときに標準ライブラリを隠してしまうため。

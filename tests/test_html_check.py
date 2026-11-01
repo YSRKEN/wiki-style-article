@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from wikiskill.html import write_html
 from wikiskill.html_check import HtmlFinding, check_html
+from wikiskill.html_writer import write_html
 from wikiskill.reader import read_article, read_article_file
 from wikiskill.types import load_default_registry
 

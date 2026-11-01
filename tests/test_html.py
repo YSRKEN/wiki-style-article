@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from wikiskill.html import (
+from wikiskill.html_writer import (
     HtmlError,
     NestedFootnoteError,
     UnknownFootnoteError,

@@ -85,7 +85,7 @@ def check_html(html: str) -> tuple[HtmlFinding, ...]:
     Parameters
     ----------
     html : str
-        :func:`wikiskill.html.write_html` が書き出した HTML。
+        :func:`wikiskill.html_writer.write_html` が書き出した HTML。
 
     Returns
     -------
