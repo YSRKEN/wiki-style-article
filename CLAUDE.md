@@ -23,3 +23,11 @@ git config pull.ff only
 ```
 
 `.scratch/`（wayfinder の地図とチケット、調べた結果）は作業メモなので git に入れない。
+
+## 検査
+
+ruff・ruff format・pyright（strict）・pytest をまとめて流す。初回は `uv sync` で開発用の依存を入れる。
+
+```bash
+uv run scripts/check.py
+```
