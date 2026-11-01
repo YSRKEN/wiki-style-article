@@ -1,0 +1,211 @@
+"""原稿を読み、検査し、HTML とウィキテキストを書き出すコマンドの入口。
+
+使い方::
+
+    python -m wikiskill build 原稿.md [--style plain] [--out-dir 出力先] [--updated 日時]
+    python -m wikiskill check 原稿.md
+
+``build`` は原稿の隣（``--out-dir`` で変えられる）に ``<原稿の名前>.html`` と
+``<原稿の名前>.wikitext`` を書き出す。``check`` は検査だけして何も書き出さない。
+
+出力は 1 行に 1 件で、検査の指摘（``12 行目 [警告] RULE: …``）、件数のまとめ、
+書き出したファイルの順。終了コードは次のとおり。
+
+- 0: 書き出した（``check`` ではエラーが無かった）。警告があっても 0
+- 1: 原稿にエラーがあって書き出していない。指摘を見て原稿を直す
+- 2: 呼び方の誤り（引数・原稿のファイルが無い）
+
+詳しくは ``docs/cli.md``。
+"""
+
+from __future__ import annotations
+
+import argparse
+import io
+import sys
+from collections.abc import Sequence
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import NoReturn
+
+from wikiskill.checks import Finding, Level, check_article
+from wikiskill.errors import SourceError
+from wikiskill.html_check import check_html
+from wikiskill.html_inline import HtmlError
+from wikiskill.html_writer import write_html
+from wikiskill.reader import read_article_file
+from wikiskill.types import load_default_registry
+from wikiskill.wikitext import WIKITEXT_STYLES, WikitextError, WikitextStyle, write_wikitext
+
+__all__ = ["format_updated", "main", "run"]
+
+_WEEKDAYS = "月火水木金土日"
+_JST = timedelta(hours=9)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """コマンドを流して、終了コードを返す。
+
+    Parameters
+    ----------
+    argv : Sequence[str] | None
+        コマンドの引数（プログラム名は含めない）。省くと ``sys.argv[1:]``。
+
+    Returns
+    -------
+    int
+        終了コード。0・1・2 の意味はモジュールの説明のとおり。
+    """
+    try:
+        args = _parser().parse_args(argv)
+    except SystemExit as stop:
+        # argparse は誤りでも --help でも抜けようとする。呼ぶ側へ終了コードで返す。
+        return stop.code if isinstance(stop.code, int) else 2
+    source = Path(args.source)
+    if not source.is_file():
+        print(f"原稿が見つからない: {source}", file=sys.stderr)
+        return 2
+    if args.command == "check":
+        return _check(source)
+    return _build(
+        source,
+        style=args.style,
+        out_dir=Path(args.out_dir) if args.out_dir else source.parent,
+        updated=args.updated or format_updated(datetime.now().astimezone()),
+    )
+
+
+def run() -> NoReturn:
+    """``python -m wikiskill`` などから呼ぶ。出力を UTF-8 にして :func:`main` を流す。"""
+    # Windows で PYTHONUTF8 が立っていないと、出力が cp932 になり、AI が読むと文字化けする。
+    for stream in (sys.stdout, sys.stderr):
+        if isinstance(stream, io.TextIOWrapper):
+            stream.reconfigure(encoding="utf-8")
+    sys.exit(main())
+
+
+def format_updated(moment: datetime) -> str:
+    """最終更新の日時を、本家のフッタの形（``2026年11月2日 (月) 12:00 (JST)``）にする。
+
+    Parameters
+    ----------
+    moment : datetime
+        時差つきの日時。現地時刻なら ``datetime.now().astimezone()``。
+
+    Returns
+    -------
+    str
+        日付・曜日・時刻・時間帯。時間帯は UTC+9 なら ``JST``、時差 0 なら ``UTC``、
+        ほかは ``UTC+05:30`` の形。
+
+    Raises
+    ------
+    ValueError
+        時差の無い日時を渡したとき。
+    """
+    offset = moment.utcoffset()
+    if offset is None:
+        raise ValueError("時差の無い日時は受け付けない。datetime.now().astimezone() を渡す")
+    weekday = _WEEKDAYS[moment.weekday()]
+    return (
+        f"{moment.year}年{moment.month}月{moment.day}日 ({weekday}) "
+        f"{moment:%H:%M} ({_zone_name(offset)})"
+    )
+
+
+# --- 下請け -----------------------------------------------------------------------
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="wikiskill", description="Wikipedia風の記事の原稿を検査して書き出す。"
+    )
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    build = commands.add_parser("build", help="検査して、HTML とウィキテキストを書き出す")
+    build.add_argument("source", help="原稿のファイル（UTF-8 の Markdown）")
+    build.add_argument(
+        "--style",
+        choices=WIKITEXT_STYLES,
+        default="wikipedia",
+        help="ウィキテキストの書き方。wikipedia は本家の形（既定）、plain は素の記法",
+    )
+    build.add_argument("--out-dir", help="書き出し先のフォルダ。省くと原稿と同じフォルダ")
+    build.add_argument("--updated", help="最終更新の日時の文字列。省くと今の現地時刻")
+
+    check = commands.add_parser("check", help="検査だけして、何も書き出さない")
+    check.add_argument("source", help="原稿のファイル（UTF-8 の Markdown）")
+    return parser
+
+
+def _check(source: Path) -> int:
+    findings = _read_and_check(source)
+    return 1 if findings is None or _has_error(findings) else 0
+
+
+def _build(source: Path, *, style: WikitextStyle, out_dir: Path, updated: str) -> int:
+    findings = _read_and_check(source)
+    if findings is None or _has_error(findings):
+        print("エラーを直すまで書き出していない。")
+        return 1
+
+    # 検査を通った原稿なので、読み直しても同じ記事になる。
+    article = read_article_file(source)
+    article_type = load_default_registry()[article.settings.type_id]
+    try:
+        html = write_html(article, article_type, updated)
+        wikitext = write_wikitext(article, article_type, style=style)
+    except (HtmlError, WikitextError) as error:
+        print(f"[エラー] WRITE: {error}")
+        print("書き出していない。")
+        return 1
+    html_findings = check_html(html)
+    if html_findings:
+        for finding in html_findings:
+            print(f"[エラー] {finding}")
+        print("書き出した HTML が検査を通らないので書き出していない（スクリプトの不具合の恐れ）。")
+        return 1
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for suffix, text in ((".html", html), (".wikitext", wikitext)):
+        path = out_dir / f"{source.stem}{suffix}"
+        # Windows でも改行を LF のまま書く（本家のウィキテキストも LF）。
+        path.write_text(text, encoding="utf-8", newline="\n")
+        print(f"書き出した: {path}")
+    return 0
+
+
+def _read_and_check(source: Path) -> tuple[Finding, ...] | None:
+    """原稿を読んで検査し、指摘と件数を出す。読み取れなければ ``None``。"""
+    try:
+        article = read_article_file(source)
+    except SourceError as error:
+        print(f"{error.line} 行目 [エラー] READ: {error.message}")
+        _print_counts(errors=1, warnings=0)
+        return None
+    findings = check_article(article, load_default_registry())
+    for finding in findings:
+        print(finding)
+    errors = sum(1 for finding in findings if finding.level is Level.ERROR)
+    _print_counts(errors=errors, warnings=len(findings) - errors)
+    return findings
+
+
+def _print_counts(*, errors: int, warnings: int) -> None:
+    print(f"エラー {errors} 件、警告 {warnings} 件。")
+    if warnings:
+        print("警告は前後を読み直し、直すか残すかを決める。")
+
+
+def _has_error(findings: tuple[Finding, ...]) -> bool:
+    return any(finding.level is Level.ERROR for finding in findings)
+
+
+def _zone_name(offset: timedelta) -> str:
+    if offset == _JST:
+        return "JST"
+    if not offset:
+        return "UTC"
+    sign = "+" if offset > timedelta(0) else "-"
+    minutes = abs(offset) // timedelta(minutes=1)
+    return f"UTC{sign}{minutes // 60:02}:{minutes % 60:02}"
