@@ -253,6 +253,29 @@ def test_type_の雛形は_TOML_として読めて項目は定義の順(capsys: 
     assert list(data["infobox"]) == [f.label for f in REGISTRY["manga"].fields]
 
 
+@pytest.mark.parametrize("type_id", [t.id for t in REGISTRY])
+def test_type_の雛形はどの類型でも定義の項目と寄せ先に合う(
+    type_id: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    import tomllib
+
+    article_type = REGISTRY[type_id]
+
+    assert main(["type", type_id]) == 0
+
+    out = capsys.readouterr().out
+    data = tomllib.loads(out)
+    assert data["type"] == type_id
+    if article_type.has_infobox:
+        assert list(data["infobox"]) == [f.label for f in article_type.fields]
+        assert set(data["infobox"].values()) == {""}
+    else:
+        assert "infobox" not in data
+    guides = [line for line in out.splitlines() if line.startswith("# 節の並びと書き方: ")]
+    expected = article_type.parents or (type_id,)
+    assert guides == [f"# 節の並びと書き方: references/types/{g}.md" for g in expected]
+
+
 def test_type_の細かい種類は寄せ先の参照ファイルを案内する(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
