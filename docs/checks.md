@@ -4,11 +4,14 @@ AI が書いた原稿を読み取った結果（[原稿の書き方](source-form
 
 ```python
 from wikiskill import read_article_file
+from wikiskill import load_default_registry
 from wikiskill.checks import check_article
 
-for finding in check_article(read_article_file("原稿.md")):
+for finding in check_article(read_article_file("原稿.md"), load_default_registry()):
     print(finding)  # 15 行目 [エラー] REF-UNDEFINED: 脚注の印 [^x] に対応する …
 ```
+
+第二引数は類型の定義（`wikiskill.load_default_registry()`）。渡すと、原稿の `type` と Infobox を定義と突き合わせる規則（下の E）も検査する。省くとその規則だけが動かず、ほかの規則は同じに動く。
 
 `check_article` は `Finding(level, rule, message, line)` の並びを、行番号の昇順（同じ行ではエラーが先、あとは規則の ID の順）で返す。
 
@@ -31,7 +34,7 @@ for finding in check_article(read_article_file("原稿.md")):
 - 本文（導入部・節の段落と箇条書き）、節の見出し、Infobox の値、注釈の本文を、記法を取り除いた「画面に出る文字」として検査する。出典の題・著者などの項目は、出典の規則（下の A）だけが見る
 - 行番号は、段落なら**段落の先頭の行**、箇条書きなら**項目の先頭の行**を指す。段落の中で複数行にまたがる文でも、指摘の文面に前後の文字を添えるので、そこから探す
 - 同じ行・同じ規則・同じ文字の指摘は一件にまとめる
-- Infobox の欠けた項目の検査は、類型の定義が別に作られているので、ここには無い（後で足す）
+- Infobox の項目の検査（下の E）は、類型の定義（`registry`）を渡したときだけ動く。読み取り結果は `type` の行と `[infobox]` の見出しの行を持たないので、`TYPE-UNKNOWN` は冒頭の行（1 行目）、`INFOBOX-MISSING` は Infobox の最初の項目の行（項目が無ければ 1 行目）を指す
 - 敬称「氏」「様」「先生」は検出しない（藤原**氏**・多**様**・同**様**・**先生**のように、人名の敬称でない用法が多く、警告が埋もれる）。「さん」と「（故人）」だけを見る
 
 ## 規則の一覧
@@ -101,8 +104,16 @@ for finding in check_article(read_article_file("原稿.md")):
 | `LEAD-NO-BOLD` | 警告 | 導入部の最初のまとまりに太字が無い | 記事名を太字にするのが作法だが、題名の言い換えを使う記事もあるので警告。導入部が空なら出さない |
 | `TRIVIA-SECTION` | 警告 | 節の名前が「トリビア」「豆知識」「余談」「雑学」「小ネタ」「その他」「エピソード」「備考」など | 作品の「エピソード」（各話）は正当なことがある。`その他の作品`は通る |
 
+### E. 類型と Infobox（類型の定義を渡したときだけ）
+
+| ID | レベル | 内容 | 誤検出の例・振り分けの理由 |
+| --- | --- | --- | --- |
+| `TYPE-UNKNOWN` | エラー | 原稿の `type` が類型の定義にない ID | 突き合わせなので誤検出が無い。これが出たら Infobox の検査はしない（どの定義と比べるか決まらない） |
+| `INFOBOX-MISSING` | エラー | 類型の必須の項目が `[infobox]` にない（値が空白だけの項目も無いものとする） | 突き合わせなので誤検出が無い。定義の `title_field` の項目は、無ければ書き出しが記事名で埋めるので欠けとしない。Infobox を持たない型では出さない。項目ごとに一件 |
+| `INFOBOX-UNKNOWN-FIELD` | 警告 | 定義にない項目名が `[infobox]` にある。Infobox を持たない型に項目を書いたときも出す | 書き出しは定義にない項目を本家のテンプレートの引数に写せず、捨てるしかないので直したい。ただし定義の項目の一覧はまだ全部ではなく（番号つきの引数などを収録していない）、正しい項目でも引っかかりうるので警告にとどめる。見本の「連載期間」は、定義の漫画では「発表期間」なので実際に引っかかる |
+
 ## 規則を足すとき
 
 1. 試験を先に書く（`tests/test_checks_*.py`。引っかかる例と、誤検出しやすい例の両方）
-2. 文字を探す規則は `checks/notation.py`・`checks/wording.py` の表に `Pattern` を足す。構造や突き合わせは `checks/structure.py`・`checks/references.py` に関数を足す
+2. 文字を探す規則は `checks/notation.py`・`checks/wording.py` の表に `Pattern` を足す。構造や突き合わせは `checks/structure.py`・`checks/references.py`、類型の定義との突き合わせは `checks/infobox.py` に関数を足す
 3. この表に、ID・レベル・誤検出の例・振り分けの理由を書く

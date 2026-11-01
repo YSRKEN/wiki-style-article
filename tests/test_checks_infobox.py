@@ -1,0 +1,196 @@
+"""Infobox を類型の定義と突き合わせる規則の試験。"""
+
+from textwrap import dedent
+
+import pytest
+
+from helpers import Level, only
+from wikiskill.checks import Finding, check_article
+from wikiskill.model import Article
+from wikiskill.reader import read_article, read_article_file
+from wikiskill.types import TypeRegistry, load_default_registry, parse_registry
+
+# 試験用の小さな定義。person は名前（title_field）・生年月日（必須）・職業（必須）・出身地、
+# note は Infobox を持たない型。
+REGISTRY = parse_registry(
+    dedent(
+        """
+        [[type]]
+        id = "person"
+        name = "人物"
+        [[type.infobox]]
+        template = "Infobox 人物"
+        title_field = "名前"
+        required = ["生年月日", "職業"]
+        [type.infobox.fields]
+        "名前" = "名前"
+        "生年月日" = "生年月日"
+        "職業" = "職業"
+        "出身地" = "出身地"
+
+        [[type]]
+        id = "tv"
+        name = "番組"
+        [[type.infobox]]
+        template = "Header"
+        required = ["局"]
+        [type.infobox.fields]
+        "局" = "放送局"
+        [[type.infobox]]
+        template = "Body"
+        required = ["開始"]
+        [type.infobox.fields]
+        "開始" = "放送開始"
+
+        [[type]]
+        id = "note"
+        name = "覚え書き"
+        no_infobox = true
+        """
+    )
+)
+
+
+def article(type_id: str, infobox: str = "") -> Article:
+    """``type`` が 3 行目、``[infobox]`` が 4 行目（書けば）、項目が 5 行目から始まる原稿。"""
+    table = f"[infobox]\n{infobox.strip(chr(10))}\n" if infobox else ""
+    return read_article(
+        f"+++\ntitle = \"試験\"\ntype = \"{type_id}\"\n{table}+++\n\n'''試験'''は例。\n"
+    )
+
+
+def run(type_id: str, infobox: str = "", registry: TypeRegistry = REGISTRY) -> tuple[Finding, ...]:
+    return check_article(article(type_id, infobox), registry)
+
+
+# --- TYPE-UNKNOWN ------------------------------------------------------------
+
+
+def test_定義にない型はエラー() -> None:
+    findings = only(run("person-living-x"), "TYPE-UNKNOWN")
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert findings[0].line == 1
+    assert "person-living-x" in findings[0].message
+
+
+def test_定義にある型は引っかからない() -> None:
+    assert only(run("person", '"生年月日" = "1990年"\n"職業" = "作家"'), "TYPE-UNKNOWN") == []
+
+
+def test_型が未知のときは項目の検査をしない() -> None:
+    findings = run("nothing", '"何か" = "値"')
+    assert [f.rule for f in findings] == ["TYPE-UNKNOWN"]
+
+
+# --- INFOBOX-MISSING ---------------------------------------------------------
+
+
+def test_必須の項目が無ければ項目ごとにエラー() -> None:
+    findings = only(run("person", '"出身地" = "東京"'), "INFOBOX-MISSING")
+    assert len(findings) == 2
+    assert all(f.level is Level.ERROR for f in findings)
+    assert {("生年月日" in f.message, "職業" in f.message) for f in findings} == {
+        (True, False),
+        (False, True),
+    }
+    # 行は Infobox の最初の項目の行（5 行目）
+    assert {f.line for f in findings} == {5}
+
+
+def test_Infoboxが無い原稿でも必須の欠けを見つける() -> None:
+    findings = only(run("person"), "INFOBOX-MISSING")
+    assert len(findings) == 2
+    assert {f.line for f in findings} == {1}
+
+
+def test_必須の項目が揃っていれば引っかからない() -> None:
+    assert only(run("person", '"生年月日" = "1990年"\n"職業" = "作家"'), "INFOBOX-MISSING") == []
+
+
+def test_title_fieldの項目は無くても欠けとしない() -> None:
+    findings = only(run("person", '"生年月日" = "1990年"\n"職業" = "作家"'), "INFOBOX-MISSING")
+    assert findings == []
+    assert all("名前" not in f.message for f in only(run("person"), "INFOBOX-MISSING"))
+
+
+def test_値が空白だけの必須の項目は欠けとする() -> None:
+    findings = only(run("person", '"生年月日" = "1990年"\n"職業" = "  "'), "INFOBOX-MISSING")
+    assert len(findings) == 1
+    assert "職業" in findings[0].message
+    assert findings[0].line == 5
+
+
+def test_部品をまたいで必須の項目を見る() -> None:
+    findings = only(run("tv", '"局" = "架空放送"'), "INFOBOX-MISSING")
+    assert len(findings) == 1
+    assert "開始" in findings[0].message
+
+
+def test_Infoboxを持たない型では必須の検査をしない() -> None:
+    assert only(run("note"), "INFOBOX-MISSING") == []
+
+
+# --- INFOBOX-UNKNOWN-FIELD ---------------------------------------------------
+
+
+def test_定義にない項目名は警告() -> None:
+    infobox = '"生年月日" = "1990年"\n"職業" = "作家"\n"血液型" = "A型"'
+    findings = only(run("person", infobox), "INFOBOX-UNKNOWN-FIELD")
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 7
+    assert "血液型" in findings[0].message
+
+
+def test_定義にある項目名は引っかからない() -> None:
+    infobox = '"名前" = "試験"\n"生年月日" = "1990年"\n"職業" = "作家"\n"出身地" = "東京"'
+    assert only(run("person", infobox), "INFOBOX-UNKNOWN-FIELD") == []
+
+
+def test_Infoboxを持たない型にInfoboxを書くと警告() -> None:
+    findings = only(run("note", '"何か" = "値"'), "INFOBOX-UNKNOWN-FIELD")
+    assert len(findings) == 1
+    assert findings[0].line == 5
+    assert "Infobox を持たない" in findings[0].message
+
+
+def test_Infoboxを持たない型でInfoboxが無ければ何も出ない() -> None:
+    assert run("note") == ()
+
+
+# --- check_article の入口 ----------------------------------------------------
+
+
+def test_registryを渡さなければ類型の規則は動かない() -> None:
+    assert check_article(article("nothing", '"何か" = "値"')) == ()
+
+
+def test_既定の定義も渡せる() -> None:
+    findings = check_article(article("meme"), load_default_registry())
+    assert findings == ()
+    unknown = check_article(article("nothing"), load_default_registry())
+    assert [f.rule for f in unknown] == ["TYPE-UNKNOWN"]
+
+
+def test_既定の定義で見本の原稿を検査すると必須は揃い連載期間だけ警告() -> None:
+    from pathlib import Path
+
+    sample = Path(__file__).parent / "fixtures" / "sample_article.md"
+    findings = check_article(read_article_file(sample), load_default_registry())
+    assert [(f.rule, f.line) for f in findings] == [("INFOBOX-UNKNOWN-FIELD", 13)]
+    assert "連載期間" in findings[0].message
+
+
+def test_指摘は行番号の順に並ぶ() -> None:
+    infobox = '"出身地" = "東京"\n"血液型" = "A型"'
+    lines = [f.line for f in run("person", infobox)]
+    assert lines == sorted(lines)
+
+
+@pytest.mark.parametrize("type_id", [t.id for t in load_default_registry()])
+def test_既定の定義の全部の型で必須の項目が揃えば何も出ない(type_id: str) -> None:
+    article_type = load_default_registry()[type_id]
+    lines = "\n".join(f'"{f.label}" = "値"' for f in article_type.required_fields)
+    findings = check_article(article(type_id, lines), load_default_registry())
+    assert findings == ()

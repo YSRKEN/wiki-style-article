@@ -17,22 +17,29 @@
 from __future__ import annotations
 
 from wikiskill.checks.finding import Finding, Level
+from wikiskill.checks.infobox import check_infobox
 from wikiskill.checks.notation import check_notation
 from wikiskill.checks.references import check_references
 from wikiskill.checks.structure import check_structure
 from wikiskill.checks.wording import check_wording
 from wikiskill.model import Article
+from wikiskill.types import TypeRegistry
 
 __all__ = ["Finding", "Level", "check_article"]
 
 
-def check_article(article: Article) -> tuple[Finding, ...]:
+def check_article(article: Article, registry: TypeRegistry | None = None) -> tuple[Finding, ...]:
     """記事を検査して、見つかったものを行番号の順に返す。
 
     Parameters
     ----------
     article : Article
         :func:`wikiskill.read_article` で読み取った記事。
+    registry : TypeRegistry | None
+        類型の定義。渡すと、原稿の ``type`` と Infobox を定義と突き合わせる規則
+        （``TYPE-UNKNOWN``・``INFOBOX-MISSING``・``INFOBOX-UNKNOWN-FIELD``）も検査する。
+        通常は :func:`wikiskill.load_default_registry` の結果を渡す。省くとそれらの規則は
+        検査せず、定義に依らない規則だけを検査する。
 
     Returns
     -------
@@ -45,5 +52,7 @@ def check_article(article: Article) -> tuple[Finding, ...]:
         *check_notation(article),
         *check_wording(article),
     ]
+    if registry is not None:
+        findings.extend(check_infobox(article, registry))
     findings.sort(key=lambda f: (f.line, f.level is not Level.ERROR, f.rule))
     return tuple(findings)

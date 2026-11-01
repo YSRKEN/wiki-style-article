@@ -23,6 +23,9 @@ FUNCTION_RULES: dict[str, Level] = {
     "SELF-LINK": Level.ERROR,
     "LEAD-NO-BOLD": Level.WARNING,
     "TRIVIA-SECTION": Level.WARNING,
+    "TYPE-UNKNOWN": Level.ERROR,
+    "INFOBOX-MISSING": Level.ERROR,
+    "INFOBOX-UNKNOWN-FIELD": Level.WARNING,
 }
 
 
