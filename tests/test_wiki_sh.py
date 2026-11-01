@@ -64,7 +64,7 @@ def test_python3_を最初に使う(tmp_path: Path) -> None:
 
 
 def test_版の確かめで落ちた_python3_は飛ばす(tmp_path: Path) -> None:
-    # Windows の python3 はストアへ案内するだけの中身の無いものがある
+    # 古い版や、Windows のストアへ案内する python3 の代わり
     folder = _fake_bin(tmp_path, python3=False, python=True)
 
     assert _called(_run(str(folder), "check", "x.md")) == "python <wiki.py> check x.md"

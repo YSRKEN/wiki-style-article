@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
+from wikiskill import cli
 from wikiskill.cli import format_updated, main
+from wikiskill.html_inline import HtmlError
 from wikiskill.html_writer import write_html
 from wikiskill.reader import read_article_file
 from wikiskill.types import load_default_registry
@@ -150,6 +152,45 @@ def test_引数の誤りは終了コード_2(capsys: pytest.CaptureFixture[str])
     assert main(["build", "x.md", "--style", "fancy"]) == 2
     assert main([]) == 2
     capsys.readouterr()
+
+
+def test_build_は書き出しの例外を返して書き出さない(
+    sample: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*_args: object, **_kwargs: object) -> str:
+        raise HtmlError("壊れた")
+
+    monkeypatch.setattr(cli, "write_html", broken)
+
+    code = main(["build", str(sample), "--updated", UPDATED])
+
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "[エラー] WRITE: 壊れた" in out
+    assert not sample.with_suffix(".html").exists()
+    assert not sample.with_suffix(".wikitext").exists()
+
+
+def test_build_は書き出した_HTML_が検査を通らなければ書き出さない(
+    sample: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def leftover(*_args: object, **_kwargs: object) -> str:
+        return "<p>{{LEAD}}</p>\n"
+
+    monkeypatch.setattr(cli, "write_html", leftover)
+
+    code = main(["build", str(sample), "--updated", UPDATED])
+
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "[エラー] HTML-PLACEHOLDER:" in out
+    assert not sample.with_suffix(".html").exists()
+    assert not sample.with_suffix(".wikitext").exists()
+
+
+def test_help_は終了コード_0(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["--help"]) == 0
+    assert "build" in capsys.readouterr().out
 
 
 # --- check ------------------------------------------------------------------------

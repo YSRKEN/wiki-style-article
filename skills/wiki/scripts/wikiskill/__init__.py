@@ -4,6 +4,7 @@
 読み取り結果のデータ型は :mod:`wikiskill.model`、例外は :mod:`wikiskill.errors` にある。
 類型の定義は :func:`load_default_registry`、原稿の検査は :func:`check_article` から使う。
 書き出しは :func:`write_wikitext`・:func:`write_html`、HTML の検査は :func:`check_html` から使う。
+読み取りから書き出しまでを 1 回で流すコマンドは :mod:`wikiskill.cli`（``python -m wikiskill``）。
 """
 
 from wikiskill.checks import Finding, Level, check_article

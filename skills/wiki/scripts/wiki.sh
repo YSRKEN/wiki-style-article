@@ -4,9 +4,9 @@
 #   sh wiki.sh build 原稿.md [--style plain] [--out-dir 出力先] [--updated 日時]
 #   sh wiki.sh check 原稿.md
 #
-# 探す順は python3・python・py・uv。見つかっても版の確かめで落ちるもの（古い版、
-# Windows のストアへ案内するだけの python3）は飛ばす。どれも無ければ入れ方を案内し、
-# 終了コード 3 で終わる。ほかの終了コードは wiki.py のもの（docs/cli.md）。
+# 探す順は python3・python・py・uv。見つかっても 3.11 以上かの確かめが通らないもの
+# （古い版。Windows のストアへ案内する python3 も、通らなければ）は飛ばす。どれも無ければ
+# 入れ方を案内し、終了コード 3 で終わる。ほかの終了コードは wiki.py のもの（docs/cli.md）。
 #
 # dirname などの外のコマンドは使わない（PATH を絞った試験でも動くように）。
 
