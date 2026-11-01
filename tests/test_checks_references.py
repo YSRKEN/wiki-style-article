@@ -100,7 +100,6 @@ def test_同じ出典を何度使ってもよい() -> None:
         "http://WIKIPEDIA.ORG/wiki/Japan",
         "https://ja.wikipedia.org:443/wiki/Japan",
         "https://www.wikiwand.com/ja/articles/Japan",
-        "https://wikipedia.weblio.jp/content/Japan",
     ],
 )
 def test_ウィキペディアと転載サイトを出典にするとエラー(url: str) -> None:

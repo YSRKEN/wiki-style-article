@@ -18,7 +18,6 @@ from wikiskill.model import Article, NoteMark, Reference, RefMark
 WIKIPEDIA_HOSTS: tuple[str, ...] = (
     "wikipedia.org",
     "wikiwand.com",
-    "wikipedia.weblio.jp",
     "wapedia.mobi",
     "wiki5.ru",
     "wpanda.net",
@@ -30,7 +29,8 @@ WIKIPEDIA_HOSTS: tuple[str, ...] = (
 
 ウィキペディア本体（他言語版・モバイル版を含む ``wikipedia.org``）と、
 「Wikipedia:ウィキペディアを情報源とするサイト」が転載サイトとして挙げるもののうち、
-転載が主であるもの。``www.weblio.jp`` 全体は他の辞書も載せるため含めない。
+転載が主であるもの。Weblio はウィキペディアの写しを他の辞書と同じ
+``www.weblio.jp/content/`` に並べており、ホスト名では見分けられないため含めない。
 """
 
 _WIKIPEDIA_NAME = re.compile(r"wikipedia|wikiwand|ウィキペディア|フリー百科事典", re.IGNORECASE)
