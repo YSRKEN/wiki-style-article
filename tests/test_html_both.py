@@ -266,7 +266,8 @@ def test_雛形の切り替えの差し込み口は単独の行にある() -> No
 def test_原文の中の引用元の番号があっても二つの版の検査を通る() -> None:
     source = _SOURCE.replace(
         "試験の概要[^a]。",
-        "試験の概要[^a]。訳（原文：[!原文|en|In 1984, Tsai [24] proposed it.]）。[!噂|噂（原文：[!原文|en|See [7].]）。]",
+        "試験の概要[^a]。訳（原文：[!原文|en|In 1984, Tsai [24] proposed it.]）。"
+        "[!噂|噂（原文：[!原文|en|See [7].]）。]",
         1,
     )
     assert source != _SOURCE
