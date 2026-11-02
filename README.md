@@ -75,9 +75,10 @@ uv run scripts/check.py
 git config core.hooksPath .githooks
 git config branch.main.mergeoptions --no-ff
 git config pull.ff only
+git config push.followTags true
 ```
 
-`plugins/wiki-style-article/` の中身を変えたら、`plugins/wiki-style-article/.claude-plugin/plugin.json` の `version` を上げます（上げずに main へ push しようとすると、pre-push のフックが止めます）。main へのマージの前には、pre-merge-commit のフックが `scripts/check.py` を流し、落ちたらマージを止めます。設計の記録は `docs/` にあります。
+`plugins/wiki-style-article/` の中身を変えたら、`plugins/wiki-style-article/.claude-plugin/plugin.json` の `version` を上げ、`git tag -a v<版> -m "v<版>"` でタグを打ちます（版を上げ忘れたり、版のタグが無かったりすると、main への push を pre-push のフックが止めます）。main へのマージの前には、pre-merge-commit のフックが `scripts/check.py` を流し、落ちたらマージを止めます。設計の記録は `docs/` にあります。
 
 ## English
 

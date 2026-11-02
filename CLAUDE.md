@@ -20,7 +20,10 @@ Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root. See `docs/ag
 git config core.hooksPath .githooks
 git config branch.main.mergeoptions --no-ff
 git config pull.ff only
+git config push.followTags true
 ```
+
+プラグインの中身（`plugins/wiki-style-article/`）を変えたら `plugin.json` の `version` を上げ、`git tag -a v<版> -m "v<版>"` を打つ。main への push は、版の上げ忘れとタグの打ち忘れを pre-push のフックが止める。
 
 `.scratch/`（wayfinder の地図とチケット、調べた結果）は作業メモなので git に入れない。
 
