@@ -10,6 +10,7 @@ sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh check 原稿.md
 - `build`: 検査して、エラーが無ければ原稿と同じフォルダに `<原稿の名前>.html` と `<原稿の名前>.wikitext` を書き出す。同じ名前のファイルがあれば上書きする
 - `check`: 検査だけして、何も書き出さない
 - `type`: 類型の一覧を出す。`type manga` のように ID を渡すと、原稿の設定欄に貼る `type` と `[infobox]` の雛形を出す（下記）
+- `fetch`: Web のページを取り、題と本文の文字を出す（下記）。調べものの担当が使う
 
 `build` には次の指定を付けられる。
 
@@ -49,6 +50,25 @@ Python が分かっているなら、`wiki.sh` を通さずに `python plugins/w
 - 書き出した HTML は `check_html`（[HTML の検査](html.md)）に通す。引っかかったら `[エラー] HTML-…` を出して書き出さない。これは原稿ではなくスクリプトの不具合の恐れがある
 - 出力は、`PYTHONUTF8` などの設定によらず UTF-8 で出す（Windows で cp932 になり、AI が読むと文字化けするのを避ける）。書き出すファイルも UTF-8 で、改行は Windows でも LF
 
+## ページの取得
+
+`fetch URL` は、Web のページを取って題と本文の文字を出す。Claude Code の WebFetch は web.archive.org を取れず、Jina の Reader も鍵なしでは web.archive.org を止めている（2026-11-02 に確かめた）ので、標準ライブラリだけで取る。
+
+```text
+題: 日清食品グループ
+URL: https://web.archive.org/web/2016/https://www.nissin.com/jp/
+取った URL: https://web.archive.org/web/2016id_/https://www.nissin.com/jp/
+本文: 全 132 字のうち 0〜132 字目
+---
+（本文。見出しは # 、箇条は - で始まる行）
+```
+
+- web.archive.org の保存版は、Wayback の飾りの無い形（`/web/<時刻>id_/<URL>`）に直して取る
+- 同じホストへは間を空ける（web.archive.org は 15 秒、ほかは 1 秒）。間の記録は環境変数 `WIKISKILL_FETCH_STATE` のフォルダ（無ければ一時フォルダの `wiki-style-article-fetch`）に置き、並んだ担当で分け合う
+- 429・503 なら、間を空けて一度だけ取り直す
+- 本文は `--max-chars`（既定 30000 字）で区切る。続きは、出力の最後に出る `--offset` を付けて流し直す
+- 取れない（HTTP の誤り・通信の失敗・HTML でない）ときは、標準エラーに理由と、鍵なしの Jina（`https://r.jina.ai/<URL>` を WebFetch で取る）の案内を出して終了コード 1
+
 ## 類型の雛形
 
 `type <ID>` は、類型の定義（[記事の類型](types.md)）から、原稿の設定欄に貼る部分を出す。項目は定義の順で、値は空。
@@ -75,7 +95,7 @@ type = "manga"
 | コード | 意味 | 次の一手 |
 | --- | --- | --- |
 | 0 | 書き出した（`check` ではエラーが無かった）。警告があっても 0。`--help` も 0 | 警告を読み直す |
-| 1 | 原稿にエラーがあって書き出していない | 指摘の行を直して流し直す |
+| 1 | 原稿にエラーがあって書き出していない（`fetch` ではページを取れなかった） | 指摘の行を直して流し直す |
 | 2 | 呼び方の誤り（引数が足りない・違う、原稿のファイルが無い、知らない類型の ID） | 呼び方を直す |
 | 3 | Python 3.11 以上が見つからない（`wiki.sh` だけ） | 案内に従って Python か uv を入れる |
 

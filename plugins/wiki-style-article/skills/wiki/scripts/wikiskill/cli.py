@@ -5,16 +5,20 @@
     python -m wikiskill build 原稿.md [--style plain] [--out-dir 出力先] [--updated 日時]
     python -m wikiskill check 原稿.md
     python -m wikiskill type [類型の ID]
+    python -m wikiskill fetch URL [--max-chars 字数] [--offset 字数]
 
 ``build`` は原稿の隣（``--out-dir`` で変えられる）に ``<原稿の名前>.html`` と
 ``<原稿の名前>.wikitext`` を書き出す。``check`` は検査だけして何も書き出さない。
 ``type`` は類型の一覧か、原稿の設定欄に貼る ``type`` と Infobox の雛形を出す。
+``fetch`` は Web のページを取り、題と本文の文字を出す（調べものの担当が使う。
+:mod:`wikiskill.fetch`）。
 
 出力は 1 行に 1 件で、検査の指摘（``12 行目 [警告] RULE: …``）、件数のまとめ、
 書き出したファイルの順。終了コードは次のとおり。
 
 - 0: 書き出した（``check`` ではエラーが無かった）。警告があっても 0
 - 1: 原稿にエラーがあって書き出していない。指摘を見て原稿を直す
+  （``fetch`` ではページを取れなかった）
 - 2: 呼び方の誤り（引数・原稿のファイルが無い）
 
 詳しくは ``docs/cli.md``。
@@ -24,7 +28,9 @@ from __future__ import annotations
 
 import argparse
 import io
+import os
 import sys
+import tempfile
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -32,6 +38,7 @@ from typing import NoReturn
 
 from wikiskill.checks import Finding, Level, check_article
 from wikiskill.errors import SourceError
+from wikiskill.fetch import FetchError, Pacer, fetch_page
 from wikiskill.html_check import check_html
 from wikiskill.html_inline import HtmlError
 from wikiskill.html_writer import write_html
@@ -65,6 +72,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return stop.code if isinstance(stop.code, int) else 2
     if args.command == "type":
         return _type(args.type_id)
+    if args.command == "fetch":
+        return _fetch(args.url, max_chars=args.max_chars, offset=args.offset)
     source = Path(args.source)
     if not source.is_file():
         print(f"原稿が見つからない: {source}", file=sys.stderr)
@@ -144,7 +153,42 @@ def _parser() -> argparse.ArgumentParser:
         "type", help="類型の一覧を出す。ID を渡すと、原稿の設定欄に貼る Infobox の雛形を出す"
     )
     kind.add_argument("type_id", nargs="?", help="類型の ID（例 manga）。省くと一覧")
+
+    fetch = commands.add_parser("fetch", help="Web のページを取り、題と本文の文字を出す")
+    fetch.add_argument("url", help="取るページの URL（http か https）")
+    fetch.add_argument(
+        "--max-chars", type=int, default=30000, help="出す本文の字数の上限（既定 30000）"
+    )
+    fetch.add_argument("--offset", type=int, default=0, help="本文の何字目から出すか（既定 0）")
     return parser
+
+
+def _fetch(url: str, *, max_chars: int, offset: int) -> int:
+    state = os.environ.get("WIKISKILL_FETCH_STATE") or str(
+        Path(tempfile.gettempdir()) / "wiki-style-article-fetch"
+    )
+    try:
+        page = fetch_page(url, pacer=Pacer(Path(state)))
+    except FetchError as error:
+        print(f"[エラー] FETCH: {error}", file=sys.stderr)
+        print(
+            "取れないときは、WebFetch で https://r.jina.ai/<URL> を取る（鍵なしの Jina。"
+            "web.archive.org は止められている）。",
+            file=sys.stderr,
+        )
+        return 1
+    end = min(len(page.text), offset + max_chars)
+    print(f"題: {page.title}")
+    print(f"URL: {page.url}")
+    if page.fetched_url != page.url:
+        print(f"取った URL: {page.fetched_url}")
+    print(f"本文: 全 {len(page.text)} 字のうち {offset}〜{end} 字目")
+    print("---")
+    print(page.text[offset:end])
+    if end < len(page.text):
+        print("---")
+        print(f"続きは --offset {end} を付けて流し直す。")
+    return 0
 
 
 def _check(source: Path) -> int:
