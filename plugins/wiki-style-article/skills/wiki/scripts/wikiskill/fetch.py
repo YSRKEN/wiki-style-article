@@ -58,6 +58,9 @@ _ARCHIVE_PATH = re.compile(r"^/web/(\d{4,14})([a-z]{2}_)?/(.+)$")
 MAX_PDF_BYTES = 100 * 1024 * 1024
 """保存する PDF の大きさの上限（100MB）。置き場を埋め尽くさないため。"""
 _PDF_MAGIC = b"%PDF-"
+_RESERVED_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL", *(f"{kind}{n}" for kind in ("COM", "LPT") for n in range(1, 10))}
+)
 _T = TypeVar("_T")
 
 
@@ -435,6 +438,9 @@ def _pdf_name(url: str) -> str:
     stem = path.rstrip("/").rsplit("/", 1)[-1]
     stem = re.sub(r"\.pdf$", "", stem, flags=re.IGNORECASE)
     stem = re.sub(r"[^\w.-]+", "_", stem).strip("._-")[:80]
+    if stem.split(".", 1)[0].upper() in _RESERVED_NAMES:
+        # Windows では CON.pdf のような名前も装置を指し、ファイルにならない。
+        stem += "_"
     return f"{stem or 'document'}.pdf"
 
 
