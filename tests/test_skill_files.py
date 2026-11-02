@@ -60,7 +60,7 @@ def test_wiki_sh_を確認なしで流せるよう許す(folder: Path) -> None:
     # 担当が取得のコマンドを流すたびに、利用者へ許可の確認が出ないようにする
     fields = _frontmatter((folder / "SKILL.md").read_text(encoding="utf-8"))
 
-    assert "Bash(sh *wiki.sh *)" in fields["allowed-tools"]
+    assert "Bash(sh *wiki.sh* *)" in fields["allowed-tools"]
 
 
 def test_噂を載せるスキルが指す_wiki_のファイルはすべてある() -> None:
