@@ -58,7 +58,7 @@ allowed-tools: WebSearch WebFetch Write Edit Bash(sh *wiki.sh* *)
 ### 4. 担当を並べて調べる
 
 - 観点ごとに担当を 1 人ずつ起こし、全員を一つのメッセージで並べて走らせる。担当への頼み方、材料の形、止めどきは `references/research.md`
-- 担当は前面で走らせ、裏に回さない（Claude Code なら `run_in_background` を付けない）。裏に回すと、担当の終わりが後のターンに届き、このスキルの `allowed-tools` の許可が外れて、担当のページ取得や書き込みが止まる
+- 担当は前面で走らせ、裏に回さない。Claude Code では、担当を起こす Agent の呼び出しに必ず `run_in_background: false` を書く（書かないと、担当の定義に `background: false` があっても裏で始まる。2026-11-02 の試運転で起きた）。裏に回すと、担当の終わりが後のターンに届き、このスキルの `allowed-tools` の許可が外れて、担当のページ取得や書き込みが止まる
 - 担当には Sonnet を使う（Claude Code なら、このスキルのプラグインに同梱した担当 `researcher` があればそれを、無ければ汎用の担当をモデル `sonnet` で起こす）
 - 担当を並べられない道具では、同じ観点を一人で順に調べ、同じ形で材料を書く
 - 全員の報告がそろうまで待つ
