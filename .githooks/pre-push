@@ -1,12 +1,15 @@
 #!/bin/sh
-# pre-push フック: main へ push するとき、次の二つを止める。
+# pre-push フック: main へ push するとき、次の三つを止める。
 #
 # 1. プラグインの中身を変えたのに plugin.json の版を上げていない。版を書くと、書き換えるまで入れた人に
 #    更新が届かない（このリポジトリは版を手で上げる）。初めての push では比べる相手が無いので見ない
 # 2. 送る main の版に、v<版> のタグが無い（または送るコミットより後を指している）。版ごとにタグを打つ
 #    （2026-11-02、作者の決定）。push.followTags を有効にしておけば、注釈つきのタグは main と一緒に送られる
+# 3. そのタグが注釈つきでない、または注記の 1 行目が「v<版>」か「v<版>: 要点」でない。v0.4.0 を
+#    「0.4.0」の注記で打って公開したことがある（2026-11-02）
 #
-# ブランチを消す push と、main 以外は見ない。
+# タグ（refs/tags/v…）だけを push するときも、3 を見る（打ち直したタグを強制 push するときなど）。
+# ブランチを消す push と、main と v… のタグ以外は見ない。
 
 plugin_dir=plugins/wiki-style-article
 manifest=$plugin_dir/.claude-plugin/plugin.json
@@ -16,19 +19,48 @@ version_at() {
   git show "$1:$manifest" 2>/dev/null | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
 }
 
+# タグが注釈つきで、注記の 1 行目が「<タグ名>」か「<タグ名>: …」なら 0。
+tag_message_ok() {
+  [ "$(git cat-file -t "refs/tags/$1" 2>/dev/null)" = tag ] || return 1
+  subject=$(git for-each-ref --format='%(contents:subject)' "refs/tags/$1")
+  case $subject in
+    "$1" | "$1: "*) return 0 ;;
+  esac
+  return 1
+}
+
+complain_message() {
+  echo "pre-push: タグ $1 の注記が「$1」か「$1: 要点」で始まっていない（注釈つきでないタグも止める）。" >&2
+  echo "pre-push: git tag -a -f $1 $1^{commit} -m \"$1: 要点\" で打ち直してから push し直す。" >&2
+}
+
 status=0
 while read -r local_ref local_sha remote_ref remote_sha; do
-  [ "$remote_ref" = refs/heads/main ] || continue
   [ "$local_sha" = "$zero" ] && continue
+  case $remote_ref in
+    refs/tags/v*)
+      tag=${remote_ref#refs/tags/}
+      if ! tag_message_ok "$tag"; then
+        complain_message "$tag"
+        status=1
+      fi
+      continue
+      ;;
+    refs/heads/main) ;;
+    *) continue ;;
+  esac
   after=$(version_at "$local_sha")
 
   if [ -n "$after" ]; then
     tag=v$after
     if ! git rev-parse -q --verify "refs/tags/$tag^{commit}" >/dev/null; then
-      echo "pre-push: 版 $after のタグ $tag が無い。git tag -a $tag -m \"$tag\" を打ってから push し直す。" >&2
+      echo "pre-push: 版 $after のタグ $tag が無い。git tag -a $tag -m \"$tag: 要点\" を打ってから push し直す。" >&2
       status=1
     elif ! git merge-base --is-ancestor "$tag" "$local_sha"; then
       echo "pre-push: タグ $tag が、送る main より後のコミットを指している。タグを打ち直してから push し直す。" >&2
+      status=1
+    elif ! tag_message_ok "$tag"; then
+      complain_message "$tag"
       status=1
     fi
   fi
