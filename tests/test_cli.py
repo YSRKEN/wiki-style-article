@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from wikiskill import cli
-from wikiskill.cli import format_updated, main
+from wikiskill.cli import format_mark_date, format_updated, main
 from wikiskill.html_inline import HtmlError
 from wikiskill.html_writer import write_html
 from wikiskill.reader import read_article_file
@@ -331,3 +331,27 @@ def test_最終更新の日時は本家のフッタの形(moment: datetime, expe
 def test_時差の無い日時は受け付けない() -> None:
     with pytest.raises(ValueError, match="時差"):
         format_updated(datetime(2026, 11, 2, 12, 0))
+
+
+# --- 印の日付 ---------------------------------------------------------------------
+
+_MARKED = "+++\ntitle = \"試験\"\ntype = \"concept\"\n+++\n'''試験'''は噂がある[!要出典]。\n"
+
+
+def test_印の日付は年と月() -> None:
+    assert format_mark_date(datetime(2026, 1, 4, 3, 5, tzinfo=UTC)) == "2026年1月"
+    assert format_mark_date(datetime(2026, 11, 30, 23, 59)) == "2026年11月"
+
+
+def test_build_は印と枠に今の現地時刻の年月を添える(tmp_path: Path) -> None:
+    source = _write(tmp_path, _MARKED)
+    before = format_mark_date(datetime.now().astimezone())
+    code = main(["build", str(source), "--updated", UPDATED])
+    after = format_mark_date(datetime.now().astimezone())
+
+    assert code == 0
+    html = source.with_suffix(".html").read_text(encoding="utf-8")
+    wikitext = source.with_suffix(".wikitext").read_text(encoding="utf-8")
+    assert any(f"（{d}）</div>" in html for d in (before, after))
+    assert any(wikitext.startswith(f"{{{{出典の明記|date={d}}}}}\n") for d in (before, after))
+    assert any(f"{{{{要出典|date={d}}}}}" in wikitext for d in (before, after))
