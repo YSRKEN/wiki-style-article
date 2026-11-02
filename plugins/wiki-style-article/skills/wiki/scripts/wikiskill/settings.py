@@ -5,7 +5,9 @@
 - ``title``（必須）・``type``（必須）・``reading``・``defaultsort``: 文字列
 - ``categories``・``related``: 文字列の配列
 - ``[infobox]``: 項目名 → 値（文字列）
-- ``[refs.キー]``: 出典。``kind``（web / book / news）と ``title`` が必須
+- ``notices``: 警告の枠の種類（``観点``・``出典の明記``・``独自研究``）の配列
+- ``[refs.キー]``: 出典。``kind``（web / book / news）と ``title`` が必須。任意の ``weak``
+  （真偽値）は弱い出典であることを表す
 - ``[notes.キー]``: 注釈。``text`` が必須で、本文と同じ文中の記法を使える
 - ``[[external_links]]``: 外部リンク。``title`` と ``url`` が必須
 
@@ -21,10 +23,12 @@ from typing import cast
 from wikiskill.errors import SettingsError
 from wikiskill.inline import KEY_PATTERN, parse_inline
 from wikiskill.model import (
+    NOTICE_KINDS,
     REF_KINDS,
     ExternalLink,
     InfoboxField,
     Note,
+    NoticeKind,
     Reference,
     Settings,
 )
@@ -43,6 +47,7 @@ _TOP_KEYS = (
     "notes",
     "related",
     "external_links",
+    "notices",
 )
 _REF_OPTIONAL_KEYS = (
     "url",
@@ -55,6 +60,8 @@ _REF_OPTIONAL_KEYS = (
     "pages",
     "note",
 )
+
+_NOTICES_BY_NAME: dict[str, NoticeKind] = {kind: kind for kind in NOTICE_KINDS}
 
 _HEADER = re.compile(r"\s*(\[\[?)\s*(.+?)\s*\]\]?\s*(?:#.*)?")
 _TOML_ERROR_LINE = re.compile(r"\(at line (\d+), column \d+\)")
@@ -170,6 +177,7 @@ class _SettingsReader:
             notes=self._notes(data),
             related=self._str_list(data, "related"),
             external_links=self._external_links(data),
+            notices=self._notices(data),
         )
 
     # --- 読み込みと、エラーの作り方 -------------------------------------------
@@ -310,7 +318,7 @@ class _SettingsReader:
                     section,
                 )
             table = self._sub_table(refs, "refs", key)
-            self._reject_unknown(table, ("kind", "title", *_REF_OPTIONAL_KEYS), section)
+            self._reject_unknown(table, ("kind", "title", *_REF_OPTIONAL_KEYS, "weak"), section)
             kind = self._str(table, "kind", section, required=True)
             if kind not in REF_KINDS:
                 kinds = " / ".join(REF_KINDS)
@@ -325,11 +333,33 @@ class _SettingsReader:
                     key=key,
                     kind=kind,
                     title=self._str(table, "title", section, required=True) or "",
+                    weak=self._weak(table, section),
                     line=self._locator.find(section),
                     field_lines=tuple((name, self._locator.find(section, name)) for name in table),
                     **optional,
                 )
             )
+        return tuple(result)
+
+    def _weak(self, table: _Table, section: str) -> bool:
+        value = table.get("weak", False)
+        if not isinstance(value, bool):
+            raise self._error(
+                f"[{section}] の weak は true か false で書く（引用符で囲まない）", section, "weak"
+            )
+        return value
+
+    def _notices(self, data: _Table) -> tuple[NoticeKind, ...]:
+        result: list[NoticeKind] = []
+        for value in self._str_list(data, "notices"):
+            kind = _NOTICES_BY_NAME.get(value)
+            if kind is None:
+                raise self._error(
+                    f"notices の {value!r} は使えない（使える値: {'、'.join(NOTICE_KINDS)}）",
+                    None,
+                    "notices",
+                )
+            result.append(kind)
         return tuple(result)
 
     def _notes(self, data: _Table) -> tuple[Note, ...]:

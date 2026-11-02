@@ -7,6 +7,8 @@ from wikiskill.model import (
     Bold,
     BulletList,
     ExternalLink,
+    FixMark,
+    FixRange,
     InfoboxField,
     InternalLink,
     Note,
@@ -197,3 +199,29 @@ def test_UTF_8_として読めないファイルは行番号つきのエラー(t
         read_article_file(path)
     assert info.value.line == 2
     assert "UTF-8" in info.value.message
+
+
+def test_本文の印を読み取る() -> None:
+    text = (
+        '+++\ntitle = "題"\ntype = "meme"\n+++\n'
+        "噂がある[!要出典]。\n[!独自研究範囲|閉店が近い]という。\n"
+    )
+    article = read_article(text)
+    assert article.lead == (
+        Paragraph(
+            (
+                Text("噂がある"),
+                FixMark("要出典"),
+                Text("。"),
+                FixRange("独自研究範囲", (Text("閉店が近い"),)),
+                Text("という。"),
+            )
+        ),
+    )
+
+
+def test_段落の途中の印のエラーはその行を指す() -> None:
+    text = '+++\ntitle = "題"\ntype = "meme"\n+++\n一行目。\n二行目[!要出典範囲]。\n'
+    with pytest.raises(MarkupError) as info:
+        read_article(text)
+    assert info.value.line == 6
