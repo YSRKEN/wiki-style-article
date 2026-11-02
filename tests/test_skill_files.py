@@ -41,14 +41,34 @@ def _blocks(text: str, fence: str, lang: str) -> list[str]:
 # --- SKILL.md ---------------------------------------------------------------------
 
 
-def test_SKILL_md_のフロントマターは共通仕様の上限に収まる() -> None:
-    fields = _frontmatter((SKILL / "SKILL.md").read_text(encoding="utf-8"))
+RUMOR = SKILL.parent / "wiki-with-rumor"
+
+
+@pytest.mark.parametrize("folder", [SKILL, RUMOR], ids=lambda p: p.name)
+def test_SKILL_md_のフロントマターは共通仕様の上限に収まる(folder: Path) -> None:
+    fields = _frontmatter((folder / "SKILL.md").read_text(encoding="utf-8"))
 
     # 共通仕様（agentskills.io）: name はフォルダ名と同じ。
     # description は 1024 字、compatibility は 500 字まで。
-    assert fields["name"] == SKILL.name
+    assert fields["name"] == folder.name
     assert 0 < len(fields["description"]) <= 1024
     assert 0 < len(fields["compatibility"]) <= 500
+
+
+@pytest.mark.parametrize("folder", [SKILL, RUMOR], ids=lambda p: p.name)
+def test_wiki_sh_を確認なしで流せるよう許す(folder: Path) -> None:
+    # 担当が取得のコマンドを流すたびに、利用者へ許可の確認が出ないようにする
+    fields = _frontmatter((folder / "SKILL.md").read_text(encoding="utf-8"))
+
+    assert "Bash(sh *wiki.sh *)" in fields["allowed-tools"]
+
+
+def test_噂を載せるスキルが指す_wiki_のファイルはすべてある() -> None:
+    text = (RUMOR / "SKILL.md").read_text(encoding="utf-8")
+
+    named = set(re.findall(r"`(\.\./wiki/[A-Za-z0-9_./-]+)`", text))
+    assert named
+    assert all((RUMOR / path).exists() for path in named), named
 
 
 def test_SKILL_md_が名指しする参照ファイルはすべてある() -> None:
@@ -113,7 +133,12 @@ def test_材料の見本の出典は原稿の設定欄としてそのまま読�
     facts = material.split("## 事実", 1)[1]
 
     title = 'title = "見本"\ntype = "meme"\n'
-    body = "'''見本'''は本文。" + "".join(f"[^{key}]" for key in tomllib.loads(refs_toml)["refs"])
+    refs = tomllib.loads(refs_toml)["refs"]
+    # 弱い出典の印のすぐ後には [!信頼性要検証] が要る（材料の書き手も同じ決まりで原稿に写す）
+    marks = "".join(
+        f"[^{key}]" + ("[!信頼性要検証]" if ref.get("weak") else "") for key, ref in refs.items()
+    )
+    body = "'''見本'''は本文。" + marks
     article = read_article(f"+++\n{title}\n{refs_toml}\n+++\n{body}\n")
     assert check_article(article, REGISTRY) == ()
     # 事実に付けた印が、見本の出典のキーを指している
