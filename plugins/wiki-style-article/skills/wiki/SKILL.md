@@ -2,7 +2,7 @@
 name: wiki
 description: 題材を幅広く調べ、日本語版 Wikipedia の記事の型と作法で書いた記事を、HTML 1 枚とウィキテキストで作る。「/wiki 東京タワー」のように題材を添えて呼ばれたとき、「Wikipedia 風にまとめて」「百科事典みたいな記事にして」と頼まれたとき、調べた結果や手元の資料を百科事典の記事の形に整えたいときに使う。一つの事実の確認や短い質問の答えには使わない。
 compatibility: Python 3.11 以上（無ければ uv で取ってくる）と、Web の検索・ページの取得が要る。担当（サブエージェント）を並べて起こせる道具なら観点ごとに並べて調べ、無ければ一人で順に調べる。
-allowed-tools: WebSearch WebFetch Write
+allowed-tools: WebSearch WebFetch Write Edit
 ---
 
 # Wikipedia 風の記事を作る
