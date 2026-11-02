@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>{{TITLE}} - パロディ事典</title>
+<style>
+:root {
+  --paper: #fbf7ee;
+  --panel: #fffdf7;
+  --ink: #22201c;
+  --muted: #6f6656;
+  --line: #ded3bb;
+  --accent: #b03a2e;
+  --dark: #1d1a15;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "YuMincho", "Noto Serif JP", serif;
+  font-size: 16px;
+  line-height: 1.9;
+}
+a { color: #1f5f8b; }
+header.top {
+  background: var(--dark);
+  color: #f6efe1;
+  padding: .7rem 1.2rem;
+  display: flex;
+  align-items: baseline;
+  gap: .8rem;
+  flex-wrap: wrap;
+}
+header.top .brand { display: flex; align-items: center; gap: .55rem; }
+header.top .mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-family: Georgia, serif;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+header.top .name { font-size: 1.15rem; letter-spacing: .12em; }
+header.top .tagline { margin: 0; font-size: .78rem; color: #cbbfa8; letter-spacing: .18em; }
+.fiction {
+  background: var(--accent);
+  color: #fff;
+  font-size: .82rem;
+  letter-spacing: .04em;
+  padding: .45rem 1.2rem;
+  text-align: center;
+}
+.fiction span { font-weight: bold; border-bottom: 1px dashed rgba(255,255,255,.7); }
+.layout {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 1.6rem 1.2rem 3rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 2rem;
+  align-items: start;
+}
+main { min-width: 0; }
+h1 {
+  font-size: 2rem;
+  line-height: 1.4;
+  margin: 0 0 .3rem;
+  padding-bottom: .35rem;
+  border-bottom: 3px double var(--line);
+  font-weight: normal;
+  letter-spacing: .04em;
+}
+.type {
+  font-size: .76rem;
+  color: var(--muted);
+  letter-spacing: .12em;
+  margin: 0 0 1.2rem;
+}
+.lead p { margin: 0 0 1em; }
+h2 {
+  font-size: 1.3rem;
+  font-weight: normal;
+  margin: 2.4rem 0 .8rem;
+  padding-bottom: .2rem;
+  border-bottom: 1px solid var(--line);
+  letter-spacing: .04em;
+}
+h2::before { content: "§ "; color: var(--accent); font-size: .95em; }
+h3 { font-size: 1.08rem; font-weight: bold; margin: 1.8rem 0 .6rem; }
+h4 { font-size: 1rem; font-weight: bold; margin: 1.4rem 0 .5rem; color: #3d3830; }
+h2 .anchor, h3 .anchor, h4 .anchor {
+  margin-left: .45em;
+  color: var(--line);
+  text-decoration: none;
+  font-size: .8em;
+  visibility: hidden;
+}
+h2:hover .anchor, h3:hover .anchor, h4:hover .anchor { visibility: visible; }
+p { margin: 0 0 1em; }
+ul { margin: 0 0 1em; padding-left: 1.5em; }
+li { margin: .15em 0; }
+.redlink {
+  color: var(--accent);
+  border-bottom: 1px dashed currentColor;
+  cursor: help;
+}
+.infobox {
+  float: right;
+  width: 19em;
+  margin: 0 0 1.2rem 1.4rem;
+  border: 1px solid var(--line);
+  border-collapse: collapse;
+  background: var(--panel);
+  font-size: .8rem;
+  line-height: 1.7;
+  box-shadow: 2px 2px 0 rgba(0,0,0,.04);
+}
+.infobox caption {
+  background: #f1ead8;
+  border-bottom: 1px solid var(--line);
+  padding: .45rem .6rem;
+  font-size: .86rem;
+  font-weight: bold;
+  letter-spacing: .06em;
+}
+.infobox th, .infobox td {
+  border-top: 1px solid #ece4d2;
+  padding: .35rem .55rem;
+  text-align: left;
+  vertical-align: top;
+}
+.infobox th { width: 7.2em; color: #4a4335; font-weight: normal; background: #faf5e8; }
+aside.side {
+  position: sticky;
+  top: 1.2rem;
+  font-size: .82rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: .8rem 1rem 1rem;
+}
+aside.side h2 {
+  font-size: .86rem;
+  margin: 0 0 .6rem;
+  padding-bottom: .3rem;
+  border-bottom: 1px solid var(--line);
+  letter-spacing: .16em;
+  color: #4a4335;
+}
+aside.side h2::before { content: ""; }
+aside.side ol { margin: 0; padding-left: 0; list-style: none; }
+aside.side li { margin: .1em 0; line-height: 1.6; }
+aside.side li.lv3 { padding-left: 1em; }
+aside.side li.lv4 { padding-left: 2em; }
+aside.side a { color: #33302a; text-decoration: none; }
+aside.side a:hover { color: var(--accent); text-decoration: underline; }
+.notes {
+  clear: both;
+  margin-top: 2.4rem;
+  padding-top: .4rem;
+  border-top: 1px solid var(--line);
+  font-size: .8rem;
+  line-height: 1.75;
+  color: #3d3830;
+}
+.notes h2 { font-size: .92rem; border: none; margin: .6rem 0 .4rem; letter-spacing: .14em; }
+.notes h2::before { content: ""; }
+.notes ol { padding-left: 1.8em; margin: 0 0 .4rem; }
+.notes li { margin: .3em 0; }
+.notes li:target { background: #f6ecd2; }
+.backlink a { color: #8a7f68; text-decoration: none; margin-left: .2em; }
+sup.reference { font-size: .7em; line-height: 1; }
+sup.reference a { text-decoration: none; color: #1f5f8b; }
+.cats { margin: 2rem 0 0; font-size: .8rem; }
+.cats .label { color: var(--muted); letter-spacing: .1em; margin-right: .4rem; }
+.cats .redlink {
+  display: inline-block;
+  background: #f1ead8;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: .05rem .7rem;
+  margin: .15rem .2rem .15rem 0;
+}
+.updated { clear: both; font-size: .76rem; color: var(--muted); margin-top: 1.6rem; }
+footer {
+  border-top: 1px solid var(--line);
+  padding: 1.2rem;
+  text-align: center;
+  font-size: .74rem;
+  color: var(--muted);
+  line-height: 1.8;
+}
+@media (max-width: 820px) {
+  .layout { grid-template-columns: minmax(0, 1fr); gap: 1.2rem; }
+  aside.side { position: static; order: -1; }
+  .infobox { float: none; width: auto; margin: 0 0 1.2rem; }
+  h1 { font-size: 1.6rem; }
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mark">P</span><span class="name">パロディ事典</span></div>
+  <p class="tagline">笑うための百科事典</p>
+</header>
+<p class="fiction">この記事は<span>フィクション</span>です。実在する人物・団体・製品・出来事とは関係ありません。</p>
+<div class="layout">
+  <main>
+    <h1>{{TITLE}}</h1>
+    <p class="type">{{TYPE_NAME}}</p>
+    {{INFOBOX}}
+    <div class="lead">
+{{LEAD}}
+    </div>
+{{SECTIONS}}
+{{NOTES}}
+    <p class="cats"><span class="label">カテゴリ</span> {{CATEGORIES}}</p>
+    <p class="updated">最終更新 {{UPDATED}}</p>
+  </main>
+  <aside class="side">
+    <h2>目次</h2>
+{{TOC}}
+  </aside>
+</div>
+<footer>
+  パロディ事典は、百科事典の記事の形を借りて遊ぶための様式です。<br>
+  ここに書かれた内容は事実ではなく、出典にもなりません。
+</footer>
+</body>
+</html>
