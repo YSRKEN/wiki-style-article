@@ -42,9 +42,10 @@ def _blocks(text: str, fence: str, lang: str) -> list[str]:
 
 
 RUMOR = SKILL.parent / "wiki-with-rumor"
+BOTH = SKILL.parent / "wiki-both"
 
 
-@pytest.mark.parametrize("folder", [SKILL, RUMOR], ids=lambda p: p.name)
+@pytest.mark.parametrize("folder", [SKILL, RUMOR, BOTH], ids=lambda p: p.name)
 def test_SKILL_md_のフロントマターは共通仕様の上限に収まる(folder: Path) -> None:
     fields = _frontmatter((folder / "SKILL.md").read_text(encoding="utf-8"))
 
@@ -55,7 +56,7 @@ def test_SKILL_md_のフロントマターは共通仕様の上限に収まる(f
     assert 0 < len(fields["compatibility"]) <= 500
 
 
-@pytest.mark.parametrize("folder", [SKILL, RUMOR], ids=lambda p: p.name)
+@pytest.mark.parametrize("folder", [SKILL, RUMOR, BOTH], ids=lambda p: p.name)
 def test_wiki_sh_を確認なしで流せるよう許す(folder: Path) -> None:
     # 担当が取得のコマンドを流すたびに、利用者へ許可の確認が出ないようにする
     fields = _frontmatter((folder / "SKILL.md").read_text(encoding="utf-8"))
@@ -63,12 +64,13 @@ def test_wiki_sh_を確認なしで流せるよう許す(folder: Path) -> None:
     assert "Bash(sh *wiki.sh* *)" in fields["allowed-tools"]
 
 
-def test_噂を載せるスキルが指す_wiki_のファイルはすべてある() -> None:
-    text = (RUMOR / "SKILL.md").read_text(encoding="utf-8")
+@pytest.mark.parametrize("folder", [RUMOR, BOTH], ids=lambda p: p.name)
+def test_隣のスキルを使うスキルが指すファイルはすべてある(folder: Path) -> None:
+    text = (folder / "SKILL.md").read_text(encoding="utf-8")
 
-    named = set(re.findall(r"`(\.\./wiki/[A-Za-z0-9_./-]+)`", text))
+    named = set(re.findall(r"`(\.\./wiki[a-z-]*/[A-Za-z0-9_./-]+)`", text))
     assert named
-    assert all((RUMOR / path).exists() for path in named), named
+    assert all((folder / path).exists() for path in named), named
 
 
 def test_SKILL_md_が名指しする参照ファイルはすべてある() -> None:

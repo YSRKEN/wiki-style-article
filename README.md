@@ -33,7 +33,7 @@ claude plugin install wiki-style-article@wiki-style-article
 
 ### Codex
 
-`plugins/wiki-style-article/skills/` の下の `wiki/` と `wiki-with-rumor/` の 2 つのフォルダを、使うリポジトリの `.agents/skills/` にコピーします（`wiki-with-rumor` は隣の `wiki` のファイルを使うので、2 つを並べて置きます）。自分の全体で使うなら `~/.agents/skills/` に置きます（Codex の文書による）。呼ぶときは `$wiki` か `$wiki-with-rumor`、または `/skills` です。
+`plugins/wiki-style-article/skills/` の下の `wiki/`・`wiki-with-rumor/`・`wiki-both/` の 3 つのフォルダを、使うリポジトリの `.agents/skills/` にコピーします（`wiki-with-rumor` と `wiki-both` は隣の `wiki` のファイルを使うので、並べて置きます）。自分の全体で使うなら `~/.agents/skills/` に置きます（Codex の文書による）。呼ぶときは `$wiki`・`$wiki-with-rumor`・`$wiki-both`、または `/skills` です。
 
 Codex には調べものの担当の定義を同梱していないので、設定の `[agents]` で既定のモデルを決めていなければ、担当は呼んだ会話と同じモデルで動きます。Codex の Web の検索は既定で索引から返す方式（`web_search = "cached"`）です。最新のページを取りたいときは、設定の `web_search` を `"live"` にします。
 
@@ -60,6 +60,17 @@ Codex には調べものの担当の定義を同梱していないので、設�
 - 噂や考察を、関わる節の中に、誰の見方か（インターネット上の声、まとめサイトなど）を示して載せます
 - 出どころの脚注と、`[信頼性要検証]`・`[独自研究?]` の印を付け、記事の冒頭に「観点」（中立性）などの警告の枠を付けます
 - 特定の人や会社への非難のような強い主張は、互いに写しでない出どころが 2 つ以上あるときだけ載せます
+
+### 通常の記事と噂込みの記事を 1 回で作る
+
+```text
+/wiki-style-article:wiki-both しぐれうい
+```
+
+調べものを 1 回だけ行い、通常の記事（`/wiki` と同じ）と噂込みの記事（`wiki-with-rumor` と同じ）の両方を作ります。`wiki` と `wiki-with-rumor` を別々に流すと調べものが 2 回走るので、両方を読みたいときはこちらを使います。
+
+- HTML は 1 枚です。開いたときは通常の記事で、記事名の下のボタンで噂込みの記事に切り替わります
+- ウィキテキストは `しぐれうい.wikitext`（通常）と `しぐれうい.噂込み.wikitext`（噂込み）の 2 本です
 
 ## 注意
 
