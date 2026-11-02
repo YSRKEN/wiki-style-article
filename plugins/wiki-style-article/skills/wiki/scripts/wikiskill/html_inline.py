@@ -5,6 +5,7 @@
 
 脚注の印は ``<sup id="cite_ref-N-K"><a href="#cite_note-N">[N]</a></sup>``（注釈は
 ``cite_ref-note-N-K``・``cite_note-note-N``・``[注 N]``）。``K`` は同じ印の何回目か。
+一枚に二つの版を入れるときは、噂込みの版の id の前に接頭辞（``rumor-``）を付ける。
 
 点の印は ``<sup class="fix-mark">[要出典]</sup>``、範囲の印は
 ``<span class="fix-range">範囲の文</span><sup class="fix-mark">[要出典]</sup>``
@@ -139,24 +140,24 @@ def number_footnotes(article: Article) -> Numbering:
 # --- 書き出し ---------------------------------------------------------------------
 
 
-def ref_item_id(number: int) -> str:
-    """出典の脚注欄の項目の id。"""
-    return f"cite_note-{number}"
+def ref_item_id(number: int, prefix: str = "") -> str:
+    """出典の脚注欄の項目の id。``prefix`` は版ごとの接頭辞（通常は空）。"""
+    return f"{prefix}cite_note-{number}"
 
 
-def note_item_id(number: int) -> str:
+def note_item_id(number: int, prefix: str = "") -> str:
     """注釈の脚注欄の項目の id。"""
-    return f"cite_note-note-{number}"
+    return f"{prefix}cite_note-note-{number}"
 
 
-def ref_mark_id(number: int, nth: int) -> str:
+def ref_mark_id(number: int, nth: int, prefix: str = "") -> str:
     """出典の印の id（``nth`` は同じ出典の何回目の印か。1 始まり）。"""
-    return f"cite_ref-{number}-{nth}"
+    return f"{prefix}cite_ref-{number}-{nth}"
 
 
-def note_mark_id(number: int, nth: int) -> str:
+def note_mark_id(number: int, nth: int, prefix: str = "") -> str:
     """注釈の印の id。"""
-    return f"cite_ref-note-{number}-{nth}"
+    return f"{prefix}cite_ref-note-{number}-{nth}"
 
 
 def internal_link(link: InternalLink) -> str:
@@ -178,10 +179,13 @@ class InlineWriter:
     numbering : Numbering | None
         脚注の番号。None なら印を脚注にせず、書かれたままの文字（``[^キー]``）で出す
         （Infobox の値のように、脚注を持たない場所用）。
+    prefix : str
+        脚注の印とリンク先の id に付ける接頭辞。一枚に二つの版を入れるときの噂込みの版で使う。
     """
 
-    def __init__(self, numbering: Numbering | None = None) -> None:
+    def __init__(self, numbering: Numbering | None = None, *, prefix: str = "") -> None:
         self._numbering = numbering
+        self._prefix = prefix
         self.ref_uses: Counter[str] = Counter()
         self.note_uses: Counter[str] = Counter()
 
@@ -213,10 +217,10 @@ class InlineWriter:
             return escape(f"[^{key}]")
         number = self._numbering.refs[key]
         self.ref_uses[key] += 1
-        mark = ref_mark_id(number, self.ref_uses[key])
+        mark = ref_mark_id(number, self.ref_uses[key], self._prefix)
         return (
             f'<sup id="{mark}" class="reference">'
-            f'<a href="#{ref_item_id(number)}">[{number}]</a></sup>'
+            f'<a href="#{ref_item_id(number, self._prefix)}">[{number}]</a></sup>'
         )
 
     def _note(self, key: str) -> str:
@@ -224,10 +228,10 @@ class InlineWriter:
             return escape(f"[^n:{key}]")
         number = self._numbering.notes[key]
         self.note_uses[key] += 1
-        mark = note_mark_id(number, self.note_uses[key])
+        mark = note_mark_id(number, self.note_uses[key], self._prefix)
         return (
             f'<sup id="{mark}" class="reference">'
-            f'<a href="#{note_item_id(number)}">[{NOTE_LABEL} {number}]</a></sup>'
+            f'<a href="#{note_item_id(number, self._prefix)}">[{NOTE_LABEL} {number}]</a></sup>'
         )
 
 

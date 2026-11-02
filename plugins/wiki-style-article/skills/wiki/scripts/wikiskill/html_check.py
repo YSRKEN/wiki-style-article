@@ -11,6 +11,10 @@
   食い違い（``HTML-FOOTNOTE-NUMBER``）
 - 外部の CSS・JS・フォント・画像を読まないこと（``HTML-EXTERNAL-RESOURCE``）
 
+脚注の id は ``cite_note-N``・``cite_note-note-N`` で、前に英小文字とハイフンの接頭辞
+（噂込みの版の ``rumor-``）が付いたものも脚注とみなす。二つの版を入れた HTML では、版ごとの
+脚注欄（``ol.references``）の中で番号の並びを見る。
+
 注意: このファイル名は標準ライブラリの ``html`` と紛らわしいが、中で読む ``html.parser`` は
 標準ライブラリのもの。``wikiskill/`` の中を ``sys.path`` の先頭に置いて実行しないこと。
 """
@@ -43,7 +47,9 @@ _VOID = frozenset(
 )
 _PLACEHOLDER = re.compile(r"\{\{([A-Za-z0-9_]+)\}\}")
 _PLAIN_NUMBER = re.compile(r"\[\s*(?:注\s*)?\d+\s*\]")
-_ITEM_ID = re.compile(r"cite_note-(note-)?(\d+)")
+_ITEM_ID = re.compile(r"(?:[a-z]+-)?cite_note-(note-)?(\d+)")
+_FOOTNOTE_ID = re.compile(r"(?:[a-z]+-)?cite_note-")
+"""脚注の項目の id の始まり。接頭辞（``rumor-``）の付いたものも含む。"""
 _LINK_TEXT = re.compile(r"\[\s*(?:(注)\s*)?(\d+)\s*\]")
 _CSS_EXTERNAL = re.compile(r"@import|url\(\s*[\"']?\s*(?:https?:)?//", re.IGNORECASE)
 _RESOURCE_ATTRS: dict[str, tuple[str, ...]] = {
@@ -182,7 +188,7 @@ class _Scanner(HTMLParser):
         values = {name: value or "" for name, value in attrs}
         if "id" in values:
             self.ids.append(values["id"])
-            if values["id"].startswith("cite_note-") and self._references is not None:
+            if _is_footnote(values["id"]) and self._references is not None:
                 self._references.append(values["id"])
         href = values.get("href", "")
         if tag == "a" and href.startswith("#") and len(href) > 1:
@@ -242,9 +248,7 @@ def _ids(scanner: _Scanner) -> list[HtmlFinding]:
     ]
     known = set(scanner.ids)
     # 脚注への参照（cite_note-）は HTML-FOOTNOTE-MISSING で報告する。
-    targets = dict.fromkeys(
-        t for t, _ in scanner.hash_links if t and not t.startswith("cite_note-")
-    )
+    targets = dict.fromkeys(t for t, _ in scanner.hash_links if t and not _is_footnote(t))
     found += [
         HtmlFinding("HTML-ANCHOR-MISSING", f"リンク先 #{target} に対応する id がない")
         for target in targets
@@ -259,7 +263,7 @@ def _footnotes(scanner: _Scanner) -> list[HtmlFinding]:
 
     reported: set[str] = set()
     for target, _ in scanner.hash_links:
-        if target.startswith("cite_note-") and target not in known and target not in reported:
+        if _is_footnote(target) and target not in known and target not in reported:
             reported.add(target)
             found.append(
                 HtmlFinding("HTML-FOOTNOTE-MISSING", f"存在しない脚注 #{target} への参照がある")
@@ -269,7 +273,7 @@ def _footnotes(scanner: _Scanner) -> list[HtmlFinding]:
     found += [
         HtmlFinding("HTML-FOOTNOTE-UNREFERENCED", f"脚注 #{value} がどこからも参照されていない")
         for value in scanner.ids
-        if value.startswith("cite_note-") and value not in referenced
+        if _is_footnote(value) and value not in referenced
     ]
 
     for text in scanner.plain_text:
@@ -283,6 +287,11 @@ def _footnotes(scanner: _Scanner) -> list[HtmlFinding]:
 
     found += _number_mismatches(scanner)
     return found
+
+
+def _is_footnote(value: str) -> bool:
+    """脚注の項目の id（またはそれへのリンク先）か。"""
+    return _FOOTNOTE_ID.match(value) is not None
 
 
 def _number_mismatches(scanner: _Scanner) -> list[HtmlFinding]:
