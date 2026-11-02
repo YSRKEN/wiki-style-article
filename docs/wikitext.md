@@ -18,6 +18,21 @@ dated = write_wikitext(article, article_type, mark_date="2026年11月")  # 印�
 
 実装は `plugins/wiki-style-article/skills/wiki/scripts/wikiskill/wikitext.py`（全体の組み立てと本文）、`wikitext_cite.py`（出典）、`wikitext_infobox.py`（Infobox）、`wikitext_escape.py`（文字の逃がし方）。
 
+## 噂のある原稿
+
+噂（[原稿の書き方](source-format.md#噂)）のある原稿は、HTML と違って一つのファイルに二つの版を入れず、二つのウィキテキストに分けて書き出す（2026-11-02、作者の決定）。版は `wikiskill.variants` の `normal_view`・`rumor_view` で作ってから `write_wikitext` に渡す。噂のある記事をそのまま渡すと `WikitextError` になる。
+
+```python
+from wikiskill.variants import normal_view, rumor_view
+
+normal = write_wikitext(normal_view(article), article_type)  # 通常の版
+rumor = write_wikitext(rumor_view(article), article_type)    # 噂込みの版
+```
+
+- 通常の版は、噂の範囲・噂だけのまとまり・噂の節を取り除いたもの。噂の中でだけ使う出典・注釈は書かない。`観点` の枠は貼らない
+- 噂込みの版は、噂の範囲を中身にほどき、噂の節を見出しの印なしで書いたもの。`観点` の枠を貼る（ほかの枠があれば `{{複数の問題|…|観点=…}}`）
+- `wiki.sh build` は、通常の版を `<原稿の名前>.wikitext`、噂込みの版を `<原稿の名前>.噂込み.wikitext` に書き出す（[cli.md](cli.md)）
+
 ## 二つの書き方
 
 | | 本家の形（`style="wikipedia"`、既定） | 素の記法（`style="plain"`） |
@@ -184,7 +199,7 @@ Infobox                            （値のある項目が一つもなければ
 
 | 例外 | 原因 |
 | --- | --- |
-| `WikitextError` | 記事の `type` と渡した類型の `id` が違う |
+| `WikitextError` | 記事の `type` と渡した類型の `id` が違う。噂のある記事を二つの版に分けずに渡した |
 | `UnknownReferenceError` | 本文の印が指す出典・注釈が、設定欄の `[refs]`・`[notes]` に無い |
 | `NestedNoteError` | 注釈の本文に、別の注釈への印がある（注釈は入れ子にできない） |
 

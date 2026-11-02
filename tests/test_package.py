@@ -22,3 +22,14 @@ def test_書き出しと_HTML_の検査の入口を取り込める() -> None:
     page = wikiskill.write_html(article, article_type, "2026年11月2日 (月) 12:00 (JST)")
     assert wikiskill.check_html(page) == ()
     assert "本文。" in wikiskill.write_wikitext(article, article_type)
+
+
+def test_噂のある原稿の入口を取り込める() -> None:
+    article = wikiskill.read_article('+++\ntitle = "題"\ntype = "meme"\n+++\n本文。[!噂|噂。]\n')
+    article_type = wikiskill.load_default_registry()["meme"]
+    assert wikiskill.has_rumor(article)
+    assert wikiskill.check_article_variants(article) == wikiskill.check_article_variants(article)
+    page = wikiskill.write_html_both(article, article_type, "2026年11月2日 (月) 12:00 (JST)")
+    assert wikiskill.check_html(page) == ()
+    assert "噂。" in wikiskill.write_wikitext(wikiskill.rumor_view(article), article_type)
+    assert "噂。" not in wikiskill.write_wikitext(wikiskill.normal_view(article), article_type)
