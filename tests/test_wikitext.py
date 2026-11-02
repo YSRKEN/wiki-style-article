@@ -614,3 +614,119 @@ def test_見本の原稿を素の記法で書き出すとテンプレートを�
     assert "<references />" in out
     # 使うのは DEFAULTSORT（マジックワード）と、入れ子の出典のための #tag（本体の関数）だけ。
     assert re.findall(r"\{\{(#?\w+)", out) == ["#tag", "#tag", "DEFAULTSORT"]
+
+
+# --- 印と警告の枠 -----------------------------------------------------------------
+
+_MARK_DATE = "2026年11月"
+
+
+def _render_marked(
+    source: str, style: WikitextStyle = "wikipedia", mark_date: str | None = _MARK_DATE
+) -> str:
+    article = read_article(source)
+    return write_wikitext(
+        article, REGISTRY[article.settings.type_id], style=style, mark_date=mark_date
+    )
+
+
+def _body_line(out: str) -> str:
+    """冒頭の枠の行を除いた、本文の最初の行。"""
+    return out.splitlines()[1]
+
+
+@pytest.mark.parametrize("kind", ["要出典", "信頼性要検証"])
+def test_本家の形の点の印は日付つきのテンプレート(kind: str) -> None:
+    out = _render_marked(_src(f"甲[!{kind}]。\n"))
+
+    assert _body_line(out) == f"甲{{{{{kind}|date=2026年11月}}}}。"
+
+
+def test_本家の形の点の印は日付が無ければ引数を付けない() -> None:
+    out = _render_marked(_src("甲[!要出典]。\n"), mark_date=None)
+
+    assert _body_line(out) == "甲{{要出典}}。"
+
+
+@pytest.mark.parametrize("kind", ["要出典範囲", "独自研究範囲"])
+def test_本家の形の範囲の印は1イコールで範囲の文を渡す(kind: str) -> None:
+    out = _render_marked(_src(f"前。[!{kind}|a=b|c]。\n"))
+
+    assert _body_line(out) == f"前。{{{{{kind}|1=a=b&#124;c|date=2026年11月}}}}。"
+
+
+def test_本家の形の範囲の印の中の内部リンクと出典() -> None:
+    front = '[refs.w]\nkind = "web"\ntitle = "題"\n'
+    out = _render_marked(_src("[!要出典範囲|[[甲|こう]]は乙[^w]]。\n", front), mark_date=None)
+
+    assert _body_line(out) == (
+        "{{要出典範囲|1=[[甲|こう]]は乙<ref>{{Cite web |和書 |title=題}}</ref>}}。"
+    )
+
+
+def test_本家の形の注釈と太字の中の印() -> None:
+    front = '[notes.a]\ntext = "注[!信頼性要検証]"\n'
+    out = _render_marked(_src("'''甲[!要出典]'''[^n:a]。\n", front), mark_date=None)
+
+    assert _body_line(out) == ("'''甲{{要出典}}'''<ref group=\"注釈\">注{{信頼性要検証}}</ref>。")
+
+
+def test_素の記法の印はテンプレートを使わず文字で書く() -> None:
+    body = "甲[!要出典]。乙[!信頼性要検証]。[!要出典範囲|丙]。[!独自研究範囲|丁]。\n"
+    out = _render_marked(_src(body), "plain")
+
+    assert _body_line(out) == ("甲[要出典]。乙[信頼性要検証]。丙[要出典]。丁[独自研究?]。")
+    assert "{{" not in out
+
+
+def test_本家の形の枠が一つなら単独のテンプレートを一番上に置く() -> None:
+    front = '[infobox]\n"作者" = "甲"\n'
+    out = _render_marked(_src("導入部[!要出典]。\n", front, type_id="manga"))
+
+    assert out.splitlines()[0] == "{{出典の明記|date=2026年11月}}"
+    assert out.splitlines()[1].startswith("{{Infobox")
+
+
+def test_本家の形の枠が二つ以上なら複数の問題にまとめる() -> None:
+    source = _src("[!独自研究範囲|甲][!要出典]。\n", 'notices = ["観点"]\n')
+    out = _render_marked(source)
+
+    assert out.splitlines()[0] == (
+        "{{複数の問題|出典の明記=2026年11月|独自研究=2026年11月|観点=2026年11月}}"
+    )
+
+
+def test_本家の形の枠は日付が無ければ引数を付けない() -> None:
+    out = _render_marked(_src("甲[!要出典]。\n"), mark_date=None)
+
+    assert out.splitlines()[0] == "{{出典の明記}}"
+
+
+def test_本家の形の複数の枠は日付が無ければ単独のテンプレートを並べる() -> None:
+    # 複数の問題は値の空な引数を出さない（{{#if:}} で見る）ので、日付が無いときは並べる。
+    out = _render_marked(_src("[!独自研究範囲|甲][!要出典]。\n"), mark_date=None)
+
+    assert out.splitlines()[:2] == ["{{出典の明記}}", "{{独自研究}}"]
+
+
+def test_素の記法の枠は斜体の一行() -> None:
+    source = _src("[!独自研究範囲|甲][!要出典]。\n", 'notices = ["観点"]\n')
+    out = _render_marked(source, "plain")
+
+    assert out.splitlines()[0] == (
+        "''この記事には次の問題があります: 出典の明記、独自研究、観点（2026年11月）''"
+    )
+    assert out.splitlines()[1] == "甲[独自研究?][要出典]。"
+
+
+def test_素の記法の枠は日付が無ければ日付を書かない() -> None:
+    out = _render_marked(_src("甲[!要出典]。\n"), "plain", mark_date=None)
+
+    assert out.splitlines()[0] == "''この記事には次の問題があります: 出典の明記''"
+
+
+@pytest.mark.parametrize("style", ["wikipedia", "plain"])
+def test_印も枠も無ければ枠を書かない(style: WikitextStyle) -> None:
+    out = _render_marked(_src("甲。\n"), style)
+
+    assert out == "甲。\n"
