@@ -30,7 +30,7 @@ SKILL.md の工程 3〜5 の細目。本家の記事を読み、観点を組み�
 
 1. `WebFetch` で取る
 2. `WebFetch` で取れない・題しか取れない・保存版の URL のとき（web.archive.org は WebFetch が断る）、スキルのフォルダの取得のコマンドで取る
-   `sh <スキルのフォルダ>/scripts/wiki.sh fetch <URL>`
+   `sh <スキルのフォルダ>/scripts/wiki.sh fetch "<URL>"`（URL は必ず `"…"` で囲む。`&` をシェルが区切りと読むため）
    元のページが 403・404・410・451・届かない・トップページへ転送される（消えたページ）なら、コマンド自身が web.archive.org の保存版を取りに行く。出典の日付が分かれば `--archive-year <年>` を付けると、その年に近い保存版を取る。保存版を取ったら「取った URL: …（元のページが HTTP 404 のため保存版を取った）」と出るので、出典には保存版の URL と、元の題・発行元を書く
    同じホストへは間を空ける（web.archive.org は 15 秒。並んだ担当とも順番を分け合う）。長い本文は `--max-chars` で区切られるので、続きは出力の最後に出る `--offset` を付けて流し直す。HTML だけを扱う
 3. それでも取れないとき（JS で描くページ、403、PDF）、`WebFetch` で `https://r.jina.ai/<URL>` を取る（鍵なしの Jina の Reader。毎分 20 回まで）。Jina は鍵なしでは web.archive.org を止めているので、保存版には使わない
@@ -73,8 +73,8 @@ archive.ph（archive.today）は CAPTCHA が出て、どの手段でも取れな
 出典のキーは「<観点の英字の名前>-」で始める（例 history-news-start）。
 
 ページの取り方: まず WebFetch。取れなければ（web.archive.org など）
-  sh <スキルのフォルダの絶対パス>/scripts/wiki.sh fetch <URL>
-を流す（cd や && でつながない）。PDF・403・JS で描くページは WebFetch で https://r.jina.ai/<URL> を取る（web.archive.org には使わない）。
+  sh <スキルのフォルダの絶対パス>/scripts/wiki.sh fetch "<URL>"
+を流す（URL は必ず "…" で囲む。cd・&&・; でつながない）。PDF・403・JS で描くページは WebFetch で https://r.jina.ai/<URL> を取る（web.archive.org には使わない）。
 元の URL が WebFetch で開けない・題しか取れないときは、wiki.sh fetch に元の URL を渡す（消えたページなら、コマンドが保存版を取りに行く。出典の日付の年を --archive-year に付ける）。手がかりに保存版の URL があれば、それを wiki.sh fetch に渡してもよい。
 「取れなかった」「見つからなかった」と書くのは、この順を試したあとだけ。何を試したか（WebFetch・fetch・保存版・Jina）を材料に書く。
 
