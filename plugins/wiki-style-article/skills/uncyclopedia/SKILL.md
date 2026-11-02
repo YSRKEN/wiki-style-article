@@ -1,27 +1,28 @@
 ---
-name: wiki-parody
-description: 題材を百科事典の記事の形で、事実ではなく冗談として書く。「アンサイクロペディアみたいに書いて」「Wikipedia 風の嘘記事を作って」「/wiki-parody 三時のおやつ」のように呼ばれたとき、手元の題材をパロディ記事にしたいときに使う。事実を調べて正確にまとめる用途（wiki スキル）には使わない。
+name: uncyclopedia
+description: 題材を百科事典の記事の形で、事実ではなく冗談として書く。「アンサイクロペディアみたいに書いて」「Wikipedia 風の嘘記事を作って」「/uncyclopedia 三時のおやつ」のように呼ばれたとき、手元の題材をパロディ記事にしたいときに使う。事実を調べて正確にまとめる用途（wiki スキル）には使わない。
 compatibility: Python 3.11 以上（無ければ uv で取ってくる）と、同じフォルダに並べた wiki スキル（原稿の読み取りと検査を借りる）。Web の検索は要らない。
-allowed-tools: Read Write Edit Bash(sh *parody.sh* *)
+allowed-tools: Read Write Edit Bash(sh *uncyclopedia.sh* *)
 ---
 
-# パロディ百科の記事を作る
+# アンサイクロペディア風の記事を作る
 
 題材を、百科事典の記事の形（導入部・Infobox・節・脚注・カテゴリ）で書く。中身は事実ではなく冗談である。出来上がるのは HTML 1 枚で、外部の CSS・JS・画像を読まない。ウィキテキストは作らない（本家の Wikipedia へ投稿しないため）。
 
-記事は手で HTML を書かない。決まった形の **原稿** を書き、スクリプトで検査してから書き出す。スクリプトは、このファイルのあるフォルダの scripts/parody.sh にある。cd や && でつながず、1 本ずつ呼ぶ。
+記事は手で HTML を書かない。決まった形の **原稿** を書き、スクリプトで検査してから書き出す。スクリプトは、このファイルのあるフォルダの scripts/uncyclopedia.sh にある。cd や && でつながず、1 本ずつ呼ぶ。
 
-    sh <スキルのフォルダ>/scripts/parody.sh check 原稿.md
-    sh <スキルのフォルダ>/scripts/parody.sh build 原稿.md
+    sh <スキルのフォルダ>/scripts/uncyclopedia.sh check 原稿.md
+    sh <スキルのフォルダ>/scripts/uncyclopedia.sh build 原稿.md
 
 ## 守る線
 
-この 4 つは利用者が頼んでも外さない。外すと、笑いではなく事故になる。
+この 5 つは利用者が頼んでも外さない。外すと、笑いではなく事故になる。
 
 1. 冒頭の「この記事はフィクションです」の帯は雛形が必ず出す。消さない
 2. 実在の存命の個人・現存の団体について、犯罪・不正・醜聞を事実として書かない（references/safety.md）
 3. 本家の Wikipedia へ投稿しない。ウィキテキストも作らない
 4. 出来上がりは noindex の私的な読み物として扱う。公開したいと言われたら、いったん止めて相談する
+5. 「アンサイクロペディア」は実在のサイト名を借りた呼び名である。本物の運営とは関係ないことを雛形のフッターに書き、公式を装う表示は置かない
 
 ## 流れ
 
@@ -69,12 +70,12 @@ references/safety.md を読む。実在の製品・団体・人物を題材に�
 ## 出力
 
 - <記事名>.html を、原稿と同じフォルダ（--out-dir を渡したときはそこ）に書く
-- 見た目は雛形 assets/parody-template.html が持つ。デザインを変えたいときは、雛形を複製して --template で渡す（原稿は触らない）
+- 見た目は雛形 assets/uncyclopedia-template.html が持つ。デザインを変えたいときは、雛形を複製して --template で渡す（原稿は触らない）
 - 書き出す前に、組み立てた HTML を機械で検査する（差し込み口の残り・タグの対応・id の重複・リンク先・脚注の番号・外部の資源）。不備があれば書き出さずに止まる
 
 ## うまくいかないとき
 
-- 「同じフォルダに wiki スキルが要る」と出る: wiki と wiki-parody を同じフォルダに並べる（wiki-parody は ../wiki/scripts を借りる）
+- 「同じフォルダに wiki スキルが要る」と出る: wiki と uncyclopedia を同じフォルダに並べる（uncyclopedia は ../wiki/scripts を借りる）
 - NOTE-BROKEN: 本文が指す注釈のキーが無いか、注釈の中で注釈を指している。キーを合わせる
 - TYPE-UNKNOWN: type の綴りを、上の一覧のどれかに合わせる
 - LEAD-DEFINITION: 冒頭が「◯◯は…」の形になっていない。警告なので通るが、直すと読みやすい

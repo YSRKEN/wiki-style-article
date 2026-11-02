@@ -1,4 +1,4 @@
-"""パロディ百科のスキル（wiki-parody）が、原稿を検査して HTML を書き出せるかを見る。"""
+"""アンサイクロペディア風のスキル（uncyclopedia）が、原稿を検査して HTML を書き出せるかを見る。"""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-SKILL = Path(__file__).parents[1] / "plugins" / "wiki-style-article" / "skills" / "wiki-parody"
-SCRIPT = SKILL / "scripts" / "parody.py"
+SKILL = Path(__file__).parents[1] / "plugins" / "wiki-style-article" / "skills" / "uncyclopedia"
+SCRIPT = SKILL / "scripts" / "uncyclopedia.py"
 
 SAMPLE = """+++
 title = "三時のおやつ"
@@ -71,10 +71,10 @@ def test_フロントマターが共通仕様に収まり_名前はフォルダ�
     assert 0 < len(fields["compatibility"]) <= 500
 
 
-def test_確認なしで流せるシェルは_parody_sh_だけ() -> None:
+def test_確認なしで流せるシェルは_uncyclopedia_sh_だけ() -> None:
     fields = _frontmatter()
 
-    assert re.findall(r"Bash\([^)]*\)", fields["allowed-tools"]) == ["Bash(sh *parody.sh* *)"]
+    assert re.findall(r"Bash\([^)]*\)", fields["allowed-tools"]) == ["Bash(sh *uncyclopedia.sh* *)"]
 
 
 def test_名指しする参照ファイルと雛形はすべてある() -> None:
@@ -99,6 +99,10 @@ def test_見本の原稿はエラー無しで通り_書き出した_HTML_は外�
     html = (tmp_path / "三時のおやつ.html").read_text(encoding="utf-8")
     assert 'content="noindex' in html
     assert "この記事は<span>フィクション</span>です" in html
+    assert "アンサイクロペディア" in html
+    assert "パロディ事典" not in html
+    assert '<span class="cat">習慣</span>' in html
+    assert "習慣（この記事はまだ無い）" not in html
     assert "http://" not in html and "https://" not in html
     assert "ja.wikipedia.org" not in html
 

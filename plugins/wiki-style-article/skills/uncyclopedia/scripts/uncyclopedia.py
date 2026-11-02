@@ -1,4 +1,4 @@
-"""パロディ百科（百科事典の記事の形を借りて、嘘で書く記事）を作る。
+"""アンサイクロペディア風（百科事典の記事の形を借りて、嘘で書く記事）を作る。
 
 原稿の形は同じプラグインの wiki スキルと同じ（+++ の設定欄＋Markdown の本文）。
 ちがうのは、次の点。
@@ -9,9 +9,9 @@
 
 使い方::
 
-    python parody.py check 原稿.md
-    python parody.py build 原稿.md [--out-dir 出力先] [--updated 2026-11-02]
-    python parody.py type [型の ID]
+    python uncyclopedia.py check 原稿.md
+    python uncyclopedia.py build 原稿.md [--out-dir 出力先] [--updated 2026-11-02]
+    python uncyclopedia.py type [型の ID]
 """
 
 from __future__ import annotations
@@ -29,7 +29,7 @@ _WIKI_SCRIPTS = _SKILLS_DIR / "wiki" / "scripts"
 if not (_WIKI_SCRIPTS / "wikiskill").is_dir():
     print(
         "同じフォルダに wiki スキルが要る（../wiki/scripts/wikiskill が見つからない）。"
-        "wiki と wiki-parody を並べて置くこと。",
+        "wiki と uncyclopedia を並べて置くこと。",
         file=sys.stderr,
     )
     raise SystemExit(3)
@@ -61,7 +61,7 @@ from wikiskill.model import (  # noqa: E402
 )
 from wikiskill.reader import read_article_file  # noqa: E402
 
-TEMPLATE_PATH = _SKILL_DIR / "assets" / "parody-template.html"
+TEMPLATE_PATH = _SKILL_DIR / "assets" / "uncyclopedia-template.html"
 
 #: 使える型と、Infobox に置くと面白い項目の候補。
 TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -108,6 +108,10 @@ def _redlink(name: str) -> str:
         + escape(name)
         + "</span>"
     )
+
+
+def _chip(name: str) -> str:
+    return '<span class="cat">' + escape(name) + "</span>"
 
 
 def _infobox(article: Article) -> str:
@@ -229,7 +233,7 @@ def render(article: Article, *, updated: str, template: str) -> str:
         names = "".join("<li>" + _redlink(name) + "</li>" for name in article.settings.related)
         body = body + '\n<h2 id="related">関連項目</h2>\n<ul>\n' + names + "\n</ul>"
     type_name = TYPES[article.settings.type_id][0]
-    categories = " ".join(_redlink(name) for name in article.settings.categories)
+    categories = " ".join(_chip(name) for name in article.settings.categories)
     parts = {
         "TITLE": escape(article.settings.title),
         "TYPE_NAME": escape(type_name),
@@ -544,7 +548,7 @@ def main(argv: list[str]) -> int:
         終了コード。
     """
     parser = argparse.ArgumentParser(
-        prog="parody.py", description="パロディ百科の記事を検査・書き出しする。"
+        prog="uncyclopedia.py", description="アンサイクロペディア風の記事を検査・書き出しする。"
     )
     sub = parser.add_subparsers(dest="command")
     p_check = sub.add_parser("check", help="原稿を検査する")
