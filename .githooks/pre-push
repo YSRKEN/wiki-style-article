@@ -1,0 +1,35 @@
+#!/bin/sh
+# pre-push フック: main へ push するとき、プラグインの中身を変えたのに plugin.json の版を上げていなければ止める。
+#
+# plugin.json に版を書くと、書き換えるまで入れた人に更新が届かない（チケット 07 の決定で版は手で上げる）。
+# 上げ忘れを push の前に見つけるための検査。初めての push、ブランチを消す push、main 以外は見ない。
+
+plugin_dir=plugins/wiki-style-article
+manifest=$plugin_dir/.claude-plugin/plugin.json
+zero=0000000000000000000000000000000000000000
+
+version_at() {
+  git show "$1:$manifest" 2>/dev/null | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p'
+}
+
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = refs/heads/main ] || continue
+  [ "$local_sha" = "$zero" ] && continue
+  [ "$remote_sha" = "$zero" ] && continue
+  # 送り先のコミットが手元に無いと比べられない。fetch してから push し直すよう促す
+  if ! git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+    echo "pre-push: 送り先の main（$remote_sha）が手元に無い。git fetch してから push し直す。" >&2
+    status=1
+    continue
+  fi
+  git diff --quiet "$remote_sha" "$local_sha" -- "$plugin_dir" && continue
+  before=$(version_at "$remote_sha")
+  after=$(version_at "$local_sha")
+  if [ "$before" = "$after" ]; then
+    echo "pre-push: $plugin_dir の中身が変わったのに、$manifest の version が $after のまま。" >&2
+    echo "pre-push: version を上げてからコミットし、push し直す（上げないと入れた人に更新が届かない）。" >&2
+    status=1
+  fi
+done
+exit $status
