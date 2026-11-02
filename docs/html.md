@@ -187,7 +187,7 @@ Infobox                            （値のある項目が一つもなければ
 | `HTML-ANCHOR-MISSING` | `#…` のリンク先（目次・戻りリンクなど）に対応する `id` がない。リンク先が `#` だけのものは見ない |
 | `HTML-FOOTNOTE-MISSING` | 本文から存在しない脚注（`#cite_note-…`）への参照がある |
 | `HTML-FOOTNOTE-UNREFERENCED` | どこからも参照されない脚注の項目がある |
-| `HTML-FOOTNOTE-PLAIN` | 脚注番号（`[3]`・`[注 1]`）がリンクにならず文字のまま残っている（リンクの外の文字だけを見る） |
+| `HTML-FOOTNOTE-PLAIN` | 脚注番号（`[3]`・`[注 1]`）がリンクにならず文字のまま残っている（リンクの外の文字だけを見る。`lang` 属性つきの `<span>`＝外国語の原文の中は見ない） |
 | `HTML-FOOTNOTE-NUMBER` | 脚注への参照の表示（`[3]`）とリンク先（`#cite_note-3`）の番号が合わない。脚注の一覧の n 番目の項目の `id` が `cite_note-n` でない |
 | `HTML-EXTERNAL-RESOURCE` | 外部の CSS・JS・画像などを読む部品がある（`<link>`、`src` 付きの `<script>`、外部アドレスの `<img>` など、`@import`、`url(外部のアドレス)`）。`data:` の画像は外部ではない |
 
