@@ -64,6 +64,15 @@ def test_wiki_sh_を確認なしで流せるよう許す(folder: Path) -> None:
     assert "Bash(sh *wiki.sh* *)" in fields["allowed-tools"]
 
 
+@pytest.mark.parametrize("folder", [SKILL, RUMOR, BOTH], ids=lambda p: p.name)
+def test_確認なしで流せるシェルは_wiki_sh_だけ(folder: Path) -> None:
+    # curl -o などを許すと、読んだページに仕込まれた指示で、どこへでも確認なしに書けてしまう。
+    # PDF の保存も wiki.sh pdf に任せ、置き場を決めて書かせる。
+    fields = _frontmatter((folder / "SKILL.md").read_text(encoding="utf-8"))
+
+    assert re.findall(r"Bash\([^)]*\)", fields["allowed-tools"]) == ["Bash(sh *wiki.sh* *)"]
+
+
 @pytest.mark.parametrize("folder", [RUMOR, BOTH], ids=lambda p: p.name)
 def test_隣のスキルを使うスキルが指すファイルはすべてある(folder: Path) -> None:
     text = (folder / "SKILL.md").read_text(encoding="utf-8")

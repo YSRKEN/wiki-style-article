@@ -13,10 +13,11 @@ SH = shutil.which("sh")
 
 pytestmark = pytest.mark.skipif(SH is None, reason="sh が無い")
 
-# 版の確かめ（-c）には ok で答え、それ以外は呼ばれた引数をそのまま出す偽の Python。
+# 版の確かめ（-c）には ok で答え、それ以外は名前と呼ばれた引数を 1 行に 1 つずつ出す偽の Python。
+# 1 行にまとめると、空白を含むパス（入口の wiki.py）を引数の区切りと見分けられない。
 _FAKE = """#!/bin/sh
 if [ "$1" = "-c" ] || [ "$2" = "-c" ]; then exit {probe}; fi
-printf '%s\\n' "{name} $*"
+printf '%s\\n' "{name}" "$@"
 """
 
 
@@ -47,10 +48,8 @@ def _run(path_env: str, *args: str) -> subprocess.CompletedProcess[str]:
 
 
 def _called(result: subprocess.CompletedProcess[str]) -> str:
-    """偽のコマンドが出した 1 行から、入口のパスを ``<wiki.py>`` に置き換えたもの。"""
-    line = result.stdout.strip()
-    command, _, rest = line.partition(" ")
-    words = rest.split(" ")
+    """偽のコマンドが出した行を空白でつなぎ、入口のパスを ``<wiki.py>`` に置き換えたもの。"""
+    command, *words = result.stdout.strip().splitlines()
     entry = next(word for word in words if word.endswith("wiki.py"))
     assert Path(entry).name == "wiki.py"
     return " ".join([command, *("<wiki.py>" if w == entry else w for w in words)])

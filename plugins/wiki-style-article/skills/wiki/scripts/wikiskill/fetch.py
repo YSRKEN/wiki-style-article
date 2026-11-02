@@ -11,7 +11,9 @@ Jina の Reader も鍵なしでは web.archive.org を止めている（2026-11-
 - 元のページが 403・404・410・451 か、相手に届かなければ、web.archive.org の保存版を取る
 - 証明書の検証で失敗したら（Windows の Python が OS の根の証明書を取ってこないため）、
   検証を外さずに、OS の仕組みで検証する curl で取り直す
-- HTML だけを扱う。PDF などは :class:`FetchError` にする
+- :func:`fetch_page` は HTML だけを扱い、PDF などは :class:`FetchError` にする。PDF は
+  :func:`download_pdf` が、決めた置き場の下にだけ保存する（担当が ``Read`` で読む）。任意の
+  保存先へ書ける ``curl -o`` を担当に許さずに済むよう、置き場と中身を確かめてから書く
 """
 
 from __future__ import annotations
@@ -28,16 +30,20 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Generator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from html.parser import HTMLParser
 from pathlib import Path
+from typing import TypeVar
 
 __all__ = [
+    "MAX_PDF_BYTES",
     "FetchError",
     "Page",
     "Pacer",
+    "SavedPdf",
     "archive_raw_url",
     "decode_body",
+    "download_pdf",
     "fetch_page",
     "html_to_text",
 ]
@@ -49,6 +55,10 @@ _DEFAULT_INTERVAL = 1.0
 _RETRY_STATUSES = frozenset({429, 503})
 _ARCHIVE_STATUSES = frozenset({403, 404, 410, 451})
 _ARCHIVE_PATH = re.compile(r"^/web/(\d{4,14})([a-z]{2}_)?/(.+)$")
+MAX_PDF_BYTES = 100 * 1024 * 1024
+"""保存する PDF の大きさの上限（100MB）。置き場を埋め尽くさないため。"""
+_PDF_MAGIC = b"%PDF-"
+_T = TypeVar("_T")
 
 
 class FetchError(Exception):
@@ -94,6 +104,31 @@ class Page:
     fetched_url: str
     title: str
     text: str
+    archive_reason: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SavedPdf:
+    """保存した PDF。
+
+    Parameters
+    ----------
+    url : str
+        頼まれた URL。
+    fetched_url : str
+        実際に取りに行った URL（保存版なら ``id_`` の形）。
+    path : Path
+        保存したファイル。同じ中身が既にあれば、そのファイル。
+    size : int
+        バイト数。
+    archive_reason : str | None
+        元が取れず保存版を取ったときの、元の理由。元が取れたら None。
+    """
+
+    url: str
+    fetched_url: str
+    path: Path
+    size: int
     archive_reason: str | None = None
 
 
@@ -246,12 +281,89 @@ def fetch_page(
         URL が http(s) でない、HTTP の誤り、通信の失敗、HTML でないとき。保存版も取れなければ、
         元と保存版の両方の理由を文面に含む。
     """
+    page, _fetched, reason = _with_archive(
+        url,
+        lambda target: _fetch_once(url, target, pacer=pacer, timeout=timeout),
+        archive_year=archive_year,
+        archive_base=archive_base,
+    )
+    return page if reason is None else replace(page, archive_reason=reason)
+
+
+def download_pdf(
+    url: str,
+    out_dir: Path,
+    *,
+    pacer: Pacer,
+    timeout: float = 120.0,
+    archive_year: int | None = None,
+    archive_base: str = f"https://{ARCHIVE_HOST}",
+    max_bytes: int = MAX_PDF_BYTES,
+) -> SavedPdf:
+    """PDF を取り、``out_dir`` の直下に保存する。元のページが無ければ保存版を取る。
+
+    ファイル名は URL の末尾から作り、ファイル名に使えない字は ``_`` にする。同じ名前の別の中身が
+    あれば上書きせず ``-2`` のような番号を付け、同じ中身があればそれを返す。保存版へ回す条件は
+    :func:`fetch_page` と同じ。
+
+    Parameters
+    ----------
+    url : str
+        ``http://`` か ``https://`` の URL。
+    out_dir : Path
+        保存先のフォルダ。無ければ作る。この外には書かない。
+    pacer : Pacer
+        同じホストへの間を空ける仕組み。
+    archive_year : int | None
+        保存版を探す年。省くと今年。
+    archive_base : str
+        保存版のサイトの根。試験で差し替える。
+    max_bytes : int
+        保存する大きさの上限。
+
+    Raises
+    ------
+    FetchError
+        取れない、中身が PDF でない（``%PDF-`` で始まらない）、大きすぎるとき。
+        このときは何も書かない。
+    """
+
+    def get(target: str) -> tuple[bytes, str]:
+        data, _content_type, final_url = _fetch_bytes(target, pacer=pacer, timeout=timeout)
+        return data, final_url
+
+    data, fetched, reason = _with_archive(
+        url, get, archive_year=archive_year, archive_base=archive_base
+    )
+    if _PDF_MAGIC not in data[:1024]:
+        raise FetchError(f"PDF でない中身（先頭が %PDF- でない）: {fetched}")
+    if len(data) > max_bytes:
+        raise FetchError(
+            f"PDF が大きすぎる（{len(data)} バイト。上限 {max_bytes} バイト）: {fetched}"
+        )
+    out_dir.mkdir(parents=True, exist_ok=True)
+    path = _store(out_dir, _pdf_name(url), data)
+    return SavedPdf(url, fetched, path, len(data), archive_reason=reason)
+
+
+def _with_archive(
+    url: str,
+    get: Callable[[str], tuple[_T, str]],
+    *,
+    archive_year: int | None,
+    archive_base: str,
+) -> tuple[_T, str, str | None]:
+    """``get`` で取り、元のページが無ければ保存版を ``get`` で取る。
+
+    ``get`` は取る URL を受け取り、（中身, 転送された先の URL）を返す。戻り値は
+    （中身, 取りに行った URL, 保存版を取った理由。元が取れたら None）。
+    """
     if urllib.parse.urlsplit(url).scheme not in ("http", "https"):
         raise FetchError(f"http か https の URL だけを取れる: {url}")
     target = archive_raw_url(url)
     is_archive = target != url or urllib.parse.urlsplit(url).hostname == ARCHIVE_HOST
     try:
-        page, final_url = _fetch_once(url, target, pacer=pacer, timeout=timeout)
+        result, final_url = get(target)
     except FetchError as error:
         if is_archive or (error.status not in _ARCHIVE_STATUSES and not error.unreachable):
             raise
@@ -259,17 +371,17 @@ def fetch_page(
         failure: FetchError | None = error
     else:
         if is_archive or not _moved_to_top(url, final_url):
-            return page
+            return result, target, None
         reason = "トップページへの転送"
         failure = None
     year = archive_year or time.localtime().tm_year
     snapshot = f"{archive_base.rstrip('/')}/web/{year}id_/{url}"
     try:
-        archived, _ = _fetch_once(url, snapshot, pacer=pacer, timeout=timeout)
+        archived, _ = get(snapshot)
     except FetchError as error:
         first = str(failure) if failure is not None else f"{reason}: {url}"
         raise FetchError(f"{first}。保存版も取れなかった（{error}）") from error
-    return Page(url, archived.fetched_url, archived.title, archived.text, archive_reason=reason)
+    return archived, snapshot, reason
 
 
 def _moved_to_top(url: str, final_url: str) -> bool:
@@ -281,12 +393,21 @@ def _moved_to_top(url: str, final_url: str) -> bool:
 
 
 def _fetch_once(url: str, target: str, *, pacer: Pacer, timeout: float) -> tuple[Page, str]:
-    """``target`` を 1 回（429・503 なら 2 回）取る。ページと、転送された先の URL を返す。"""
+    """``target`` を取り、HTML のページと、転送された先の URL を返す。"""
+    data, content_type, final_url = _fetch_bytes(target, pacer=pacer, timeout=timeout)
+    if "html" not in content_type.lower():
+        raise FetchError(f"HTML でないページ（{content_type or '種類が不明'}）: {target}")
+    title, text = html_to_text(decode_body(data, content_type))
+    return Page(url=url, fetched_url=target, title=title, text=text), final_url
+
+
+def _fetch_bytes(target: str, *, pacer: Pacer, timeout: float) -> tuple[bytes, str, str]:
+    """``target`` を 1 回（429・503 なら 2 回）取る。（中身, 種類, 転送された先の URL）を返す。"""
     host = urllib.parse.urlsplit(target).hostname or ""
     for attempt in range(2):
         pacer.wait(host, extra=0.0 if attempt == 0 else _INTERVALS.get(host, _DEFAULT_INTERVAL))
         try:
-            data, content_type, final_url = _get(target, timeout)
+            return _get(target, timeout)
         except urllib.error.HTTPError as error:
             if error.code in _RETRY_STATUSES and attempt == 0:
                 continue
@@ -302,14 +423,36 @@ def _fetch_once(url: str, target: str, *, pacer: Pacer, timeout: float) -> tuple
                 raise FetchError(
                     f"証明書を検証できず、取り直す curl も無い（{error.reason}）: {target}"
                 ) from error
-            data, content_type, final_url = _get_with_curl(target, timeout)
+            return _get_with_curl(target, timeout)
         except (TimeoutError, OSError) as error:
             raise FetchError(f"取れなかった（{error}）: {target}") from error
-        if "html" not in content_type.lower():
-            raise FetchError(f"HTML でないページ（{content_type or '種類が不明'}）: {target}")
-        title, text = html_to_text(decode_body(data, content_type))
-        return Page(url=url, fetched_url=target, title=title, text=text), final_url
     raise FetchError(f"取り直しても取れなかった: {target}")
+
+
+def _pdf_name(url: str) -> str:
+    """URL の末尾から PDF のファイル名を作る。使えない字は ``_`` にし、無ければ ``document``。"""
+    path = urllib.parse.unquote(urllib.parse.urlsplit(url).path)
+    stem = path.rstrip("/").rsplit("/", 1)[-1]
+    stem = re.sub(r"\.pdf$", "", stem, flags=re.IGNORECASE)
+    stem = re.sub(r"[^\w.-]+", "_", stem).strip("._-")[:80]
+    return f"{stem or 'document'}.pdf"
+
+
+def _store(out_dir: Path, name: str, data: bytes) -> Path:
+    """``out_dir`` の直下に書く。同じ名前の別の中身には番号を付け、同じ中身ならそれを返す。"""
+    stem = name.removesuffix(".pdf")
+    number = 1
+    while True:
+        path = out_dir / (name if number == 1 else f"{stem}-{number}.pdf")
+        try:
+            with path.open("xb") as file:
+                file.write(data)
+        except FileExistsError:
+            if path.read_bytes() == data:
+                return path
+            number += 1
+            continue
+        return path
 
 
 # --- 下請け -----------------------------------------------------------------------
