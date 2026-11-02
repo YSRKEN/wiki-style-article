@@ -66,6 +66,7 @@ URL: https://web.archive.org/web/2016/https://www.nissin.com/jp/
 - web.archive.org の保存版は、Wayback の飾りの無い形（`/web/<時刻>id_/<URL>`）に直して取る
 - 同じホストへは間を空ける（web.archive.org は 15 秒、ほかは 1 秒）。間の記録は環境変数 `WIKISKILL_FETCH_STATE` のフォルダ（無ければ一時フォルダの `wiki-style-article-fetch`）に置き、並んだ担当で分け合う
 - 429・503 なら、間を空けて一度だけ取り直す
+- 証明書の検証で失敗したら、検証を外さずに curl で取り直す。Windows の Python は、OS が必要なときに取ってくる根の証明書を読まないので、一部のサイト（2026-11-02 には example.com）で検証に失敗する。curl は OS の仕組みで検証する
 - 本文は `--max-chars`（既定 30000 字）で区切る。続きは、出力の最後に出る `--offset` を付けて流し直す
 - 取れない（HTTP の誤り・通信の失敗・HTML でない）ときは、標準エラーに理由と、鍵なしの Jina（`https://r.jina.ai/<URL>` を WebFetch で取る）の案内を出して終了コード 1
 
