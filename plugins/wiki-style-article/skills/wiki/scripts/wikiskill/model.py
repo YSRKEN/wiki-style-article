@@ -40,6 +40,12 @@ NoticeKind = Literal["出典の明記", "独自研究", "観点"]
 NOTICE_KINDS: tuple[NoticeKind, ...] = ("出典の明記", "独自研究", "観点")
 """警告の枠の種類として使える値。並びは枠に載せる順。"""
 
+NoticeRule = Literal["多いときだけ", "付けない", "付ける"]
+"""印から決まる警告の枠の出し方。生成の前に利用者に聞いて決める。"""
+
+NOTICE_RULES: tuple[NoticeRule, ...] = ("多いときだけ", "付けない", "付ける")
+"""枠の出し方として使える値。先頭が既定。"""
+
 
 # --- 文中の部品 -------------------------------------------------------------
 
@@ -241,6 +247,7 @@ class Settings:
 
     ``infobox``・``references``・``notes`` は原稿に書いた順を保つ。
     ``notices`` は、印から決まる枠に足して貼る警告の枠（``観点`` など）。書いた順を保つ。
+    ``notice_rule`` は、印から決まる枠の出し方（:data:`NOTICE_RULES`）。
     """
 
     title: str
@@ -254,6 +261,7 @@ class Settings:
     related: tuple[str, ...] = ()
     external_links: tuple[ExternalLink, ...] = ()
     notices: tuple[NoticeKind, ...] = ()
+    notice_rule: NoticeRule = "多いときだけ"
 
 
 # --- 記事 ------------------------------------------------------------------

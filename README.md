@@ -45,6 +45,7 @@ Codex には調べものの担当の定義を同梱していないので、設�
 
 - 今いるフォルダの下に `東京タワー/` を作り、調べた材料（`材料/`）、原稿（`東京タワー.md`）、記事（`東京タワー.html` と `東京タワー.wikitext`）を置きます
 - 題材の類型を決めかねたときは、書く前に一問だけ聞きます
+- 本家の記事を読んだあと、調べ始める前に、扱う範囲・調べる広さ（さっと／ふつう／念入り）・ネタバレ（物語のある作品だけ）・冒頭の警告の枠の出し方を、1 問ずつ聞きます。`/wiki 東京タワー 念入り` のように呼ぶときに書いた項目は聞きません。「残りは推奨で」を選ぶと、以降の問いは推奨の答えで進みます
 - 渡すときに、類型、印を付けて載せた事実の数、探しても何も見つからなかった観点、検査の結果を伝えます
 
 調べた結果や手元の資料を渡して「百科事典みたいな記事にして」と頼むこともできます。
@@ -118,4 +119,4 @@ claude plugin marketplace add YSRKEN/wiki-style-article
 claude plugin install wiki-style-article@wiki-style-article
 ```
 
-Then run `/wiki <topic>`. Code is under the MIT License; the documents under `plugins/wiki-style-article/skills/wiki/references/` are under CC BY-SA 4.0.
+Then run `/wiki <topic>`. Before researching, it asks a few questions one at a time (scope, research depth, spoilers for works with a story, and when to show the warning banners); you can skip the rest with the recommended answers. Code is under the MIT License; the documents under `plugins/wiki-style-article/skills/wiki/references/` are under CC BY-SA 4.0.
