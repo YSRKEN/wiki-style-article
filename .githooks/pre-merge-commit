@@ -1,0 +1,18 @@
+#!/bin/sh
+# pre-merge-commit フック: main へのマージの前に scripts/check.py を流し、落ちたらマージを止める。
+#
+# 2026-11-02、検査の出力を tail に通して終了コードを見落とし、ruff の落ちたコミットを積んだ。
+# 検査を目で読む運用に頼らず、main へ入る所で機械が止める。マージのときだけ流すので、
+# 作業ブランチでのコミットは待たされない。--no-verify を付けたマージは止めない。
+
+branch=$(git symbolic-ref --quiet --short HEAD) || exit 0
+[ "$branch" = main ] || exit 0
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "pre-merge-commit: uv が見つからず、scripts/check.py を流せない。uv を入れてからマージし直す。" >&2
+  exit 1
+fi
+if ! uv run --quiet scripts/check.py >&2; then
+  echo "pre-merge-commit: scripts/check.py が落ちたので、main へのマージを止めた。直してからマージし直す。" >&2
+  exit 1
+fi
