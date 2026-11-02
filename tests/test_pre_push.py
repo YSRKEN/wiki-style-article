@@ -1,4 +1,4 @@
-""".githooks/pre-push が、プラグインの中身を変えたのに版を上げない push を止めるかを見る。"""
+""".githooks/pre-push が、版の上げ忘れと、版のタグの打ち忘れを止めるかを見る。"""
 
 import shutil
 import subprocess
@@ -31,6 +31,10 @@ def _commit(repo: Path, files: dict[str, str]) -> str:
     _git(repo, "add", "-A")
     _git(repo, "-c", "core.hooksPath=/dev/null", "commit", "-q", "-m", "chore: 試し")
     return _git(repo, "rev-parse", "HEAD")
+
+
+def _tag(repo: Path, version: str, commit: str) -> None:
+    _git(repo, "tag", "-a", f"v{version}", commit, "-m", f"v{version}")
 
 
 def _manifest(version: str) -> str:
@@ -77,12 +81,34 @@ def test_中身を変えて版が同じなら止める(repo: Path) -> None:
 def test_中身を変えて版を上げれば通す(repo: Path) -> None:
     base = _commit(repo, {MANIFEST: _manifest("0.1.0"), "plugins/wiki-style-article/a.md": "前\n"})
     head = _commit(repo, {MANIFEST: _manifest("0.1.1"), "plugins/wiki-style-article/a.md": "後\n"})
+    _tag(repo, "0.1.1", head)
 
     assert _push(repo, head, base).returncode == 0
 
 
+def test_版のタグが無ければ止める(repo: Path) -> None:
+    base = _commit(repo, {MANIFEST: _manifest("0.1.0"), "plugins/wiki-style-article/a.md": "前\n"})
+    head = _commit(repo, {MANIFEST: _manifest("0.1.1"), "plugins/wiki-style-article/a.md": "後\n"})
+
+    result = _push(repo, head, base)
+
+    assert result.returncode == 1
+    assert "v0.1.1" in result.stderr
+    assert "git tag" in result.stderr
+
+
+def test_版のタグが送るコミットより後を指していれば止める(repo: Path) -> None:
+    base = _commit(repo, {MANIFEST: _manifest("0.1.0"), "plugins/wiki-style-article/a.md": "前\n"})
+    head = _commit(repo, {MANIFEST: _manifest("0.1.1"), "plugins/wiki-style-article/a.md": "後\n"})
+    later = _commit(repo, {"docs/a.md": "さらに後\n"})
+    _tag(repo, "0.1.1", later)
+
+    assert _push(repo, head, base).returncode == 1
+
+
 def test_プラグインの外だけを変えたなら版はそのままでよい(repo: Path) -> None:
     base = _commit(repo, {MANIFEST: _manifest("0.1.0"), "docs/a.md": "前\n"})
+    _tag(repo, "0.1.0", base)
     head = _commit(repo, {"docs/a.md": "後\n"})
 
     assert _push(repo, head, base).returncode == 0
@@ -91,6 +117,7 @@ def test_プラグインの外だけを変えたなら版はそのままでよ�
 def test_初めての_push_と_main_以外のブランチは見ない(repo: Path) -> None:
     base = _commit(repo, {MANIFEST: _manifest("0.1.0"), "plugins/wiki-style-article/a.md": "前\n"})
     head = _commit(repo, {"plugins/wiki-style-article/a.md": "後\n"})
+    _tag(repo, "0.1.0", head)
 
     assert _push(repo, head, ZERO).returncode == 0
     assert _push(repo, head, base, ref="refs/heads/feature/x").returncode == 0
