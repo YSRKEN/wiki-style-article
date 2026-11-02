@@ -23,8 +23,9 @@ allowed-tools: WebSearch WebFetch Read Write Edit Bash(sh *wiki.sh* *)
 - 許可の確認が出ない道具では、`cd`・`&&`・`;` を避ける理由は「URL や日本語の取り違えを防ぐ」だけになる。1 本ずつ呼ぶ方針は、そのまま使える
 - `run_in_background: false` は Claude Code の Agent の引数。他の道具では、担当を同じメッセージで並べて起こし、結果は完了の知らせで受ける形になることが多い
 - 担当のモデル名（`sonnet`）や同梱の `researcher` が無い道具では、その道具のモデルの id を指定する。担当を起こせない（深さの残りが無い）ときは工程 4 の「一人で順に調べる」に落とす（この落とし方は実走で通った）
-- `wiki.sh pdf` で作った PDF を `Read` の `pages` で読む手順は、`pages` の無い道具では使えない。`pdftotext` などでテキストにしてから読む
+- `wiki.sh pdf` で作った PDF を `Read` の `pages` で読む手順は、`pages` の無い道具では使えない。`pdftotext` があればテキストにしてから読み、無ければ Jina（`https://r.jina.ai/<URL>`）で文字にして読む（`references/research.md` の「全文を読む」）
 - `write` が親フォルダを作らない道具では、作業フォルダと `材料/` を先に `mkdir` で作る（Claude Code の Write は作るので、工程 1 のとおり要らない）
+- 質問の道具が無い道具（Codex など）では、生成前の問いを文で 1 問ずつ出し、返事を待つ（`references/questions.md`）。Codex（0.160.1、Windows）で 2026-11-02 に記事を 1 本作ったときは、この形で問いが出て、担当は起こさず一人で調べ、check と build が通った
 
 ## 使う場面
 
