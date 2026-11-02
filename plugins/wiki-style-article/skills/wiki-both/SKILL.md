@@ -2,7 +2,7 @@
 name: wiki-both
 description: 題材を 1 回だけ調べ、噂や利用者の考察を載せない「通常の記事」と、印と警告の枠を付けて載せる「噂込みの記事」の両方を作る。HTML は 1 枚で、記事名の下のボタンで二つを切り替えて読める。ウィキテキストは通常と噂込みの 2 本。「/wiki-both しぐれうい」のように呼ばれたとき、両方の記事を見比べたいときに使う。どちらか一方だけなら wiki か wiki-with-rumor を使う。
 compatibility: wiki スキルと同じ（Python 3.11 以上か uv、Web の検索・ページの取得）。同じプラグインの wiki スキルのフォルダ（このフォルダの隣の ../wiki/）の手順・参照・スクリプトを使う。
-allowed-tools: WebSearch WebFetch Write Edit Bash(sh *wiki.sh* *)
+allowed-tools: WebSearch WebFetch Read Write Edit Bash(sh *wiki.sh* *) Bash(curl -L -o *)
 ---
 
 # 通常の記事と噂込みの記事を 1 回の調べもので作る
