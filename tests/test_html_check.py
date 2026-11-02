@@ -271,3 +271,27 @@ def test_すべての類型で書き出しは検査を通る(type_id: str) -> No
 
     assert check_html(html) == ()
     assert ('class="infobox"' in html) == bool(fields)
+
+
+def test_原文の中の引用元の番号は脚注番号と見なさない() -> None:
+    body = '<p>訳（原文：<span lang="en">In 1984, Tsai [24] proposed a method.</span>）</p>'
+
+    assert _rules(_page(body)) == []
+
+
+def test_原文の外の取り残しは今までどおり見つける() -> None:
+    body = '<p>訳[3]（原文：<span lang="en">Tsai [24] proposed.</span>）</p>'
+
+    assert _rules(_page(body)) == ["HTML-FOOTNOTE-PLAIN"]
+
+
+def test_原文の後ろの取り残しも見つける() -> None:
+    body = '<p><span lang="en">a [24]</span>続き[5]</p>'
+
+    assert _rules(_page(body)) == ["HTML-FOOTNOTE-PLAIN"]
+
+
+def test_入れ子の_span_を閉じても原文の中を抜けたことにならない() -> None:
+    body = '<p><span lang="en">a <span>b</span> [24]</span></p>'
+
+    assert _rules(_page(body)) == []

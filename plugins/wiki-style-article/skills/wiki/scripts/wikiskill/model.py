@@ -97,6 +97,18 @@ class FixRange:
 
 
 @dataclass(frozen=True)
+class Original:
+    """外国語の原文 ``[!原文|言語タグ|文]``。訳文に添える原文で、和文用の検査にはかけない。
+
+    ``lang`` は BCP 47 の形の言語タグ（``en``・``zh-Hans`` など）、``text`` は原文の文字
+    （記法は含まない）。
+    """
+
+    lang: str
+    text: str
+
+
+@dataclass(frozen=True)
 class Bold:
     """太字 ``'''…'''``。中に内部リンク・脚注の印・点の印を入れられる。"""
 
@@ -108,14 +120,16 @@ class RumorRange:
     """噂の範囲 ``[!噂|範囲の文]``。通常の記事では取り除き、噂込みの記事では中身にほどく。
 
     範囲の文には、文字・内部リンク・太字・出典の印・注釈の印・点の印・範囲の印を入れられる
-    （噂の範囲の入れ子は入れない）。二つの版への分け方は :mod:`wikiskill.variants`。
+    ・原文（噂の範囲の入れ子は入れない）。二つの版への分け方は :mod:`wikiskill.variants`。
     """
 
-    children: tuple[Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold, ...]
+    children: tuple[
+        Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold | Original, ...
+    ]
 
 
 Inline: TypeAlias = (
-    Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold | RumorRange
+    Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold | RumorRange | Original
 )
 """文中の部品のいずれか。"""
 

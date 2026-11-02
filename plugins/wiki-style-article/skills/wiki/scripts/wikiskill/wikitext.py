@@ -34,6 +34,7 @@ from wikiskill.model import (
     Inline,
     InternalLink,
     NoticeKind,
+    Original,
     Paragraph,
     RefMark,
     RumorRange,
@@ -263,12 +264,23 @@ class _BodyWriter:
             return f"{{{{{item.kind}{self._date_arg()}}}}}"
         if isinstance(item, FixRange):
             return self._range(item)
+        if isinstance(item, Original):
+            return self._original(item)
         if isinstance(item, RumorRange):
             # 書き出す前に二つの版へ分けるので、ふつうは来ない。来たら中身だけを書く。
             return self.inline(item.children)
         if isinstance(item, RefMark):
             return self._ref(item.key)
         return self._note(item.key)
+
+    def _original(self, item: Original) -> str:
+        """外国語の原文。本家の形は ``{{lang|タグ|文}}``、素の記法では文字だけ。"""
+        if self._plain:
+            return escape_text(item.text, pipes=self._nested)
+        body = escape_text(item.text, pipes=True)
+        # 等号があると名前つきの引数に読まれるので、番号を付けて守る。
+        argument = f"2={body}" if "=" in body else body
+        return f"{{{{lang|{item.lang}|{argument}}}}}"
 
     def _date_arg(self) -> str:
         return "" if self._mark_date is None else f"|date={self._mark_date}"

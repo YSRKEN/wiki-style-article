@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 from wikiskill.checks.walk import iter_inline_groups, iter_sections
-from wikiskill.model import Article, Bold, FixRange, Inline, InternalLink, Text
+from wikiskill.model import Article, Bold, FixRange, Inline, InternalLink, Original, Text
 
 Span = tuple[int, int]
 """文字列の中の範囲（始まりを含み、終わりを含まない）。"""
@@ -34,12 +34,20 @@ class TextUnit:
         記事名・作品名にあたる範囲。内部リンクの表示・太字・``『』`` の中。
     quotes : tuple[Span, ...]
         ``「」``・``『』`` の中の範囲。引用やせりふ、作品名を含む。
+    foreign : tuple[Span, ...]
+        外国語の原文（``[!原文|…]``）の範囲。和文用の検査にはかけない。
     """
 
     text: str
     line: int
     titles: tuple[Span, ...]
     quotes: tuple[Span, ...]
+    foreign: tuple[Span, ...] = ()
+
+    @property
+    def searchable(self) -> str:
+        """和文用の検査にかける文字。原文の範囲は、長さを保ったまま検査に引っかからない字に替える。"""
+        return mask_spans(self.text, self.foreign)
 
     def in_titles(self, position: int) -> bool:
         """``position`` が記事名・作品名の範囲に入っているか。"""
@@ -48,6 +56,17 @@ class TextUnit:
     def in_quotes(self, position: int) -> bool:
         """``position`` が ``「」``・``『』`` の中に入っているか。"""
         return any(start <= position < end for start, end in self.quotes)
+
+
+_MASK = "\ue000"
+"""原文の範囲を塗りつぶす字（私用領域の字。どの規則にも当たらない）。"""
+
+
+def mask_spans(text: str, spans: tuple[Span, ...]) -> str:
+    """``spans`` の範囲を、同じ長さの検査に当たらない字に置き換える。"""
+    for start, end in spans:
+        text = text[:start] + _MASK * (end - start) + text[end:]
+    return text
 
 
 def bracket_spans(text: str, opening: str, closing: str) -> tuple[Span, ...]:
@@ -67,25 +86,33 @@ def bracket_spans(text: str, opening: str, closing: str) -> tuple[Span, ...]:
     return tuple(spans)
 
 
-def make_unit(text: str, line: int, titles: tuple[Span, ...] = ()) -> TextUnit:
-    """文字列から :class:`TextUnit` を作る。``『』``・``「」`` の範囲は文字から求める。"""
+def make_unit(
+    text: str, line: int, titles: tuple[Span, ...] = (), foreign: tuple[Span, ...] = ()
+) -> TextUnit:
+    """文字列から :class:`TextUnit` を作る。``『』``・``「」`` の範囲は文字から求める。
+
+    括弧の範囲は、外国語の原文の範囲を除いた文字から求める（原文の中の括弧を数えない）。
+    """
+    shown = mask_spans(text, foreign)
     brackets = tuple(
         span
         for opening, closing in _BRACKET_PAIRS.items()
-        for span in bracket_spans(text, opening, closing)
+        for span in bracket_spans(shown, opening, closing)
     )
-    work_titles = bracket_spans(text, "『", "』")
+    work_titles = bracket_spans(shown, "『", "』")
     return TextUnit(
         text=text,
         line=line,
         titles=tuple(sorted({*titles, *work_titles})),
         quotes=tuple(sorted(set(brackets))),
+        foreign=foreign,
     )
 
 
 def _unit_from_parts(parts: tuple[Inline, ...], line: int) -> TextUnit:
     buffer: list[str] = []
     titles: list[Span] = []
+    foreign: list[Span] = []
     length = 0
 
     def add(text: str, *, title: bool) -> None:
@@ -101,6 +128,9 @@ def _unit_from_parts(parts: tuple[Inline, ...], line: int) -> TextUnit:
                 add(part.text, title=False)
             elif isinstance(part, InternalLink):
                 add(part.display, title=True)
+            elif isinstance(part, Original):
+                foreign.append((length, length + len(part.text)))
+                add(part.text, title=False)
             elif isinstance(part, FixRange):
                 # 範囲の印は記法だけを取り除き、範囲の文はふつうの本文として見る。
                 visit(part.children)
@@ -116,7 +146,7 @@ def _unit_from_parts(parts: tuple[Inline, ...], line: int) -> TextUnit:
                 add(shown, title=True)
 
     visit(parts)
-    return make_unit("".join(buffer), line, tuple(titles))
+    return make_unit("".join(buffer), line, tuple(titles), tuple(foreign))
 
 
 def iter_units(article: Article) -> Iterator[TextUnit]:
