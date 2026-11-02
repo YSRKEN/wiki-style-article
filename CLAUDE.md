@@ -23,7 +23,7 @@ git config pull.ff only
 git config push.followTags true
 ```
 
-プラグインの中身（`plugins/wiki-style-article/`）を変えたら `plugin.json` の `version` を上げ、`git tag -a v<版> -m "v<版>"` を打つ。main への push は、版の上げ忘れとタグの打ち忘れを pre-push のフックが止める。
+プラグインの中身（`plugins/wiki-style-article/`）を変えたら `plugin.json` の `version` を上げ、`git tag -a v<版> -m "v<版>: <要点>"` を打つ。main とタグの push は、版の上げ忘れ・タグの打ち忘れ・注記の形の誤り（`v<版>` で始まらない、注釈つきでない）を pre-push のフックが止める。
 
 `.scratch/`（wayfinder の地図とチケット、調べた結果）は作業メモなので git に入れない。
 

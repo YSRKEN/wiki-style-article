@@ -127,3 +127,43 @@ def test_ブランチを消す_push_は見ない(repo: Path) -> None:
     base = _commit(repo, {MANIFEST: _manifest("0.1.0")})
 
     assert _push(repo, ZERO, base).returncode == 0
+
+
+def _tag_with(repo: Path, tag: str, commit: str, message: str | None) -> str:
+    """注記を決めてタグを打ち、タグの名前が指すもの（注釈つきならタグの対象）を返す。"""
+    if message is None:
+        _git(repo, "tag", tag, commit)
+    else:
+        _git(repo, "tag", "-a", tag, commit, "-m", message)
+    return _git(repo, "rev-parse", f"refs/tags/{tag}")
+
+
+@pytest.mark.parametrize("message", ["0.1.1", "リリース", None], ids=["版だけ", "別の文", "軽いタグ"])
+def test_版のタグの注記が_v版_で始まらなければ止める(repo: Path, message: str | None) -> None:
+    base = _commit(repo, {MANIFEST: _manifest("0.1.0"), "plugins/wiki-style-article/a.md": "前\n"})
+    head = _commit(repo, {MANIFEST: _manifest("0.1.1"), "plugins/wiki-style-article/a.md": "後\n"})
+    _tag_with(repo, "v0.1.1", head, message)
+
+    result = _push(repo, head, base)
+
+    assert result.returncode == 1
+    assert "v0.1.1" in result.stderr
+    assert "注記" in result.stderr
+
+
+def test_注記が_v版_と要点なら通す(repo: Path) -> None:
+    base = _commit(repo, {MANIFEST: _manifest("0.1.0"), "plugins/wiki-style-article/a.md": "前\n"})
+    head = _commit(repo, {MANIFEST: _manifest("0.1.1"), "plugins/wiki-style-article/a.md": "後\n"})
+    _tag_with(repo, "v0.1.1", head, "v0.1.1: 要点を書く")
+
+    assert _push(repo, head, base).returncode == 0
+
+
+@pytest.mark.parametrize(
+    ("message", "code"), [("0.1.1", 1), (None, 1), ("v0.1.1: 要点", 0), ("v0.1.1", 0)]
+)
+def test_タグだけの_push_でも注記を見る(repo: Path, message: str | None, code: int) -> None:
+    head = _commit(repo, {MANIFEST: _manifest("0.1.1")})
+    target = _tag_with(repo, "v0.1.1", head, message)
+
+    assert _push(repo, target, ZERO, ref="refs/tags/v0.1.1").returncode == code
