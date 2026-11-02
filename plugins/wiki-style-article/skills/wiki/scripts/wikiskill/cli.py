@@ -40,7 +40,7 @@ from pathlib import Path
 from typing import NoReturn
 
 from wikiskill import wikipedia_refs
-from wikiskill.checks import Finding, Level, check_article
+from wikiskill.checks import Finding, Level, check_article_variants
 from wikiskill.errors import SourceError
 from wikiskill.fetch import FetchError, Pacer, fetch_page
 from wikiskill.html_check import check_html
@@ -375,7 +375,7 @@ def _read_and_check(source: Path) -> tuple[Finding, ...] | None:
         print(f"{error.line} 行目 [エラー] READ: {error.message}")
         _print_counts(errors=1, warnings=0)
         return None
-    findings = check_article(article, load_default_registry())
+    findings = check_article_variants(article, load_default_registry())
     for finding in findings:
         print(finding)
     errors = sum(1 for finding in findings if finding.level is Level.ERROR)

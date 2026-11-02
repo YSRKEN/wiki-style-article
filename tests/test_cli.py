@@ -211,6 +211,59 @@ def test_check_はエラーがあれば終了コード_1(tmp_path: Path) -> None
     assert main(["check", str(_write(tmp_path, _BROKEN))]) == 1
 
 
+_RUMOR = """+++
+title = "試験"
+type = "concept"
+
+[refs.a]
+kind = "web"
+title = "確かな出典"
+url = "https://example.com/a"
+access_date = "2026-11-01"
+
+[refs.b]
+kind = "web"
+title = "噂の出典"
+url = "https://example.com/b"
+access_date = "2026-11-01"
+weak = true
+
+[notes.x]
+text = "噂の注釈[^b][!信頼性要検証]。"
++++
+'''試験'''は架空の概念である[^a]。[!噂|裏の意味があるという[^b][!信頼性要検証][^n:x]。]
+
+## 概要
+
+試験の概要[^a]。
+
+## 騒動 [!噂]
+
+炎上したという[^b][!信頼性要検証]。
+
+### 余波
+
+余波があった[!要出典]。
+"""
+
+
+def test_check_は噂のある原稿の両方の版を検査する(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # 噂の中の弱い出典に [!信頼性要検証] が無いのは、噂込みの版でだけエラーになる。
+    broken = _RUMOR.replace("[^b][!信頼性要検証][^n:x]", "[^b][^n:x]")
+
+    assert main(["check", str(_write(tmp_path, _RUMOR))]) == 0
+    out = capsys.readouterr().out
+    assert "REF-UNUSED" not in out
+    assert main(["check", str(_write(tmp_path, broken, "壊れた.md"))]) == 1
+    assert "[エラー] REF-WEAK-UNMARKED" in capsys.readouterr().out
+    # 噂だけの段落を取り除くと、通常の版では節が空になる。
+    empty = _RUMOR.replace("試験の概要[^a]。", "[!噂|試験の概要[^a]。]")
+    assert main(["check", str(_write(tmp_path, empty, "空.md"))]) == 1
+    assert "[エラー] EMPTY-SECTION" in capsys.readouterr().out
+
+
 # --- type -------------------------------------------------------------------------
 
 
