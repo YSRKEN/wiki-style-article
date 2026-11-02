@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from wikiskill.html_check import check_html
 from wikiskill.html_writer import (
     HtmlError,
     NestedFootnoteError,
@@ -103,6 +104,7 @@ def test_雛形の差し込み口はすべて知られている() -> None:
     assert names == {
         "PAGE_TITLE",
         "TOC",
+        "NOTICES",
         "INFOBOX",
         "LEAD",
         "SECTIONS",
@@ -544,3 +546,120 @@ def test_値の中の波括弧は差し込み口として置き換わらない()
     out = write_html(article, REGISTRY["concept"], updated=UPDATED, template=template)
 
     assert out == "<p>&#123;&#123;LEAD&#125;&#125; と &#123;&#123;PAGE_TITLE&#125;&#125;。</p>\n"
+
+
+# --- 印と警告の枠 -------------------------------------------------------------------
+
+_MARK_DATE = "2026年11月"
+_SOURCES_TEXT = (
+    "この記事には、出典が示されていない記述や、信頼性の確かめられていない出典に頼る記述があります。"
+)
+_RESEARCH_TEXT = "この記事には、出典で確かめられていない見方や推測が含まれています。"
+_POV_TEXT = "この記事には、中立的な観点を欠くおそれのある噂や利用者の見方が含まれています。"
+
+
+def _render_marked(source: str, mark_date: str | None = _MARK_DATE) -> str:
+    article = read_article(source)
+    return write_html(
+        article, REGISTRY[article.settings.type_id], updated=UPDATED, mark_date=mark_date
+    )
+
+
+@pytest.mark.parametrize("kind", ["要出典", "信頼性要検証"])
+def test_点の印は上付きの文字にする(kind: str) -> None:
+    out = _article_part(_render_marked(_src(f"甲[!{kind}]。\n")))
+
+    assert f'<p>甲<sup class="fix-mark">[{kind}]</sup>。</p>' in out
+
+
+@pytest.mark.parametrize(
+    ("kind", "label"), [("要出典範囲", "要出典"), ("独自研究範囲", "独自研究?")]
+)
+def test_範囲の印は範囲を包み後ろに印を付ける(kind: str, label: str) -> None:
+    out = _article_part(_render_marked(_src(f"前。[!{kind}|甲[[乙]]]。\n")))
+
+    assert (
+        '<p>前。<span class="fix-range">甲'
+        '<a href="https://ja.wikipedia.org/wiki/%E4%B9%99" title="乙">乙</a></span>'
+        f'<sup class="fix-mark">[{label}]</sup>。</p>'
+    ) in out
+
+
+def test_太字の中の点の印と範囲の中の脚注() -> None:
+    out = _article_part(_render_marked(_src("'''甲[!要出典]'''。[!要出典範囲|乙[^w]]。\n", _WEB)))
+
+    assert '<b>甲<sup class="fix-mark">[要出典]</sup></b>' in out
+    assert (
+        '<span class="fix-range">乙<sup id="cite_ref-1-1" class="reference">'
+        '<a href="#cite_note-1">[1]</a></sup></span>'
+    ) in out
+    assert '<li id="cite_note-1">' in out
+
+
+def test_印のある記事はhtmlの検査を通る() -> None:
+    body = "甲[^w][!信頼性要検証]。[!独自研究範囲|乙[^n:a]]。\n"
+    front = _WEB + '[notes.a]\ntext = "注[!要出典]"\n'
+    out = _render_marked(_src(body, front))
+
+    assert check_html(out) == ()
+
+
+def test_印が一つなら冒頭の枠は一文と日付() -> None:
+    out = _article_part(_render_marked(_src("甲[!要出典]。\n")))
+
+    assert (
+        '<div class="ambox" role="note"><div class="ambox-text">'
+        f"{_SOURCES_TEXT}（2026年11月）</div></div>"
+    ) in out
+    assert out.count('class="ambox"') == 1
+
+
+def test_枠が二つ以上なら見出しの文と箇条にまとめる() -> None:
+    source = _src("[!独自研究範囲|甲]。乙[!信頼性要検証]。\n", 'notices = ["観点"]\n')
+    out = _article_part(_render_marked(source))
+
+    assert (
+        '<div class="ambox" role="note"><div class="ambox-text">'
+        "この記事には次の問題があります。\n<ul>\n"
+        f"<li>{_SOURCES_TEXT}（2026年11月）</li>\n"
+        f"<li>{_RESEARCH_TEXT}（2026年11月）</li>\n"
+        f"<li>{_POV_TEXT}（2026年11月）</li>\n"
+        "</ul></div></div>"
+    ) in out
+    assert out.count('class="ambox"') == 1
+
+
+def test_日付を渡さなければ枠に日付を出さない() -> None:
+    out = _article_part(_render_marked(_src("甲[!要出典]。\n"), mark_date=None))
+
+    assert f'<div class="ambox-text">{_SOURCES_TEXT}</div>' in out
+    assert "2026年11月" not in out
+
+
+def test_設定欄の枠だけでも貼る() -> None:
+    out = _article_part(_render_marked(_src("甲。\n", 'notices = ["観点"]\n')))
+
+    assert f"{_POV_TEXT}（2026年11月）" in out
+
+
+def test_冒頭の枠は_Infobox_と導入部より前に置く() -> None:
+    front = '[infobox]\n"作者" = "甲"\n'
+    out = _render_marked(_src("導入部[!要出典]。\n", front, type_id="manga"))
+
+    assert out.index('class="ambox"') < out.index('class="infobox"') < out.index("<p>導入部")
+
+
+def test_印も枠も無ければ枠を出さない() -> None:
+    out = _article_part(_render_marked(_src("甲。\n")))
+
+    assert "ambox" not in out
+    assert "fix-mark" not in out
+
+
+def test_枠と印の見た目は雛形の_CSS_に持つ() -> None:
+    css = load_template()
+
+    assert "border:1px solid #a2a9b1;border-left:10px solid #f28500" in css
+    assert "background:#fbfbfb" in css
+    assert "@media (min-width:720px){.ambox{margin-left:10%;margin-right:10%}}" in css
+    assert ".fix-range{border-bottom:1px dashed}" in css

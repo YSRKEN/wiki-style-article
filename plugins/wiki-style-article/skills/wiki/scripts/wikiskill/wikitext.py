@@ -9,8 +9,12 @@
     素の MediaWiki と Cite 拡張だけで描ける。出典は ``<ref>`` の中に地の文で書き、Infobox は
     ``{| class="infobox"`` の表、脚注の一覧は ``<references />``。テンプレートは使わない。
 
-ページの並びは、Infobox、導入部、節、脚注（注釈・出典の小節）、関連項目、外部リンク、
-``{{DEFAULTSORT:}}``、カテゴリ。値のない部分は節も行も書かない。
+ページの並びは、冒頭の警告の枠、Infobox、導入部、節、脚注（注釈・出典の小節）、関連項目、
+外部リンク、``{{DEFAULTSORT:}}``、カテゴリ。値のない部分は節も行も書かない。
+
+印と警告の枠は、本家の形では ``{{要出典|date=…}}``・``{{要出典範囲|1=範囲の文|date=…}}``・
+``{{出典の明記|date=…}}``・``{{複数の問題|出典の明記=…|…}}`` のテンプレート、素の記法では
+``[要出典]`` のような文字と、斜体の一行にする。
 """
 
 from __future__ import annotations
@@ -21,17 +25,22 @@ from dataclasses import dataclass
 from typing import Literal
 
 from wikiskill.model import (
+    FIX_RANGE_LABELS,
     Article,
     Block,
     Bold,
+    FixMark,
+    FixRange,
     Inline,
     InternalLink,
+    NoticeKind,
     Paragraph,
     RefMark,
     Section,
     Settings,
     Text,
 )
+from wikiskill.notices import article_notices
 from wikiskill.types import ArticleType
 from wikiskill.wikitext_cite import cite_plain, cite_template
 from wikiskill.wikitext_escape import escape_text, external_link, guard_line_start
@@ -65,7 +74,11 @@ class NestedNoteError(WikitextError):
 
 
 def write_wikitext(
-    article: Article, article_type: ArticleType, *, style: WikitextStyle = "wikipedia"
+    article: Article,
+    article_type: ArticleType,
+    *,
+    style: WikitextStyle = "wikipedia",
+    mark_date: str | None = None,
 ) -> str:
     """記事をウィキテキストに書き出す。
 
@@ -77,6 +90,8 @@ def write_wikitext(
         記事の類型の定義。``article.settings.type_id`` と同じ ``id`` のもの。
     style : WikitextStyle
         書き方。``"wikipedia"`` は本家の形（既定）、``"plain"`` は素の記法。
+    mark_date : str | None
+        印と冒頭の警告の枠に添える日付（例 ``2026年11月``）。None なら日付を付けない。
 
     Returns
     -------
@@ -100,16 +115,18 @@ def write_wikitext(
     plain = style == "plain"
     # 同じ出典・注釈を二回以上使うかは、通して書かないと分からない。
     # 一度目で数え、二度目で名前を付ける。
-    first = _write_body(article, plain, frozenset(), frozenset())
+    first = _write_body(article, plain, frozenset(), frozenset(), mark_date)
     body = _write_body(
         article,
         plain,
         frozenset(k for k, n in first.ref_uses.items() if n > 1),
         frozenset(k for k, n in first.note_uses.items() if n > 1),
+        mark_date,
     )
 
     infobox = build_infobox(settings, article_type, plain=plain)
-    head = "\n".join(part for part in (infobox.top, infobox.lead) if part)
+    notices = _notice_block(article_notices(article), plain, mark_date)
+    head = "\n".join(part for part in (notices, infobox.top, infobox.lead) if part)
     chunks = [
         "\n\n".join(body.chunks),
         _footnote_section(body, plain),
@@ -156,10 +173,14 @@ class _Body:
 
 
 def _write_body(
-    article: Article, plain: bool, reused_refs: frozenset[str], reused_notes: frozenset[str]
+    article: Article,
+    plain: bool,
+    reused_refs: frozenset[str],
+    reused_notes: frozenset[str],
+    mark_date: str | None,
 ) -> _Body:
     """導入部と節を、文書の出現順に書き出す。出典と注釈は最初に使われた場所で定義する。"""
-    writer = _BodyWriter(article.settings, plain, reused_refs, reused_notes)
+    writer = _BodyWriter(article.settings, plain, reused_refs, reused_notes, mark_date)
     chunks = writer.blocks(article.lead)
     for section in article.sections:
         chunks += writer.section(section)
@@ -175,7 +196,9 @@ class _BodyWriter:
         plain: bool,
         reused_refs: frozenset[str],
         reused_notes: frozenset[str],
+        mark_date: str | None,
     ) -> None:
+        self._mark_date = mark_date
         self._refs = {r.key: r for r in settings.references}
         self._notes = {n.key: n for n in settings.notes}
         self._plain = plain
@@ -225,9 +248,29 @@ class _BodyWriter:
             if item.label is None:
                 return f"[[{item.target}]]"
             return f"[[{item.target}|{escape_text(item.label, pipes=self._nested)}]]"
+        if isinstance(item, FixMark):
+            if self._plain:
+                return f"[{item.kind}]"
+            return f"{{{{{item.kind}{self._date_arg()}}}}}"
+        if isinstance(item, FixRange):
+            return self._range(item)
         if isinstance(item, RefMark):
             return self._ref(item.key)
         return self._note(item.key)
+
+    def _date_arg(self) -> str:
+        return "" if self._mark_date is None else f"|date={self._mark_date}"
+
+    def _range(self, item: FixRange) -> str:
+        if self._plain:
+            return f"{self.inline(item.children)}[{FIX_RANGE_LABELS[item.kind]}]"
+        # テンプレートの引数の中なので、範囲の文の縦棒を逃がす。等号は 1= を付けて守る。
+        outer, self._nested = self._nested, True
+        try:
+            body = self.inline(item.children)
+        finally:
+            self._nested = outer
+        return f"{{{{{item.kind}|1={body}{self._date_arg()}}}}}"
 
     def _ref(self, key: str) -> str:
         ref = self._refs.get(key)
@@ -283,9 +326,10 @@ class _BodyWriter:
 
 
 def _has_ref_mark(items: Sequence[Inline]) -> bool:
-    """文中の部品の並びに、出典への印があるか（太字の中も見る）。"""
+    """文中の部品の並びに、出典への印があるか（太字と範囲の印の中も見る）。"""
     return any(
-        isinstance(i, RefMark) or (isinstance(i, Bold) and _has_ref_mark(i.children)) for i in items
+        isinstance(i, RefMark) or (isinstance(i, Bold | FixRange) and _has_ref_mark(i.children))
+        for i in items
     )
 
 
@@ -296,6 +340,30 @@ def _ref_name(key: str) -> str:
 
 def _quoted_name(key: str) -> str:
     return f'"{_ref_name(key)}"'
+
+
+# --- 冒頭の警告の枠 ---------------------------------------------------------------
+
+
+def _notice_block(kinds: tuple[NoticeKind, ...], plain: bool, mark_date: str | None) -> str:
+    """冒頭の警告の枠。枠が無ければ空文字列。
+
+    本家の形では、一つなら ``{{出典の明記|date=…}}``、二つ以上なら
+    ``{{複数の問題|出典の明記=…|独自研究=…}}``。日付が無いときは、二つ以上でも単独の
+    テンプレートを行ごとに並べる（複数の問題は、値の空な引数の項目を出さないため）。
+    素の記法では斜体の一行にする。
+    """
+    if not kinds:
+        return ""
+    if plain:
+        date = "" if mark_date is None else f"（{mark_date}）"
+        return f"''この記事には次の問題があります: {'、'.join(kinds)}{date}''"
+    if mark_date is None:
+        return "\n".join(f"{{{{{kind}}}}}" for kind in kinds)
+    if len(kinds) == 1:
+        return f"{{{{{kinds[0]}|date={mark_date}}}}}"
+    args = "".join(f"|{kind}={mark_date}" for kind in kinds)
+    return f"{{{{複数の問題{args}}}}}"
 
 
 # --- 末尾 -------------------------------------------------------------------------

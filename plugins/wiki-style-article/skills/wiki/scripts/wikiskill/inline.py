@@ -1,11 +1,14 @@
-"""文中の記法（太字・脚注の印・注釈の印・内部リンク）を部品に分ける。
+"""文中の記法（太字・脚注の印・注釈の印・内部リンク・点と範囲の印）を部品に分ける。
 
-使える記法は次の四つだけで、それ以外の文字はそのまま本文になる。
+使える記法は次の六つだけで、それ以外の文字はそのまま本文になる。
 
 - ``'''…'''``: 太字
 - ``[^キー]``: 出典への脚注の印
 - ``[^n:キー]``: 注釈への印
 - ``[[記事名]]``・``[[記事名|表示]]``: 内部リンク
+- ``[!要出典]``・``[!信頼性要検証]``: 点の印（太字の中にも置ける）
+- ``[!要出典範囲|範囲の文]``・``[!独自研究範囲|範囲の文]``: 範囲の印。範囲の文には文字・
+  内部リンク・脚注の印・注釈の印を書ける。範囲の終わりは ``[`` と ``]`` の入れ子を数えて決める
 
 印が指すキーが設定欄にあるかはここでは見ない。記法として壊れているものだけをエラーにする。
 """
@@ -16,7 +19,19 @@ import re
 from collections.abc import Callable
 
 from wikiskill.errors import MarkupError
-from wikiskill.model import Bold, Inline, InternalLink, NoteMark, RefMark, Text
+from wikiskill.model import (
+    FIX_MARK_KINDS,
+    FIX_RANGE_KINDS,
+    Bold,
+    FixMark,
+    FixRange,
+    FixRangeKind,
+    Inline,
+    InternalLink,
+    NoteMark,
+    RefMark,
+    Text,
+)
 
 LineOf = Callable[[int], int]
 """文字列の中の位置（0 始まり）から、原稿全体での行番号を返す関数。"""
@@ -26,8 +41,10 @@ KEY_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
 
 _NOTE_PREFIX = "n:"
 _BOLD = "'''"
+_FIX = "[!"
 
-_BoldChild = Text | RefMark | NoteMark | InternalLink
+_BoldChild = Text | RefMark | NoteMark | InternalLink | FixMark
+_RangeChild = Text | RefMark | NoteMark | InternalLink
 
 
 def parse_inline(text: str, line: int | LineOf = 1) -> tuple[Inline, ...]:
@@ -48,18 +65,24 @@ def parse_inline(text: str, line: int | LineOf = 1) -> tuple[Inline, ...]:
     Raises
     ------
     MarkupError
-        閉じていない ``[[``・``[^``・``'''``、空の記法、使えないキーがあるとき。
+        閉じていない ``[[``・``[^``・``'''``・``[!``、空の記法、使えないキーがあるとき。
+        知らない印の名前、``|`` の付け方の誤った印、空の範囲の文、範囲の文の中の太字と印、
+        太字の中の範囲の印も。
     """
     line_of: LineOf = line if callable(line) else (lambda _offset: line)
     return _Parser(text, line_of).parse()
 
 
 class _Parser:
-    """文字列を左から読み、記法ごとに部品へ分ける。"""
+    """文字列を左から読み、記法ごとに部品へ分ける。
 
-    def __init__(self, text: str, line_of: LineOf) -> None:
+    ``in_range`` が真なら範囲の印の範囲の文を読む。範囲の文の中では太字と印を開かない。
+    """
+
+    def __init__(self, text: str, line_of: LineOf, *, in_range: bool = False) -> None:
         self._text = text
         self._line_of = line_of
+        self._in_range = in_range
         self._pos = 0
 
     def parse(self) -> tuple[Inline, ...]:
@@ -83,6 +106,8 @@ class _Parser:
         while self._pos < len(text):
             if text.startswith(_BOLD, self._pos):
                 flush()
+                if self._in_range:
+                    raise self._error("範囲の印の範囲の文に太字は書けない", self._pos)
                 if bold_start is not None:
                     self._pos += len(_BOLD)
                     return tuple(parts)
@@ -93,6 +118,13 @@ class _Parser:
             elif text.startswith("[^", self._pos):
                 flush()
                 parts.append(self._parse_mark())
+            elif text.startswith(_FIX, self._pos):
+                flush()
+                if self._in_range:
+                    raise self._error(
+                        "印は入れ子にできない（範囲の文の中に印は書けない）", self._pos
+                    )
+                parts.append(self._parse_fix(in_bold=bold_start is not None))
             else:
                 buffer.append(text[self._pos])
                 self._pos += 1
@@ -107,8 +139,66 @@ class _Parser:
         children = self._parse_run(bold_start=start)
         if not children:
             raise self._error("太字の中身が空", start)
-        # 太字の中では太字を開かないので、子は太字以外に限られる。
+        # 太字の中では太字と範囲の印を開かないので、子はそれ以外に限られる。
         return Bold(tuple(child for child in children if isinstance(child, _BoldChild)))
+
+    def _parse_fix(self, *, in_bold: bool) -> FixMark | FixRange:
+        """点の印 ``[!名前]`` か範囲の印 ``[!名前|範囲の文]`` を読む。"""
+        text = self._text
+        start = self._pos
+        name_end = start + len(_FIX)
+        while name_end < len(text) and text[name_end] not in "]|":
+            name_end += 1
+        if name_end == len(text):
+            raise self._error("印の [! が ] で閉じていない", start)
+        name = text[start + len(_FIX) : name_end]
+        has_range = text[name_end] == "|"
+
+        for kind in FIX_MARK_KINDS:
+            if name == kind:
+                if has_range:
+                    raise self._error(
+                        f"点の印 [!{kind}] に | は付けない"
+                        "（範囲を示すなら要出典範囲・独自研究範囲の印を使う）",
+                        start,
+                    )
+                self._pos = name_end + 1
+                return FixMark(kind)
+        for kind in FIX_RANGE_KINDS:
+            if name == kind:
+                if not has_range:
+                    raise self._error(
+                        f"範囲の印に | が無い（[!{kind}|範囲の文] の形で書く）", start
+                    )
+                if in_bold:
+                    raise self._error("太字の中に範囲の印は書けない", start)
+                return self._parse_range(kind, start, name_end + 1)
+        names = "、".join((*FIX_MARK_KINDS, *FIX_RANGE_KINDS))
+        raise self._error(f"未知の印 [!{name}] は使えない（使える印: {names}）", start)
+
+    def _parse_range(self, kind: FixRangeKind, start: int, body_start: int) -> FixRange:
+        """範囲の文を、``[`` と ``]`` の入れ子を数えて閉じる ``]`` まで読む。"""
+        text = self._text
+        depth = 1
+        end = body_start
+        while end < len(text):
+            if text[end] == "[":
+                depth += 1
+            elif text[end] == "]":
+                depth -= 1
+                if depth == 0:
+                    break
+            end += 1
+        if depth != 0:
+            raise self._error("範囲の印の [! が ] で閉じていない", start)
+        body = text[body_start:end]
+        if not body.strip():
+            raise self._error(f"範囲の印 [!{kind}|…] の範囲の文が空", start)
+        line_of = self._line_of
+        children = _Parser(body, lambda offset: line_of(body_start + offset), in_range=True).parse()
+        self._pos = end + 1
+        # 範囲の文の中では太字と印を開かないので、子はそれ以外に限られる。
+        return FixRange(kind, tuple(child for child in children if isinstance(child, _RangeChild)))
 
     def _parse_link(self) -> InternalLink:
         start = self._pos

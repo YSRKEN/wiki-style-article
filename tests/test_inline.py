@@ -2,7 +2,19 @@ import pytest
 
 from wikiskill.errors import MarkupError
 from wikiskill.inline import parse_inline
-from wikiskill.model import Bold, InternalLink, NoteMark, RefMark, Text
+from wikiskill.model import (
+    FIX_MARK_KINDS,
+    FIX_RANGE_KINDS,
+    Bold,
+    FixMark,
+    FixMarkKind,
+    FixRange,
+    FixRangeKind,
+    InternalLink,
+    NoteMark,
+    RefMark,
+    Text,
+)
 
 
 def test_ふつうの文字はそのまま一つの文字列になる() -> None:
@@ -90,6 +102,19 @@ def test_印が指すキーが設定欄にあるかは見ない() -> None:
         ("[^a b]", "キー"),
         ("[^n:a b]", "キー"),
         ("''''''", "空"),
+        # 印
+        ("文[!未知の印]", "未知の印"),
+        ("[!]", "未知の印"),
+        ("文[!要出典", "[!"),
+        ("文[!要出典|範囲]", "|"),
+        ("[!要出典範囲]", "|"),
+        ("[!独自研究範囲]", "|"),
+        ("[!要出典範囲|]", "空"),
+        ("[!要出典範囲|  ]", "空"),
+        ("[!要出典範囲|範囲[[閉じない]", "[!"),
+        ("[!要出典範囲|'''太字'''の文]", "太字"),
+        ("[!要出典範囲|文[!要出典]]", "入れ子"),
+        ("'''太字[!要出典範囲|文]'''", "太字"),
     ],
 )
 def test_壊れた記法は行番号つきのエラー(text: str, keyword: str) -> None:
@@ -107,4 +132,77 @@ def test_行番号は文字位置から引ける() -> None:
 
     with pytest.raises(MarkupError) as info:
         parse_inline("12345[[閉じない", line_of)
+    assert info.value.line == 4
+
+
+# --- 印 ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kind", FIX_MARK_KINDS)
+def test_点の印は文の直後に付ける(kind: FixMarkKind) -> None:
+    assert parse_inline(f"開館したという[!{kind}]。") == (
+        Text("開館したという"),
+        FixMark(kind),
+        Text("。"),
+    )
+
+
+def test_点の印は出典の印のあとに並べられる() -> None:
+    assert parse_inline("開館した[^a][!信頼性要検証]。") == (
+        Text("開館した"),
+        RefMark("a"),
+        FixMark("信頼性要検証"),
+        Text("。"),
+    )
+
+
+@pytest.mark.parametrize("kind", FIX_RANGE_KINDS)
+def test_範囲の印は範囲の文を包む(kind: FixRangeKind) -> None:
+    assert parse_inline(f"前置き。[!{kind}|一説には閉館が近い]。") == (
+        Text("前置き。"),
+        FixRange(kind, (Text("一説には閉館が近い"),)),
+        Text("。"),
+    )
+
+
+def test_範囲の文には内部リンクと出典と注釈の印を書ける() -> None:
+    assert parse_inline("[!要出典範囲|[[東雲町|町]]の北にある[^a][^n:b]]だという。") == (
+        FixRange(
+            "要出典範囲",
+            (
+                InternalLink("東雲町", "町"),
+                Text("の北にある"),
+                RefMark("a"),
+                NoteMark("b"),
+            ),
+        ),
+        Text("だという。"),
+    )
+
+
+def test_範囲の終わりは入れ子を数えて決める() -> None:
+    # 内部リンクの ] や | で範囲が閉じない。
+    assert parse_inline("[!独自研究範囲|[[記事|表示]]と[[別]]]。") == (
+        FixRange(
+            "独自研究範囲",
+            (InternalLink("記事", "表示"), Text("と"), InternalLink("別", None)),
+        ),
+        Text("。"),
+    )
+
+
+def test_範囲の文の中の等号や縦線はそのまま文字() -> None:
+    assert parse_inline("[!要出典範囲|a=b|c]") == (FixRange("要出典範囲", (Text("a=b|c"),)),)
+
+
+def test_太字の中にも点の印を置ける() -> None:
+    assert parse_inline("'''名物[!要出典]'''") == (Bold((Text("名物"), FixMark("要出典"))),)
+
+
+def test_印の読み取りのエラーは印の行を指す() -> None:
+    def line_of(offset: int) -> int:
+        return 3 if offset < 5 else 4
+
+    with pytest.raises(MarkupError) as info:
+        parse_inline("12345[!要出典範囲|文'''太字'''", line_of)
     assert info.value.line == 4

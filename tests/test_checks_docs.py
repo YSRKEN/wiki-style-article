@@ -19,6 +19,7 @@ FUNCTION_RULES: dict[str, Level] = {
     "LINK-URL": Level.ERROR,
     "REF-DATE": Level.ERROR,
     "REF-ACCESS-DATE": Level.ERROR,
+    "REF-WEAK-UNMARKED": Level.ERROR,
     "EMPTY-SECTION": Level.ERROR,
     "SELF-LINK": Level.ERROR,
     "LEAD-NO-BOLD": Level.WARNING,
