@@ -36,5 +36,6 @@ def test_入れた人に写る_LICENSE_は根の_LICENSE_と同じ() -> None:
 def test_参照の文書の_CC_BY_SA_の表示がある() -> None:
     notice = PLUGIN_DIR / "skills" / "wiki" / "references" / "LICENSE.md"
     assert "CC BY-SA 4.0" in notice.read_text(encoding="utf-8")
-    assert "references/" in (ROOT / "LICENSE").read_text(encoding="utf-8")
+    # GitHub が MIT と判別できるよう、LICENSE は本文だけにし、例外は README で示す
+    assert "CC BY-SA 4.0" in (ROOT / "README.md").read_text(encoding="utf-8")
     assert PLUGIN["license"] == "MIT AND CC-BY-SA-4.0"
