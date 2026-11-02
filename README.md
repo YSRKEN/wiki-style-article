@@ -37,6 +37,11 @@ claude plugin install wiki-style-article@wiki-style-article
 
 Codex には調べものの担当の定義を同梱していないので、設定の `[agents]` で既定のモデルを決めていなければ、担当は呼んだ会話と同じモデルで動きます。Codex の Web の検索は既定で索引から返す方式（`web_search = "cached"`）です。最新のページを取りたいときは、設定の `web_search` を `"live"` にします。
 
+2026-11-02 に、Codex 0.160.1（Windows）で `$wiki しぐれうい` を試しました。
+- 生成前の問いは、文で 1 問ずつ出ます。`codex exec` のような一回きりの実行では、問いを出したところで止まります。続きは `codex exec resume <セッション ID> "4"` のように、同じ会話に答えを送ります
+- 担当は起こさず、一人で順に調べました。問いに答えてから書き出すまで、約 10 分でした
+- **Windows の守り（sandbox）の中では、`wiki.sh` が Python を起こせないことがあります。** Codex の Windows の守りは、ユーザーごとの AppData の下にある実行ファイルを起こさせません（[openai/codex#27171](https://github.com/openai/codex/issues/27171)）。Python や uv をユーザーごとに入れていると（uv の既定はそう入ります）、`check`・`build`・`fetch` が「Python 3.11 以上が見つからない」で止まります。試しでは、守りを外して（`-s danger-full-access`）流すと通りました。守りを外さずに済ませる道として、`wiki.sh` のコマンドだけを承認して守りの外で流す方法と、Python を PC 全体（`C:\Program Files` の下）に入れる方法が考えられますが、どちらも確かめていません
+
 ## 使い方
 
 ```text
