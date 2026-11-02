@@ -11,7 +11,8 @@
 ``<原稿の名前>.wikitext`` を書き出す。``check`` は検査だけして何も書き出さない。
 ``type`` は類型の一覧か、原稿の設定欄に貼る ``type`` と Infobox の雛形を出す。
 ``fetch`` は Web のページを取り、題と本文の文字を出す（調べものの担当が使う。
-:mod:`wikiskill.fetch`）。
+:mod:`wikiskill.fetch`）。``build`` は、印と冒頭の警告の枠に今の現地時刻の年月
+（``2026年11月``）を添える。
 
 出力は 1 行に 1 件で、検査の指摘（``12 行目 [警告] RULE: …``）、件数のまとめ、
 書き出したファイルの順。終了コードは次のとおり。
@@ -46,7 +47,7 @@ from wikiskill.reader import read_article_file
 from wikiskill.types import ArticleType, load_default_registry
 from wikiskill.wikitext import WIKITEXT_STYLES, WikitextError, WikitextStyle, write_wikitext
 
-__all__ = ["format_updated", "main", "run"]
+__all__ = ["format_mark_date", "format_updated", "main", "run"]
 
 _WEEKDAYS = "月火水木金土日"
 _JST = timedelta(hours=9)
@@ -80,11 +81,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
     if args.command == "check":
         return _check(source)
+    now = datetime.now().astimezone()
     return _build(
         source,
         style=args.style,
         out_dir=Path(args.out_dir) if args.out_dir else source.parent,
-        updated=args.updated or format_updated(datetime.now().astimezone()),
+        updated=args.updated or format_updated(now),
+        mark_date=format_mark_date(now),
     )
 
 
@@ -124,6 +127,22 @@ def format_updated(moment: datetime) -> str:
         f"{moment.year}年{moment.month}月{moment.day}日 ({weekday}) "
         f"{moment:%H:%M} ({_zone_name(offset)})"
     )
+
+
+def format_mark_date(moment: datetime) -> str:
+    """印と冒頭の警告の枠に添える日付を、本家の ``date=`` の形（``2026年11月``）にする。
+
+    Parameters
+    ----------
+    moment : datetime
+        日時。現地時刻なら ``datetime.now().astimezone()``。
+
+    Returns
+    -------
+    str
+        年と月（月は 0 詰めしない）。
+    """
+    return f"{moment.year}年{moment.month}月"
 
 
 # --- 下請け -----------------------------------------------------------------------
@@ -196,7 +215,9 @@ def _check(source: Path) -> int:
     return 1 if findings is None or _has_error(findings) else 0
 
 
-def _build(source: Path, *, style: WikitextStyle, out_dir: Path, updated: str) -> int:
+def _build(
+    source: Path, *, style: WikitextStyle, out_dir: Path, updated: str, mark_date: str
+) -> int:
     findings = _read_and_check(source)
     if findings is None or _has_error(findings):
         print("エラーを直すまで書き出していない。")
@@ -206,8 +227,8 @@ def _build(source: Path, *, style: WikitextStyle, out_dir: Path, updated: str) -
     article = read_article_file(source)
     article_type = load_default_registry()[article.settings.type_id]
     try:
-        html = write_html(article, article_type, updated)
-        wikitext = write_wikitext(article, article_type, style=style)
+        html = write_html(article, article_type, updated, mark_date=mark_date)
+        wikitext = write_wikitext(article, article_type, style=style, mark_date=mark_date)
     except (HtmlError, WikitextError) as error:
         print(f"[エラー] WRITE: {error}")
         print("書き出していない。")

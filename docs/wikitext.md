@@ -11,7 +11,10 @@ article = read_article_file("article.md")
 article_type = load_default_registry()[article.settings.type_id]
 text = write_wikitext(article, article_type)  # 本家の形（既定）
 plain = write_wikitext(article, article_type, style="plain")  # 素の記法
+dated = write_wikitext(article, article_type, mark_date="2026年11月")  # 印と枠に日付を添える
 ```
+
+`mark_date` を省くか `None` にすると、印と冒頭の警告の枠に日付を付けない。
 
 実装は `plugins/wiki-style-article/skills/wiki/scripts/wikiskill/wikitext.py`（全体の組み立てと本文）、`wikitext_cite.py`（出典）、`wikitext_infobox.py`（Infobox）、`wikitext_escape.py`（文字の逃がし方）。
 
@@ -24,6 +27,8 @@ plain = write_wikitext(article, article_type, style="plain")  # 素の記法
 | 脚注の一覧 | `{{Reflist}}`・`{{Reflist\|group="注釈"}}` | `<references />`・`<references group="注釈" />` |
 | Infobox | 類型ごとのテンプレート（`{{Infobox 人物 …}}` など） | `{\| class="infobox" …` の表。項目名は日本語のまま |
 | 注釈の中の出典 | `{{Efn\|1=…}}` | `{{#tag:ref\|…}}`（MediaWiki 本体の関数） |
+| 印 | `{{要出典\|date=…}}`・`{{要出典範囲\|1=…\|date=…}}` などのテンプレート | `[要出典]` などの文字 |
+| 冒頭の警告の枠 | `{{出典の明記\|date=…}}`・`{{複数の問題\|…}}` | 斜体の一行 |
 
 どちらの書き方も、見出し、`'''太字'''`、`[[内部リンク]]`、`[URL 表示]`、`* 箇条書き`、`{{DEFAULTSORT:}}`、`[[Category:]]`、`<ref>`、`<ref name>`、`<ref group>` は共通で使う。
 
@@ -32,6 +37,7 @@ plain = write_wikitext(article, article_type, style="plain")  # 素の記法
 ## ページの並び
 
 ```text
+冒頭の警告の枠                     （印か notices があるときだけ）
 Infobox                            （値のある項目が一つもなければ書かない）
 導入部                             （見出しなし）
 == 節 == …                         （原稿の節をそのまま。## → ==、### → ===、#### → ====）
@@ -65,6 +71,23 @@ Infobox                            （値のある項目が一つもなければ
 | `external_links` | `== 外部リンク ==` の `* [URL 題名]` | 同じ |
 | `defaultsort` | `{{DEFAULTSORT:読み}}` | 同じ |
 | `categories` | `[[Category:名前]]` | 同じ |
+| `[!要出典]`・`[!信頼性要検証]`（点の印） | `{{要出典\|date=2026年11月}}`・`{{信頼性要検証\|date=2026年11月}}` | `[要出典]`・`[信頼性要検証]` |
+| `[!要出典範囲\|範囲の文]` | `{{要出典範囲\|1=範囲の文\|date=2026年11月}}` | `範囲の文[要出典]` |
+| `[!独自研究範囲\|範囲の文]` | `{{独自研究範囲\|1=範囲の文\|date=2026年11月}}` | `範囲の文[独自研究?]` |
+
+### 印と冒頭の警告の枠
+
+- 本家の形の範囲の印は、範囲の文に `=` があっても壊れないよう `1=` を付けて渡し、範囲の文の中の `|` は `&#124;` に逃がす。範囲の文の中の出典の印は、ふつうの `<ref>` で書く
+- `mark_date` が `None` なら、テンプレートに `|date=…` を付けない（`{{要出典}}`）
+- 冒頭の警告の枠は記事の一番上（Infobox より前）に置く。貼る枠は `wikiskill.notices.article_notices` で決める（[原稿の書き方](source-format.md) の「警告の枠」）
+
+| 枠 | 本家の形 | 素の記法 |
+| --- | --- | --- |
+| 一つ | `{{出典の明記\|date=2026年11月}}` | `''この記事には次の問題があります: 出典の明記（2026年11月）''` |
+| 二つ以上 | `{{複数の問題\|出典の明記=2026年11月\|独自研究=2026年11月\|観点=2026年11月}}` | `''この記事には次の問題があります: 出典の明記、独自研究、観点（2026年11月）''` |
+| 日付が無い | 単独のテンプレートを行ごとに並べる（`{{出典の明記}}` の次の行に `{{独自研究}}`） | 末尾の `（…）` を付けない |
+
+日付が無いときに `{{複数の問題|出典の明記=|独自研究=}}` と値を空にしないのは、本家の `Template:複数の問題` が各項目を `Template:DatedAI2` に `name={{{出典の明記|}}}` として渡し、`DatedAI2` が `{{#if:{{{name|}}}|…}}` で値の空な項目を出さないため（2026-11-02 に両テンプレートの原文で確かめた）。値が空だと、枠に項目が一つも出ない。
 
 ### 出典の名前
 

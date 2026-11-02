@@ -8,6 +8,8 @@ Jina の Reader も鍵なしでは web.archive.org を止めている（2026-11-
 - 同じホストへは間を空ける（web.archive.org は 15 秒。続けて送ると 429 で断られた）。担当が並んで
   別々のプロセスで取っても順番を守れるよう、間の記録をファイルに置く
 - 429・503 なら、間を空けて一度だけ取り直す
+- 証明書の検証で失敗したら（Windows の Python が OS の根の証明書を取ってこないため）、
+  検証を外さずに、OS の仕組みで検証する curl で取り直す
 - HTML だけを扱う。PDF などは :class:`FetchError` にする
 """
 
@@ -16,6 +18,10 @@ from __future__ import annotations
 import contextlib
 import json
 import re
+import shutil
+import ssl
+import subprocess
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -214,7 +220,17 @@ def fetch_page(url: str, *, pacer: Pacer, timeout: float = 60.0) -> Page:
             if error.code in _RETRY_STATUSES and attempt == 0:
                 continue
             raise FetchError(f"HTTP {error.code} で取れなかった: {target}") from error
-        except (urllib.error.URLError, TimeoutError, OSError) as error:
+        except urllib.error.URLError as error:
+            if not isinstance(error.reason, ssl.SSLCertVerificationError):
+                raise FetchError(f"取れなかった（{error}）: {target}") from error
+            # Windows の Python は、OS が必要なときに取ってくる根の証明書を読まないので、
+            # 一部のサイトで検証に失敗する。検証は外さず、OS の仕組みで検証する curl で取り直す。
+            if shutil.which("curl") is None:
+                raise FetchError(
+                    f"証明書を検証できず、取り直す curl も無い（{error.reason}）: {target}"
+                ) from error
+            data, content_type = _get_with_curl(target, timeout)
+        except (TimeoutError, OSError) as error:
             raise FetchError(f"取れなかった（{error}）: {target}") from error
         if "html" not in content_type.lower():
             raise FetchError(f"HTML でないページ（{content_type or '種類が不明'}）: {target}")
@@ -231,6 +247,25 @@ def _get(url: str, timeout: float) -> tuple[bytes, str]:
     with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310 - 上で http(s) に限った
         content_type = response.headers.get("Content-Type", "")
         return response.read(), content_type
+
+
+def _get_with_curl(url: str, timeout: float) -> tuple[bytes, str]:
+    """コマンドの curl で取る。本文は一時ファイルに書かせ、番号と種類だけを標準出力で受け取る。"""
+    with tempfile.TemporaryDirectory() as folder:
+        body = Path(folder) / "body"
+        done = subprocess.run(  # noqa: S603 - 引数は固定の並びで、URL は http(s) に限った
+            ["curl", "-sS", "-L", "--max-time", str(int(timeout)), "-A", USER_AGENT,
+             "-o", str(body), "-w", "%{http_code} %{content_type}", url],
+            capture_output=True,
+            text=True,
+            check=False,
+        )  # fmt: skip
+        if done.returncode != 0:
+            raise FetchError(f"curl でも取れなかった（{done.stderr.strip()}）: {url}")
+        code, _, content_type = done.stdout.strip().partition(" ")
+        if not code.startswith("2"):
+            raise FetchError(f"HTTP {code} で取れなかった（curl）: {url}")
+        return body.read_bytes(), content_type
 
 
 def _charset_of(content_type: str) -> str | None:

@@ -19,6 +19,27 @@ RefKind = Literal["web", "book", "news"]
 REF_KINDS: tuple[RefKind, ...] = ("web", "book", "news")
 """出典の種類として使える値。"""
 
+FixMarkKind = Literal["要出典", "信頼性要検証"]
+"""点の印（文の直後に付ける印）の種類。"""
+
+FIX_MARK_KINDS: tuple[FixMarkKind, ...] = ("要出典", "信頼性要検証")
+"""点の印の種類として使える値。"""
+
+FixRangeKind = Literal["要出典範囲", "独自研究範囲"]
+"""範囲の印（範囲の文を包む印）の種類。"""
+
+FIX_RANGE_KINDS: tuple[FixRangeKind, ...] = ("要出典範囲", "独自研究範囲")
+"""範囲の印の種類として使える値。"""
+
+FIX_RANGE_LABELS: dict[FixRangeKind, str] = {"要出典範囲": "要出典", "独自研究範囲": "独自研究?"}
+"""範囲の印の後ろに付ける文字（``[要出典]``・``[独自研究?]``）。本家の表示と同じ。"""
+
+NoticeKind = Literal["出典の明記", "独自研究", "観点"]
+"""記事の冒頭に貼る警告の枠の種類。"""
+
+NOTICE_KINDS: tuple[NoticeKind, ...] = ("出典の明記", "独自研究", "観点")
+"""警告の枠の種類として使える値。並びは枠に載せる順。"""
+
 
 # --- 文中の部品 -------------------------------------------------------------
 
@@ -58,13 +79,31 @@ class InternalLink:
 
 
 @dataclass(frozen=True)
-class Bold:
-    """太字 ``'''…'''``。中に内部リンクや脚注の印を入れられる。"""
+class FixMark:
+    """点の印 ``[!要出典]``・``[!信頼性要検証]``。直前の文の出典に問題があることを示す。"""
 
+    kind: FixMarkKind
+
+
+@dataclass(frozen=True)
+class FixRange:
+    """範囲の印 ``[!要出典範囲|範囲の文]``・``[!独自研究範囲|範囲の文]``。
+
+    範囲の文には、文字・内部リンク・出典の印・注釈の印を入れられる（太字と印は入れない）。
+    """
+
+    kind: FixRangeKind
     children: tuple[Text | RefMark | NoteMark | InternalLink, ...]
 
 
-Inline: TypeAlias = Text | RefMark | NoteMark | InternalLink | Bold
+@dataclass(frozen=True)
+class Bold:
+    """太字 ``'''…'''``。中に内部リンク・脚注の印・点の印を入れられる。"""
+
+    children: tuple[Text | RefMark | NoteMark | InternalLink | FixMark, ...]
+
+
+Inline: TypeAlias = Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold
 """文中の部品のいずれか。"""
 
 
@@ -120,7 +159,11 @@ class InfoboxField:
 
 @dataclass(frozen=True)
 class Reference:
-    """出典 ``[refs.キー]``。"""
+    """出典 ``[refs.キー]``。
+
+    ``weak`` は弱い出典（攻略 Wiki・個人のブログ・SNS・まとめなど、本家が出典として認めない
+    出どころ）であることを表す。弱い出典を指す印の直後には ``[!信頼性要検証]`` を付ける。
+    """
 
     key: str
     kind: RefKind
@@ -134,6 +177,7 @@ class Reference:
     isbn: str | None = None
     pages: str | None = None
     note: str | None = None
+    weak: bool = False
     line: int = field(default=0, compare=False)
     field_lines: tuple[tuple[str, int], ...] = field(default=(), compare=False)
 
@@ -165,6 +209,7 @@ class Settings:
     """冒頭の TOML の設定欄の中身。
 
     ``infobox``・``references``・``notes`` は原稿に書いた順を保つ。
+    ``notices`` は、印から決まる枠に足して貼る警告の枠（``観点`` など）。書いた順を保つ。
     """
 
     title: str
@@ -177,6 +222,7 @@ class Settings:
     notes: tuple[Note, ...] = ()
     related: tuple[str, ...] = ()
     external_links: tuple[ExternalLink, ...] = ()
+    notices: tuple[NoticeKind, ...] = ()
 
 
 # --- 記事 ------------------------------------------------------------------

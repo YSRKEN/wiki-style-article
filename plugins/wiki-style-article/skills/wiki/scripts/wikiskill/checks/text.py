@@ -12,7 +12,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 
 from wikiskill.checks.walk import iter_inline_groups, iter_sections
-from wikiskill.model import Article, Bold, Inline, InternalLink, Text
+from wikiskill.model import Article, Bold, FixRange, Inline, InternalLink, Text
 
 Span = tuple[int, int]
 """文字列の中の範囲（始まりを含み、終わりを含まない）。"""
@@ -95,21 +95,27 @@ def _unit_from_parts(parts: tuple[Inline, ...], line: int) -> TextUnit:
         buffer.append(text)
         length += len(text)
 
-    for part in parts:
-        if isinstance(part, Text):
-            add(part.text, title=False)
-        elif isinstance(part, InternalLink):
-            add(part.display, title=True)
-        elif isinstance(part, Bold):
-            shown = "".join(
-                child.text
-                if isinstance(child, Text)
-                else child.display
-                if isinstance(child, InternalLink)
-                else ""
-                for child in part.children
-            )
-            add(shown, title=True)
+    def visit(items: tuple[Inline, ...]) -> None:
+        for part in items:
+            if isinstance(part, Text):
+                add(part.text, title=False)
+            elif isinstance(part, InternalLink):
+                add(part.display, title=True)
+            elif isinstance(part, FixRange):
+                # 範囲の印は記法だけを取り除き、範囲の文はふつうの本文として見る。
+                visit(part.children)
+            elif isinstance(part, Bold):
+                shown = "".join(
+                    child.text
+                    if isinstance(child, Text)
+                    else child.display
+                    if isinstance(child, InternalLink)
+                    else ""
+                    for child in part.children
+                )
+                add(shown, title=True)
+
+    visit(parts)
     return make_unit("".join(buffer), line, tuple(titles))
 
 

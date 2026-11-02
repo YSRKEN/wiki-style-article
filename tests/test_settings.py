@@ -181,6 +181,16 @@ def test_注釈の本文は文中の記法を読む() -> None:
         ('title = "題"\ntype = "manga"\n[refs."日本語"]\nkind = "web"\ntitle = "t"', 4, "キー"),
         ('title = "題"\ntype = "manga"\nrefs = "x"', 4, "refs"),
         ('title = "題"\ntype = "manga"\n[refs]\na = "x"', 5, "a"),
+        (
+            'title = "題"\ntype = "manga"\n[refs.a]\nkind = "web"\ntitle = "t"\nweak = "yes"',
+            7,
+            "weak",
+        ),
+        ('title = "題"\ntype = "manga"\n[refs.a]\nkind = "web"\ntitle = "t"\nweak = 1', 7, "weak"),
+        # 警告の枠
+        ('title = "題"\ntype = "manga"\nnotices = "観点"', 4, "notices"),
+        ('title = "題"\ntype = "manga"\nnotices = [1]', 4, "notices"),
+        ('title = "題"\ntype = "manga"\nnotices = ["中立"]', 4, "中立"),
         # 注釈
         ('title = "題"\ntype = "manga"\n[notes.a]\ntext = 1', 5, "text"),
         ('title = "題"\ntype = "manga"\n[notes.a]\nfoo = "x"', 5, "foo"),
@@ -233,3 +243,27 @@ def test_注釈の本文の記法の誤りは_text_の行を指す() -> None:
         parse_settings(toml, first_line=2)
     assert info.value.line == 5
     assert "[[" in info.value.message
+
+
+def test_出典の_weak_は真偽値で既定は偽() -> None:
+    settings = parse(
+        MINIMAL,
+        """
+        [refs.a]
+        kind = "web"
+        title = "攻略 Wiki"
+        weak = true
+
+        [refs.b]
+        kind = "web"
+        title = "公式"
+        """,
+    )
+    assert [r.weak for r in settings.references] == [True, False]
+    assert Reference(key="b", kind="web", title="公式").weak is False
+
+
+def test_警告の枠の_notices_を読む() -> None:
+    settings = parse(MINIMAL, 'notices = ["観点", "独自研究"]')
+    assert settings.notices == ("観点", "独自研究")
+    assert parse(MINIMAL).notices == ()

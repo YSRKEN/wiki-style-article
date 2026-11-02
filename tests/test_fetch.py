@@ -223,6 +223,54 @@ def test_http_でない_URL_は例外(pacer: Pacer) -> None:
         fetch_page("file:///etc/passwd", pacer=pacer)
 
 
+def test_証明書の検証で失敗したら_curl_で取り直す(
+    pacer: Pacer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ssl
+    import urllib.error
+
+    from wikiskill import fetch
+
+    def broken(_url: str, _timeout: float) -> tuple[bytes, str]:
+        raise urllib.error.URLError(ssl.SSLCertVerificationError("unable to get local issuer"))
+
+    calls: list[str] = []
+
+    def by_curl(url: str, _timeout: float) -> tuple[bytes, str]:
+        calls.append(url)
+        return "<title>題</title><p>curl の本文</p>".encode(), "text/html; charset=utf-8"
+
+    monkeypatch.setattr(fetch, "_get", broken)
+    monkeypatch.setattr(fetch, "_get_with_curl", by_curl)
+
+    page = fetch_page("https://example.com/", pacer=pacer)
+
+    assert page.text == "curl の本文"
+    assert calls == ["https://example.com/"]
+
+
+def test_curl_が無ければ証明書の失敗をそのまま返す(
+    pacer: Pacer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import ssl
+    import urllib.error
+
+    from wikiskill import fetch
+
+    def broken(_url: str, _timeout: float) -> tuple[bytes, str]:
+        raise urllib.error.URLError(ssl.SSLCertVerificationError("unable to get local issuer"))
+
+    monkeypatch.setattr(fetch, "_get", broken)
+
+    def no_command(_name: str) -> str | None:
+        return None
+
+    monkeypatch.setattr(fetch.shutil, "which", no_command)
+
+    with pytest.raises(FetchError, match="証明書"):
+        fetch_page("https://example.com/", pacer=pacer)
+
+
 # --- コマンド ---------------------------------------------------------------------
 
 
