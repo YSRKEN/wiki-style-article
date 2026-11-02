@@ -6,6 +6,8 @@
 - ``categories``・``related``: 文字列の配列
 - ``[infobox]``: 項目名 → 値（文字列）
 - ``notices``: 警告の枠の種類（``観点``・``出典の明記``・``独自研究``）の配列
+- ``notice_rule``: 印から決まる枠の出し方（``多いときだけ``・``付けない``・``付ける``）。
+  省くと ``多いときだけ``
 - ``[refs.キー]``: 出典。``kind``（web / book / news）と ``title`` が必須。任意の ``weak``
   （真偽値）は弱い出典であることを表す
 - ``[notes.キー]``: 注釈。``text`` が必須で、本文と同じ文中の記法を使える
@@ -24,11 +26,13 @@ from wikiskill.errors import SettingsError
 from wikiskill.inline import KEY_PATTERN, parse_inline
 from wikiskill.model import (
     NOTICE_KINDS,
+    NOTICE_RULES,
     REF_KINDS,
     ExternalLink,
     InfoboxField,
     Note,
     NoticeKind,
+    NoticeRule,
     Reference,
     Settings,
 )
@@ -48,6 +52,7 @@ _TOP_KEYS = (
     "related",
     "external_links",
     "notices",
+    "notice_rule",
 )
 _REF_OPTIONAL_KEYS = (
     "url",
@@ -178,6 +183,7 @@ class _SettingsReader:
             related=self._str_list(data, "related"),
             external_links=self._external_links(data),
             notices=self._notices(data),
+            notice_rule=self._notice_rule(data),
         )
 
     # --- 読み込みと、エラーの作り方 -------------------------------------------
@@ -361,6 +367,19 @@ class _SettingsReader:
                 )
             result.append(kind)
         return tuple(result)
+
+    def _notice_rule(self, data: _Table) -> NoticeRule:
+        value = self._str(data, "notice_rule", None)
+        if value is None:
+            return NOTICE_RULES[0]
+        for rule in NOTICE_RULES:
+            if value == rule:
+                return rule
+        raise self._error(
+            f"notice_rule の {value!r} は使えない（使える値: {'、'.join(NOTICE_RULES)}）",
+            None,
+            "notice_rule",
+        )
 
     def _notes(self, data: _Table) -> tuple[Note, ...]:
         notes = self._table(data, "notes")
