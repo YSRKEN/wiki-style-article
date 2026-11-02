@@ -76,6 +76,8 @@ def test_本物と取り違えない細工を残す() -> None:
     assert "出典: フリー百科事典『ウィキペディア（Wikipedia）』風のページ" in out
     assert "WIKIPEDIA風" in out
     assert "Wikipedia そのものではなく" in out
+    # 生成したページを Web に上げたり本家に投稿したりしないよう、ページの中でも伝える（チケット 07）
+    assert "このページは AI が生成した文章で、内容は検証されていません。手元で読むためのもので、Web に公開したりウィキペディアに投稿したりしないでください。" in out
     assert "<title>テスト記事 - Wikipedia風ページ</title>" in out
 
 
