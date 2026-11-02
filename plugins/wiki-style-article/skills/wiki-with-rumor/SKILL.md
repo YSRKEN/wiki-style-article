@@ -2,7 +2,7 @@
 name: wiki-with-rumor
 description: wiki スキルと同じく、題材を調べて日本語版 Wikipedia の記事の型で HTML とウィキテキストを作る。加えて、信頼できる資料に無い噂や利用者の考察（見方・推測・非難）も、出どころと本家の印（信頼性要検証・独自研究範囲）と冒頭の警告の枠を付けて載せる。騒動・炎上・ネットの反応のように、噂を含めて情報をまとめたいときに使う。噂を載せない記事なら wiki スキルを使う。
 compatibility: wiki スキルと同じ（Python 3.11 以上か uv、Web の検索・ページの取得）。同じプラグインの wiki スキルのフォルダ（このフォルダの隣の ../wiki/）の手順・参照・スクリプトを使う。
-allowed-tools: WebSearch WebFetch Write Edit Bash(sh *wiki.sh* *)
+allowed-tools: WebSearch WebFetch Read Write Edit Bash(sh *wiki.sh* *) Bash(curl -L -o *)
 ---
 
 # 噂と考察も載せる Wikipedia 風の記事を作る
