@@ -1,7 +1,7 @@
 #!/bin/sh
 # pre-push フック: main へ push するとき、プラグインの中身を変えたのに plugin.json の版を上げていなければ止める。
 #
-# plugin.json に版を書くと、書き換えるまで入れた人に更新が届かない（チケット 07 の決定で版は手で上げる）。
+# plugin.json に版を書くと、書き換えるまで入れた人に更新が届かない（このリポジトリは版を手で上げる）。
 # 上げ忘れを push の前に見つけるための検査。初めての push、ブランチを消す push、main 以外は見ない。
 
 plugin_dir=plugins/wiki-style-article
