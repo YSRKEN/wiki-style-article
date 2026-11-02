@@ -30,6 +30,7 @@ from wikiskill.model import (
     NoteMark,
     Paragraph,
     RefMark,
+    RumorRange,
     Section,
     Text,
 )
@@ -97,7 +98,7 @@ def number_footnotes(article: Article) -> Numbering:
 
     def visit(items: Iterable[Inline], in_note: str | None) -> None:
         for item in items:
-            if isinstance(item, Bold | FixRange):
+            if isinstance(item, Bold | FixRange | RumorRange):
                 visit(item.children, in_note)
             elif isinstance(item, RefMark):
                 if item.key not in ref_keys:
@@ -200,6 +201,9 @@ class InlineWriter:
         if isinstance(item, FixRange):
             inner = self.inline(item.children)
             return f'<span class="fix-range">{inner}</span>{fix_mark(FIX_RANGE_LABELS[item.kind])}'
+        if isinstance(item, RumorRange):
+            # 書き出す前に二つの版へ分けるので、ふつうは来ない。来たら中身だけを書く。
+            return self.inline(item.children)
         if isinstance(item, RefMark):
             return self._ref(item.key)
         return self._note(item.key)

@@ -36,6 +36,7 @@ from wikiskill.model import (
     NoticeKind,
     Paragraph,
     RefMark,
+    RumorRange,
     Section,
     Settings,
     Text,
@@ -254,6 +255,9 @@ class _BodyWriter:
             return f"{{{{{item.kind}{self._date_arg()}}}}}"
         if isinstance(item, FixRange):
             return self._range(item)
+        if isinstance(item, RumorRange):
+            # 書き出す前に二つの版へ分けるので、ふつうは来ない。来たら中身だけを書く。
+            return self.inline(item.children)
         if isinstance(item, RefMark):
             return self._ref(item.key)
         return self._note(item.key)
@@ -328,7 +332,8 @@ class _BodyWriter:
 def _has_ref_mark(items: Sequence[Inline]) -> bool:
     """文中の部品の並びに、出典への印があるか（太字と範囲の印の中も見る）。"""
     return any(
-        isinstance(i, RefMark) or (isinstance(i, Bold | FixRange) and _has_ref_mark(i.children))
+        isinstance(i, RefMark)
+        or (isinstance(i, Bold | FixRange | RumorRange) and _has_ref_mark(i.children))
         for i in items
     )
 
