@@ -26,7 +26,7 @@ dated = write_wikitext(article, article_type, mark_date="2026年11月")  # 印�
 from wikiskill.variants import normal_view, rumor_view
 
 normal = write_wikitext(normal_view(article), article_type)  # 通常の版
-rumor = write_wikitext(rumor_view(article), article_type)    # 噂込みの版
+rumor = write_wikitext(rumor_view(article), article_type)  # 噂込みの版
 ```
 
 - 通常の版は、噂の範囲・噂だけのまとまり・噂の節を取り除いたもの。噂の中でだけ使う出典・注釈は書かない。`観点` の枠は貼らない

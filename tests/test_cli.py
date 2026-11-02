@@ -6,10 +6,12 @@ import pytest
 
 from wikiskill import cli
 from wikiskill.cli import format_mark_date, format_updated, main
+from wikiskill.html_check import check_html
 from wikiskill.html_inline import HtmlError
-from wikiskill.html_writer import write_html
+from wikiskill.html_writer import write_html, write_html_both
 from wikiskill.reader import read_article_file
 from wikiskill.types import load_default_registry
+from wikiskill.variants import normal_view, rumor_view
 from wikiskill.wikitext import write_wikitext
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -408,3 +410,58 @@ def test_build_は印と枠に今の現地時刻の年月を添える(tmp_path: 
     assert any(f"（{d}）</div>" in html for d in (before, after))
     assert any(wikitext.startswith(f"{{{{出典の明記|date={d}}}}}\n") for d in (before, after))
     assert any(f"{{{{要出典|date={d}}}}}" in wikitext for d in (before, after))
+
+
+# --- 噂のある原稿の build -----------------------------------------------------------
+
+
+def test_build_は噂のある原稿から_HTML_1_本とウィキテキスト_2_本を書き出す(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    source = _write(tmp_path, _RUMOR, "騒動.md")
+
+    code = main(["build", str(source), "--updated", UPDATED])
+
+    article = read_article_file(source)
+    article_type = REGISTRY["concept"]
+    mark_date = format_mark_date(datetime.now().astimezone())
+    html_path = tmp_path / "騒動.html"
+    normal_path = tmp_path / "騒動.wikitext"
+    rumor_path = tmp_path / "騒動.噂込み.wikitext"
+    assert code == 0
+    html = html_path.read_text(encoding="utf-8")
+    assert html == write_html_both(article, article_type, UPDATED, mark_date=mark_date)
+    assert check_html(html) == ()
+    assert normal_path.read_text(encoding="utf-8") == write_wikitext(
+        normal_view(article), article_type, mark_date=mark_date
+    )
+    assert rumor_path.read_text(encoding="utf-8") == write_wikitext(
+        rumor_view(article), article_type, mark_date=mark_date
+    )
+    out = capsys.readouterr().out
+    assert out.count("書き出した: ") == 3
+    assert f"書き出した: {html_path}" in out
+    assert f"書き出した: {normal_path}" in out
+    assert f"書き出した: {rumor_path}" in out
+    assert "炎上したという" not in normal_path.read_text(encoding="utf-8")
+    assert "炎上したという" in rumor_path.read_text(encoding="utf-8")
+
+
+def test_build_は噂のある原稿も素の記法で書ける(tmp_path: Path) -> None:
+    source = _write(tmp_path, _RUMOR)
+
+    assert main(["build", str(source), "--updated", UPDATED, "--style", "plain"]) == 0
+
+    article = read_article_file(source)
+    rumor = (tmp_path / "原稿.噂込み.wikitext").read_text(encoding="utf-8")
+    assert "<references" in rumor
+    assert "{{Cite" not in rumor
+    assert "炎上したという" in rumor
+    assert "噂の出典" not in (tmp_path / "原稿.wikitext").read_text(encoding="utf-8")
+    assert article.settings.title == "試験"
+
+
+def test_build_は噂の無い原稿では噂込みのウィキテキストを書き出さない(sample: Path) -> None:
+    assert main(["build", str(sample), "--updated", UPDATED]) == 0
+
+    assert not sample.with_name(f"{sample.stem}.噂込み.wikitext").exists()

@@ -9,7 +9,10 @@
     python -m wikiskill wikipedia 記事名
 
 ``build`` は原稿の隣（``--out-dir`` で変えられる）に ``<原稿の名前>.html`` と
-``<原稿の名前>.wikitext`` を書き出す。``check`` は検査だけして何も書き出さない。
+``<原稿の名前>.wikitext`` を書き出す。噂（``[!噂|…]``・``[!噂]`` の節）のある原稿では、
+二つの版を入れた ``<原稿の名前>.html`` と、通常の版の ``<原稿の名前>.wikitext``、噂込みの版の
+``<原稿の名前>.噂込み.wikitext`` の 3 本を書き出す。検査は、噂のある原稿では両方の版にかける。
+``check`` は検査だけして何も書き出さない。
 ``type`` は類型の一覧か、原稿の設定欄に貼る ``type`` と Infobox の雛形を出す。
 ``fetch`` は Web のページを取り、題と本文の文字を出す（調べものの担当が使う。
 :mod:`wikiskill.fetch`）。``wikipedia`` は本家の記事の節の並びと出典の一覧を出す
@@ -45,9 +48,10 @@ from wikiskill.errors import SourceError
 from wikiskill.fetch import FetchError, Pacer, fetch_page
 from wikiskill.html_check import check_html
 from wikiskill.html_inline import HtmlError
-from wikiskill.html_writer import write_html
+from wikiskill.html_writer import write_html, write_html_both
 from wikiskill.reader import read_article_file
 from wikiskill.types import ArticleType, load_default_registry
+from wikiskill.variants import has_rumor, normal_view, rumor_view
 from wikiskill.wikitext import WIKITEXT_STYLES, WikitextError, WikitextStyle, write_wikitext
 
 __all__ = ["format_mark_date", "format_updated", "main", "run"]
@@ -296,8 +300,19 @@ def _build(
     article = read_article_file(source)
     article_type = load_default_registry()[article.settings.type_id]
     try:
-        html = write_html(article, article_type, updated, mark_date=mark_date)
-        wikitext = write_wikitext(article, article_type, style=style, mark_date=mark_date)
+        if has_rumor(article):
+            html = write_html_both(article, article_type, updated, mark_date=mark_date)
+            wikitexts = [
+                (".wikitext", normal_view(article)),
+                (".噂込み.wikitext", rumor_view(article)),
+            ]
+        else:
+            html = write_html(article, article_type, updated, mark_date=mark_date)
+            wikitexts = [(".wikitext", article)]
+        outputs = [(".html", html)] + [
+            (suffix, write_wikitext(view, article_type, style=style, mark_date=mark_date))
+            for suffix, view in wikitexts
+        ]
     except (HtmlError, WikitextError) as error:
         print(f"[エラー] WRITE: {error}")
         print("書き出していない。")
@@ -310,7 +325,7 @@ def _build(
         return 1
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    for suffix, text in ((".html", html), (".wikitext", wikitext)):
+    for suffix, text in outputs:
         path = out_dir / f"{source.stem}{suffix}"
         # Windows でも改行を LF のまま書く（本家のウィキテキストも LF）。
         path.write_text(text, encoding="utf-8", newline="\n")
