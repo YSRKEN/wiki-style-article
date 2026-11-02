@@ -231,14 +231,14 @@ def test_証明書の検証で失敗したら_curl_で取り直す(
 
     from wikiskill import fetch
 
-    def broken(_url: str, _timeout: float) -> tuple[bytes, str]:
+    def broken(_url: str, _timeout: float) -> tuple[bytes, str, str]:
         raise urllib.error.URLError(ssl.SSLCertVerificationError("unable to get local issuer"))
 
     calls: list[str] = []
 
-    def by_curl(url: str, _timeout: float) -> tuple[bytes, str]:
+    def by_curl(url: str, _timeout: float) -> tuple[bytes, str, str]:
         calls.append(url)
-        return "<title>題</title><p>curl の本文</p>".encode(), "text/html; charset=utf-8"
+        return "<title>題</title><p>curl の本文</p>".encode(), "text/html; charset=utf-8", url
 
     monkeypatch.setattr(fetch, "_get", broken)
     monkeypatch.setattr(fetch, "_get_with_curl", by_curl)
@@ -257,7 +257,7 @@ def test_curl_が無ければ証明書の失敗をそのまま返す(
 
     from wikiskill import fetch
 
-    def broken(_url: str, _timeout: float) -> tuple[bytes, str]:
+    def broken(_url: str, _timeout: float) -> tuple[bytes, str, str]:
         raise urllib.error.URLError(ssl.SSLCertVerificationError("unable to get local issuer"))
 
     monkeypatch.setattr(fetch, "_get", broken)
@@ -269,6 +269,111 @@ def test_curl_が無ければ証明書の失敗をそのまま返す(
 
     with pytest.raises(FetchError, match="証明書"):
         fetch_page("https://example.com/", pacer=pacer)
+
+
+# --- 保存版への自動の控え ---------------------------------------------------------
+
+
+class _ArchiveHandler(http.server.BaseHTTPRequestHandler):
+    """元のサイトと保存版のサイトを一つで兼ねる試しのサーバー。"""
+
+    paths: list[str] = []
+
+    def do_GET(self) -> None:  # noqa: N802 - http.server の決まった名前
+        self.paths.append(self.path)
+        if self.path.startswith("/web/") and self.path.endswith("/kept"):
+            body = "<title>保存版</title><p>残っていた本文。</p>".encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if self.path == "/old/page/kept":
+            # 消えたページをトップへ転送するサイト（ソフト 404）
+            self.send_response(302)
+            self.send_header("Location", "/")
+            self.end_headers()
+            return
+        if self.path == "/":
+            body = "<title>トップ</title><p>トップページ。</p>".encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        status = 500 if self.path == "/broken" else 404
+        self.send_response(status)
+        self.end_headers()
+
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - 親の引数名
+        pass
+
+
+@pytest.fixture
+def archive_server() -> Iterator[str]:
+    _ArchiveHandler.paths = []
+    httpd = http.server.HTTPServer(("127.0.0.1", 0), _ArchiveHandler)
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    yield f"http://127.0.0.1:{httpd.server_port}"
+    httpd.shutdown()
+
+
+def test_元が_404_なら保存版を取る(archive_server: str, pacer: Pacer) -> None:
+    page = fetch_page(
+        f"{archive_server}/kept", pacer=pacer, archive_base=archive_server, archive_year=2016
+    )
+
+    assert page.text == "残っていた本文。"
+    assert page.fetched_url == f"{archive_server}/web/2016id_/{archive_server}/kept"
+    assert page.archive_reason == "HTTP 404"
+
+
+def test_保存版も無ければ両方の理由を返す(archive_server: str, pacer: Pacer) -> None:
+    with pytest.raises(FetchError, match="保存版"):
+        fetch_page(f"{archive_server}/gone", pacer=pacer, archive_base=archive_server)
+
+
+def test_一時的な誤りでは保存版を試さない(archive_server: str, pacer: Pacer) -> None:
+    with pytest.raises(FetchError, match="500"):
+        fetch_page(f"{archive_server}/broken", pacer=pacer, archive_base=archive_server)
+
+    assert not any(path.startswith("/web/") for path in _ArchiveHandler.paths)
+
+
+def test_保存版の_URL_が取れなくても保存版の保存版は試さない(
+    pacer: Pacer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import urllib.error
+    from email.message import Message
+
+    from wikiskill import fetch
+
+    asked: list[str] = []
+
+    def refuse(url: str, _timeout: float) -> tuple[bytes, str, str]:
+        asked.append(url)
+        raise urllib.error.HTTPError(url, 404, "Not Found", Message(), None)
+
+    monkeypatch.setattr(fetch, "_get", refuse)
+
+    with pytest.raises(FetchError):
+        fetch_page("https://web.archive.org/web/2016/https://example.invalid/x", pacer=pacer)
+
+    assert asked == ["https://web.archive.org/web/2016id_/https://example.invalid/x"]
+
+
+def test_深い_URL_がトップへ転送されたら保存版を取る(archive_server: str, pacer: Pacer) -> None:
+    page = fetch_page(f"{archive_server}/old/page/kept", pacer=pacer, archive_base=archive_server)
+
+    assert page.text == "残っていた本文。"
+    assert page.archive_reason == "トップページへの転送"
+
+
+def test_元が取れれば保存版を使わない(server: str, pacer: Pacer) -> None:
+    page = fetch_page(f"{server}/ok", pacer=pacer, archive_base=server)
+
+    assert page.archive_reason is None
 
 
 # --- コマンド ---------------------------------------------------------------------

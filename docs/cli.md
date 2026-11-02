@@ -66,6 +66,7 @@ URL: https://web.archive.org/web/2016/https://www.nissin.com/jp/
 - web.archive.org の保存版は、Wayback の飾りの無い形（`/web/<時刻>id_/<URL>`）に直して取る
 - 同じホストへは間を空ける（web.archive.org は 15 秒、ほかは 1 秒）。間の記録は環境変数 `WIKISKILL_FETCH_STATE` のフォルダ（無ければ一時フォルダの `wiki-style-article-fetch`）に置き、並んだ担当で分け合う
 - 429・503 なら、間を空けて一度だけ取り直す
+- 元のページが 403・404・410・451 か、相手に届かない（名前解決の失敗など）か、深い階層の URL がサイトの根へ転送された（消えたページをトップへ送るサイト）なら、web.archive.org の保存版（`/web/<年>id_/<元の URL>`）を取る。年は `--archive-year` で選び、省くと今年に近い保存版。保存版を取ったら「取った URL: …（元のページが HTTP 404 のため保存版を取った）」と出す。500 のような一時的な誤りでは試さない
 - 証明書の検証で失敗したら、検証を外さずに curl で取り直す。2026-11-02 に、Windows の Python（3.13）では example.com だけが検証に失敗し、同じ PC の curl では取れた。原因は、OS の証明書置き場にまだ無い根の証明書を、Python が取ってこないためと見ている（確かめてはいない）
 - 本文は `--max-chars`（既定 30000 字）で区切る。続きは、出力の最後に出る `--offset` を付けて流し直す
 - 取れない（HTTP の誤り・通信の失敗・HTML でない）ときは、標準エラーに理由と、鍵なしの Jina（`https://r.jina.ai/<URL>` を WebFetch で取る）の案内を出して終了コード 1

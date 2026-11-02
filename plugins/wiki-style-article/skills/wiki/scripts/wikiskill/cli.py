@@ -74,7 +74,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "type":
         return _type(args.type_id)
     if args.command == "fetch":
-        return _fetch(args.url, max_chars=args.max_chars, offset=args.offset)
+        return _fetch(
+            args.url, max_chars=args.max_chars, offset=args.offset, archive_year=args.archive_year
+        )
     source = Path(args.source)
     if not source.is_file():
         print(f"原稿が見つからない: {source}", file=sys.stderr)
@@ -179,15 +181,20 @@ def _parser() -> argparse.ArgumentParser:
         "--max-chars", type=int, default=30000, help="出す本文の字数の上限（既定 30000）"
     )
     fetch.add_argument("--offset", type=int, default=0, help="本文の何字目から出すか（既定 0）")
+    fetch.add_argument(
+        "--archive-year",
+        type=int,
+        help="元のページが無いときに探す保存版の年（例 2016）。省くと今年に近い保存版",
+    )
     return parser
 
 
-def _fetch(url: str, *, max_chars: int, offset: int) -> int:
+def _fetch(url: str, *, max_chars: int, offset: int, archive_year: int | None) -> int:
     state = os.environ.get("WIKISKILL_FETCH_STATE") or str(
         Path(tempfile.gettempdir()) / "wiki-style-article-fetch"
     )
     try:
-        page = fetch_page(url, pacer=Pacer(Path(state)))
+        page = fetch_page(url, pacer=Pacer(Path(state)), archive_year=archive_year)
     except FetchError as error:
         print(f"[エラー] FETCH: {error}", file=sys.stderr)
         print(
@@ -199,7 +206,10 @@ def _fetch(url: str, *, max_chars: int, offset: int) -> int:
     end = min(len(page.text), offset + max_chars)
     print(f"題: {page.title}")
     print(f"URL: {page.url}")
-    if page.fetched_url != page.url:
+    if page.archive_reason is not None:
+        reason = page.archive_reason
+        print(f"取った URL: {page.fetched_url}（元のページが {reason} のため保存版を取った）")
+    elif page.fetched_url != page.url:
         print(f"取った URL: {page.fetched_url}")
     print(f"本文: 全 {len(page.text)} 字のうち {offset}〜{end} 字目")
     print("---")
