@@ -70,11 +70,16 @@ class Citation:
 
 @dataclass(frozen=True, slots=True)
 class WikipediaArticle:
-    """本家の記事から取り出したもの。``sections`` は（段の深さ 2〜6, 見出し）の並び。"""
+    """本家の記事から取り出したもの。
+
+    ``sections`` は（段の深さ 2〜6, 見出し）の並び。
+    ``related`` は「関連項目」の節の内部リンクの記事名。
+    """
 
     title: str
     sections: tuple[tuple[int, str], ...]
     citations: tuple[Citation, ...]
+    related: tuple[str, ...] = ()
 
 
 def raw_url(title: str) -> str:
@@ -151,10 +156,22 @@ def parse_article(title: str, raw: str) -> WikipediaArticle:
         title=title,
         sections=tuple((level, heading) for _start, level, heading in headings),
         citations=tuple(c for _pos, c in found),
+        related=_related(text, headings),
     )
 
 
 # --- 下請け -----------------------------------------------------------------------
+
+
+def _related(text: str, headings: list[tuple[int, int, str]]) -> tuple[str, ...]:
+    """「関連項目」の節（次の同じ深さ以上の見出しまで）の内部リンクの記事名。"""
+    for index, (start, level, heading) in enumerate(headings):
+        if heading != "関連項目":
+            continue
+        end = next((s for s, lv, _h in headings[index + 1 :] if lv <= level), len(text))
+        names = re.findall(r"\[\[([^\]|#]+)", text[start:end])
+        return tuple(dict.fromkeys(name.strip() for name in names if ":" not in name))
+    return ()
 
 
 def _citation_from(content: str, section: str) -> Citation | None:

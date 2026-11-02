@@ -22,13 +22,27 @@ _RAW = """{{Infobox 食品}}
 
 == 参考文献 ==
 * {{Cite book|和書|author=著者|title=本の題|publisher=出版社|year=1999|isbn=978-4-00-000000-0}}
+
+== 関連項目 ==
+* [[関連の記事A]]
+* [[関連の記事B|表示の名]] - 説明
+
+== 外部リンク ==
+* [https://example.com/official 公式]
 """
 
 
 def test_節の並びを段の深さつきで取り出す() -> None:
     article = parse_article("試し", _RAW)
 
-    assert article.sections == ((2, "歴史"), (3, "開発"), (2, "脚注"), (2, "参考文献"))
+    assert article.sections == (
+        (2, "歴史"),
+        (3, "開発"),
+        (2, "脚注"),
+        (2, "参考文献"),
+        (2, "関連項目"),
+        (2, "外部リンク"),
+    )
 
 
 def test_出典の題と元の_URL_と保存版の_URL_を切らずに取り出す() -> None:
@@ -62,6 +76,12 @@ def test_テンプレートの無い裸の出典と参考文献の書籍も拾�
     assert titles["裸の題"].url == "https://example.org/bare"
     assert titles["本の題"].section == "参考文献"
     assert titles["本の題"].url is None
+
+
+def test_関連項目の記事名を取り出す() -> None:
+    article = parse_article("試し", _RAW)
+
+    assert article.related == ("関連の記事A", "関連の記事B")
 
 
 def test_転送のページは転送先を返す() -> None:
@@ -105,5 +125,6 @@ def test_wikipedia_コマンドは節の並びと出典の一覧を出す(
     assert "元: https://example.com/a" in out
     assert "保存版: https://web.archive.org/web/20200102000000/https://example.com/a" in out
     assert "出典 4 件（保存版つき 1 件）" in out
+    assert "- 関連の記事A" in lines
     # 本家の本文は出さない
     assert "試しの食品である" not in out

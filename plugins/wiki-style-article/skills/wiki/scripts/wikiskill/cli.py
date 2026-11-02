@@ -233,6 +233,10 @@ def _wikipedia(title: str) -> int:
     for level, heading in article.sections:
         print(f"{'  ' * (level - 2)}- {heading}")
     print()
+    print("## 関連項目（関連の記事の候補）")
+    for name in article.related:
+        print(f"- {name}")
+    print()
     print("## 出典（節ごと）")
     current = None
     for citation in article.citations:
