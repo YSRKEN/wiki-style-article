@@ -85,6 +85,24 @@ def test_問い合わせの付いた_URL_でも置き場の外に出ない(
     assert saved.path.suffix == ".pdf"
 
 
+@pytest.mark.parametrize(
+    ("path", "name"),
+    [
+        # 符号化した ../ や \ を混ぜても、置き場の外を指す名前にならない
+        ("/a/..%2F..%2Fevil.pdf", "evil.pdf"),
+        ("/a/..%5C..%5Cevil.pdf", "evil.pdf"),
+        # Windows の予約名（デバイス名）は拡張子があってもデバイスに当たるので、名前を変える
+        ("/CON.pdf", "CON_.pdf"),
+        ("/files/lpt1.PDF", "lpt1_.pdf"),
+        ("/..", "document.pdf"),
+    ],
+)
+def test_ファイル名は置き場の直下を指す安全な名前にする(path: str, name: str) -> None:
+    from wikiskill.fetch import _pdf_name  # pyright: ignore[reportPrivateUsage]
+
+    assert _pdf_name(f"https://example.com{path}") == name
+
+
 def test_同じ名前の別の中身は上書きせず番号を付ける(
     server: str, pacer: Pacer, tmp_path: Path
 ) -> None:
