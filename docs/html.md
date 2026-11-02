@@ -15,7 +15,7 @@ for finding in check_html(html):
     print(finding)  # HTML-FOOTNOTE-PLAIN: 脚注番号 [3] がリンクにならず文字のまま残っている
 ```
 
-最終更新の日時は呼ぶ側が文字列で渡す（関数の中で現在時刻を取らない）。実装は `skills/wiki/scripts/wikiskill/` の次のファイル。
+最終更新の日時は呼ぶ側が文字列で渡す（関数の中で現在時刻を取らない）。実装は `plugins/wiki-style-article/skills/wiki/scripts/wikiskill/` の次のファイル。
 
 | ファイル | 役割 |
 | --- | --- |
@@ -158,7 +158,7 @@ Infobox                            （値のある項目が一つもなければ
 
 ## 雛形
 
-`skills/wiki/assets/page-template.html`。差し込み口は `{{名前}}`（英大文字と下線）で、次の 10 種。差し込み口だけの行は、値が空ならその行ごと消える。
+`plugins/wiki-style-article/skills/wiki/assets/page-template.html`。差し込み口は `{{名前}}`（英大文字と下線）で、次の 10 種。差し込み口だけの行は、値が空ならその行ごと消える。
 
 | 差し込み口 | 内容 |
 | --- | --- |

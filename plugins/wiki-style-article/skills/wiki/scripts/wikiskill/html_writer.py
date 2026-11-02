@@ -46,7 +46,7 @@ __all__ = [
 ]
 
 DEFAULT_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "assets" / "page-template.html"
-"""同梱の雛形（``skills/wiki/assets/page-template.html``）。"""
+"""同梱の雛形（``plugins/wiki-style-article/skills/wiki/assets/page-template.html``）。"""
 
 _WHOLE_LINE = re.compile(r"[ \t]*\{\{([A-Z_]+)\}\}[ \t]*")
 _PLACEHOLDER = re.compile(r"\{\{([A-Z_]+)\}\}")

@@ -31,7 +31,7 @@ PLACEMENTS: tuple[Placement, ...] = ("top", "lead")
 """``placement`` に書ける値。"""
 
 DEFAULT_TYPES_PATH = Path(__file__).resolve().parents[2] / "assets" / "types.toml"
-"""同梱の定義ファイル（``skills/wiki/assets/types.toml``）。"""
+"""同梱の定義ファイル（``plugins/wiki-style-article/skills/wiki/assets/types.toml``）。"""
 
 _ID_PATTERN = re.compile(r"[a-z]+(?:-[a-z]+)*")
 _TOP_KEYS = ("type",)
@@ -292,7 +292,7 @@ def read_registry_file(path: Path | str) -> TypeRegistry:
 
 @cache
 def load_default_registry() -> TypeRegistry:
-    """同梱の定義（``skills/wiki/assets/types.toml``）を読む。結果は使い回す。"""
+    """同梱の定義（``plugins/wiki-style-article/skills/wiki/assets/types.toml``）を読む。結果は使い回す。"""
     return read_registry_file(DEFAULT_TYPES_PATH)
 
 

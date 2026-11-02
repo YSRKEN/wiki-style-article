@@ -4,7 +4,9 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).parents[1] / "skills" / "wiki" / "scripts"
+SCRIPTS = (
+    Path(__file__).parents[1] / "plugins" / "wiki-style-article" / "skills" / "wiki" / "scripts"
+)
 WIKI_SH = SCRIPTS / "wiki.sh"
 SAMPLE = Path(__file__).parent / "fixtures" / "sample_article.md"
 SH = shutil.which("sh")
