@@ -4,8 +4,8 @@
 雛形 ``assets/page-template.html``（CSS を中に持つ）の差し込み口に、記事の各部分を入れて作る。
 外部の CSS・JS・フォント・画像は読まない。詳しくは ``docs/html.md``。
 
-ページの並びは、Infobox、導入部、節、脚注（注釈・出典の小節）、関連項目、外部リンク、
-カテゴリ欄、フッタ。値のない部分は節も欄も作らない。目次は節の見出し（脚注以降の見出しも含む）から作る。
+ページの並びは、冒頭の警告の枠、Infobox、導入部、節、脚注（注釈・出典の小節）、関連項目、
+外部リンク、カテゴリ欄、フッタ。値のない部分は節も欄も作らない。目次は節の見出し（脚注以降の見出しも含む）から作る。
 """
 
 from __future__ import annotations
@@ -33,7 +33,8 @@ from wikiskill.html_inline import (
     ref_item_id,
     ref_mark_id,
 )
-from wikiskill.model import Article, InternalLink, Section
+from wikiskill.model import Article, InternalLink, NoticeKind, Section
+from wikiskill.notices import article_notices
 from wikiskill.types import ArticleType
 
 __all__ = [
@@ -42,6 +43,7 @@ __all__ = [
     "NestedFootnoteError",
     "UnknownFootnoteError",
     "load_template",
+    "notice_box_html",
     "write_html",
 ]
 
@@ -52,6 +54,19 @@ _WHOLE_LINE = re.compile(r"[ \t]*\{\{([A-Z_]+)\}\}[ \t]*")
 _PLACEHOLDER = re.compile(r"\{\{([A-Z_]+)\}\}")
 _NOP_TITLE = "この部品は見た目だけで、押しても動きません"
 _CATEGORY_INDEX = f"{WIKI_BASE}Special:Categories"
+
+NOTICE_TEXTS: dict[NoticeKind, str] = {
+    "出典の明記": (
+        "この記事には、出典が示されていない記述や、"
+        "信頼性の確かめられていない出典に頼る記述があります。"
+    ),
+    "独自研究": "この記事には、出典で確かめられていない見方や推測が含まれています。",
+    "観点": "この記事には、中立的な観点を欠くおそれのある噂や利用者の見方が含まれています。",
+}
+"""警告の枠の文面。本家の枠の文は写さず、自分で書いた。"""
+
+NOTICE_HEADING = "この記事には次の問題があります。"
+"""枠が二つ以上のときに、箇条の前に置く文。"""
 
 
 def load_template(path: str | Path | None = None) -> str:
@@ -76,6 +91,7 @@ def write_html(
     updated: str,
     *,
     template: str | None = None,
+    mark_date: str | None = None,
 ) -> str:
     """記事を HTML 1 枚に書き出す。
 
@@ -92,6 +108,8 @@ def write_html(
         逃がしてそのまま入れる。
     template : str | None
         雛形の全文。省略すると同梱の雛形を読む。
+    mark_date : str | None
+        冒頭の警告の枠に添える日付（例 ``2026年11月``）。None なら日付を出さない。
 
     Returns
     -------
@@ -122,6 +140,7 @@ def write_html(
     values = {
         "PAGE_TITLE": escape(settings.title),
         "TOC": page.toc(),
+        "NOTICES": notice_box_html(article_notices(article), mark_date),
         "INFOBOX": build_infobox_html(settings, article_type),
         "LEAD": lead,
         "SECTIONS": sections,
@@ -132,6 +151,34 @@ def write_html(
         "UPDATED": escape(updated),
     }
     return _fill(load_template() if template is None else template, values)
+
+
+def notice_box_html(kinds: tuple[NoticeKind, ...], mark_date: str | None) -> str:
+    """冒頭の警告の枠を HTML にする。
+
+    Parameters
+    ----------
+    kinds : tuple[NoticeKind, ...]
+        貼る枠（:func:`wikiskill.notices.article_notices` の結果）。
+    mark_date : str | None
+        各文に添える日付。None なら添えない。
+
+    Returns
+    -------
+    str
+        枠が一つならその文、二つ以上なら見出しの文と各文の箇条を入れた一つの枠。
+        枠が無ければ空文字列。
+    """
+    if not kinds:
+        return ""
+    suffix = "" if mark_date is None else f"（{escape(mark_date)}）"
+    texts = [f"{NOTICE_TEXTS[kind]}{suffix}" for kind in kinds]
+    if len(texts) == 1:
+        body = texts[0]
+    else:
+        items = "\n".join(f"<li>{text}</li>" for text in texts)
+        body = f"{NOTICE_HEADING}\n<ul>\n{items}\n</ul>"
+    return f'<div class="ambox" role="note"><div class="ambox-text">{body}</div></div>'
 
 
 # --- 雛形への差し込み -------------------------------------------------------------

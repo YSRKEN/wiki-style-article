@@ -1,10 +1,14 @@
-"""文中の部品（太字・内部リンク・脚注の印）を HTML にする。脚注の番号づけもここで行う。
+"""文中の部品（太字・内部リンク・脚注の印・点と範囲の印）を HTML にする。脚注の番号もここで付ける。
 
 脚注の番号は本文に現れる順（導入部、節の順）に、出典と注釈で別々に付ける。注釈の中の出典は、
 その注釈を最初に使った場所で数える。同じ出典・注釈を再利用したときは同じ番号を使う。
 
 脚注の印は ``<sup id="cite_ref-N-K"><a href="#cite_note-N">[N]</a></sup>``（注釈は
 ``cite_ref-note-N-K``・``cite_note-note-N``・``[注 N]``）。``K`` は同じ印の何回目か。
+
+点の印は ``<sup class="fix-mark">[要出典]</sup>``、範囲の印は
+``<span class="fix-range">範囲の文</span><sup class="fix-mark">[要出典]</sup>``
+（独自研究範囲の印の文字は本家と同じ ``[独自研究?]``）。
 """
 
 from __future__ import annotations
@@ -15,9 +19,12 @@ from dataclasses import dataclass
 
 from wikiskill.html_escape import escape, wiki_href
 from wikiskill.model import (
+    FIX_RANGE_LABELS,
     Article,
     Block,
     Bold,
+    FixMark,
+    FixRange,
     Inline,
     InternalLink,
     NoteMark,
@@ -90,7 +97,7 @@ def number_footnotes(article: Article) -> Numbering:
 
     def visit(items: Iterable[Inline], in_note: str | None) -> None:
         for item in items:
-            if isinstance(item, Bold):
+            if isinstance(item, Bold | FixRange):
                 visit(item.children, in_note)
             elif isinstance(item, RefMark):
                 if item.key not in ref_keys:
@@ -157,6 +164,11 @@ def internal_link(link: InternalLink) -> str:
     return f'<a href="{href}" title="{title}">{escape(link.display)}</a>'
 
 
+def fix_mark(label: str) -> str:
+    """点の印、または範囲の印の後ろに付ける上付きの文字。"""
+    return f'<sup class="fix-mark">[{escape(label)}]</sup>'
+
+
 class InlineWriter:
     """文中の部品を HTML にする。脚注の印は、書いた回数を数えながら番号つきのリンクにする。
 
@@ -183,6 +195,11 @@ class InlineWriter:
             return f"<b>{self.inline(item.children)}</b>"
         if isinstance(item, InternalLink):
             return internal_link(item)
+        if isinstance(item, FixMark):
+            return fix_mark(item.kind)
+        if isinstance(item, FixRange):
+            inner = self.inline(item.children)
+            return f'<span class="fix-range">{inner}</span>{fix_mark(FIX_RANGE_LABELS[item.kind])}'
         if isinstance(item, RefMark):
             return self._ref(item.key)
         return self._note(item.key)
