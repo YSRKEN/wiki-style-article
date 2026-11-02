@@ -15,6 +15,17 @@ allowed-tools: WebSearch WebFetch Read Write Edit Bash(sh *wiki.sh* *)
 
 このスキルは、噂や利用者の考察（見方・推測・非難）を記事に載せない。載せたいと頼まれたら、同じプラグインの `/wiki-style-article:wiki-with-rumor` を案内する。確かめられなかった事実は、落とさずに印を付けて載せる（工程 6）。
 
+## Claude Code 以外の道具で使うとき
+
+このスキルの手順には Claude Code を前提にした所があり、道具が違うと読み替えが要る。DeepSeek Harness で 2026-11-02 に記事を 1 本作り、check と build が通るまでを確かめた。
+
+- frontmatter の `allowed-tools` を読まない道具がある。ツールの名前も道具ごとに違う（DeepSeek Harness は `web_search`・`web_fetch`・`read`・`write`・`edit`・`bash`）
+- 許可の確認が出ない道具では、`cd`・`&&`・`;` を避ける理由は「URL や日本語の取り違えを防ぐ」だけになる。1 本ずつ呼ぶ方針は、そのまま使える
+- `run_in_background: false` は Claude Code の Agent の引数。他の道具では、担当を同じメッセージで並べて起こし、結果は完了の知らせで受ける形になることが多い
+- 担当のモデル名（`sonnet`）や同梱の `researcher` が無い道具では、その道具のモデルの id を指定する。担当を起こせない（深さの残りが無い）ときは工程 4 の「一人で順に調べる」に落とす（この落とし方は実走で通った）
+- `wiki.sh pdf` で作った PDF を `Read` の `pages` で読む手順は、`pages` の無い道具では使えない。`pdftotext` などでテキストにしてから読む
+- `write` が親フォルダを作らない道具では、作業フォルダと `材料/` を先に `mkdir` で作る（Claude Code の Write は作るので、工程 1 のとおり要らない）
+
 ## 使う場面
 
 - 「/wiki <題材>」と呼ばれたとき。題材が無ければ、題材を一つだけ聞き返す
