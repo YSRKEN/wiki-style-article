@@ -9,7 +9,7 @@ import pytest
 from wikiskill import check_article, read_article
 from wikiskill.types import load_default_registry
 
-SKILL = Path(__file__).parents[1] / "skills" / "wiki"
+SKILL = Path(__file__).parents[1] / "plugins" / "wiki-style-article" / "skills" / "wiki"
 REFERENCES = SKILL / "references"
 REGISTRY = load_default_registry()
 BASE_IDS = [t.id for t in REGISTRY if t.is_base]

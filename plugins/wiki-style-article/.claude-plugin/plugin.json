@@ -1,0 +1,13 @@
+{
+  "name": "wiki-style-article",
+  "version": "0.1.0",
+  "description": "題材を幅広く調べ、日本語版 Wikipedia の記事の型と作法で書いた記事を、HTML とウィキテキストで作る /wiki スキル。非公式の道具で、ウィキメディア財団とは関係がない。",
+  "author": {
+    "name": "YSRKEN",
+    "url": "https://github.com/YSRKEN"
+  },
+  "homepage": "https://github.com/YSRKEN/wiki-style-article",
+  "repository": "https://github.com/YSRKEN/wiki-style-article",
+  "license": "MIT AND CC-BY-SA-4.0",
+  "keywords": ["encyclopedia", "wiki", "japanese", "article", "research"]
+}

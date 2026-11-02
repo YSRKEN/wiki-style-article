@@ -3,8 +3,8 @@
 原稿（[原稿の書き方](source-format.md)）を読み、検査し、HTML とウィキテキストを書き出すまでを 1 回のコマンドで流す。
 
 ```bash
-sh skills/wiki/scripts/wiki.sh build 原稿.md
-sh skills/wiki/scripts/wiki.sh check 原稿.md
+sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh build 原稿.md
+sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh check 原稿.md
 ```
 
 - `build`: 検査して、エラーが無ければ原稿と同じフォルダに `<原稿の名前>.html` と `<原稿の名前>.wikitext` を書き出す。同じ名前のファイルがあれば上書きする
@@ -19,7 +19,7 @@ sh skills/wiki/scripts/wiki.sh check 原稿.md
 | `--out-dir 出力先` | 書き出し先のフォルダ。無ければ作る | 原稿と同じフォルダ |
 | `--updated 日時` | フッタの最終更新の日時の文字列。そのまま入れる | 今の現地時刻（下記） |
 
-実装は `skills/wiki/scripts/wiki.sh`（Python を探す）、`wiki.py`（入口のファイル）、`wikiskill/cli.py`（中身）。
+実装は `plugins/wiki-style-article/skills/wiki/scripts/wiki.sh`（Python を探す）、`wiki.py`（入口のファイル）、`wikiskill/cli.py`（中身）。
 
 ## Python の探し方
 
@@ -29,7 +29,7 @@ sh skills/wiki/scripts/wiki.sh check 原稿.md
 - `uv` だけがあるときは `uv run --no-project --python '>=3.11' python` で流す。合う版の Python が無ければ、uv の既定の設定では uv が取ってくる（[uv の文書](https://docs.astral.sh/uv/concepts/python-versions/)）。`python-downloads` を `manual`・`never` にしていれば取ってこず、uv がエラーを出す
 - どれも無ければ、Python と uv の入れ方を標準エラーに出して終了コード 3 で終わる
 
-Python が分かっているなら、`wiki.sh` を通さずに `python skills/wiki/scripts/wiki.py build 原稿.md` でも流せる。
+Python が分かっているなら、`wiki.sh` を通さずに `python plugins/wiki-style-article/skills/wiki/scripts/wiki.py build 原稿.md` でも流せる。
 
 ## 出力の形
 

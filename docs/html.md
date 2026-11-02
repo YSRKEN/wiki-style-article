@@ -15,7 +15,7 @@ for finding in check_html(html):
     print(finding)  # HTML-FOOTNOTE-PLAIN: 脚注番号 [3] がリンクにならず文字のまま残っている
 ```
 
-最終更新の日時は呼ぶ側が文字列で渡す（関数の中で現在時刻を取らない）。実装は `skills/wiki/scripts/wikiskill/` の次のファイル。
+最終更新の日時は呼ぶ側が文字列で渡す（関数の中で現在時刻を取らない）。実装は `plugins/wiki-style-article/skills/wiki/scripts/wikiskill/` の次のファイル。
 
 | ファイル | 役割 |
 | --- | --- |
@@ -43,6 +43,7 @@ CSS は本家から写していない。本家の記事ページの HTML と CSS
 - 記事名の下の副題「出典: フリー百科事典『ウィキペディア（Wikipedia）』風のページ」
 - 上部バーのロゴは文字の「W」と「WIKIPEDIA風」。Wikimedia のロゴの画像は使わない
 - フッタの「このページは Wikipedia そのものではなく、その見た目に寄せて作った Wikipedia風のページです。」
+- フッタの「このページは AI が生成した文章で、内容は検証されていません。手元で読むためのもので、Web に公開したりウィキペディアに投稿したりしないでください。」（生成したページを Web に上げたり本家に投稿したりしないよう、ページの中でも伝える。チケット 07 の決定）
 - `<title>` は「記事名 - Wikipedia風ページ」
 
 ### 押しても動かない部品
@@ -158,7 +159,7 @@ Infobox                            （値のある項目が一つもなければ
 
 ## 雛形
 
-`skills/wiki/assets/page-template.html`。差し込み口は `{{名前}}`（英大文字と下線）で、次の 10 種。差し込み口だけの行は、値が空ならその行ごと消える。
+`plugins/wiki-style-article/skills/wiki/assets/page-template.html`。差し込み口は `{{名前}}`（英大文字と下線）で、次の 10 種。差し込み口だけの行は、値が空ならその行ごと消える。
 
 | 差し込み口 | 内容 |
 | --- | --- |

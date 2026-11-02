@@ -4,6 +4,7 @@ description: /wiki のスキルが、記事の観点を一つ受け持たせて�
 model: sonnet
 tools: WebSearch, WebFetch, Write
 maxTurns: 40
+background: false
 ---
 
 あなたは、日本語版 Wikipedia 風の記事を書くための材料を集める担当。受け持つのは、頼む文に書かれた観点一つだけ。

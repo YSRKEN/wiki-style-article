@@ -19,12 +19,12 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["skills/wiki/scripts"]
+pythonpath = ["plugins/wiki-style-article/skills/wiki/scripts"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-src = ["skills/wiki/scripts", "tests", "scripts"]
+src = ["plugins/wiki-style-article/skills/wiki/scripts", "tests", "scripts"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "D"]
@@ -44,5 +44,5 @@ convention = "numpy"
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.11"
-include = ["skills", "tests", "scripts"]
-extraPaths = ["skills/wiki/scripts"]
+include = ["plugins", "tests", "scripts"]
+extraPaths = ["plugins/wiki-style-article/skills/wiki/scripts"]

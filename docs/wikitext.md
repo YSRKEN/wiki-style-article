@@ -13,7 +13,7 @@ text = write_wikitext(article, article_type)  # 本家の形（既定）
 plain = write_wikitext(article, article_type, style="plain")  # 素の記法
 ```
 
-実装は `skills/wiki/scripts/wikiskill/wikitext.py`（全体の組み立てと本文）、`wikitext_cite.py`（出典）、`wikitext_infobox.py`（Infobox）、`wikitext_escape.py`（文字の逃がし方）。
+実装は `plugins/wiki-style-article/skills/wiki/scripts/wikiskill/wikitext.py`（全体の組み立てと本文）、`wikitext_cite.py`（出典）、`wikitext_infobox.py`（Infobox）、`wikitext_escape.py`（文字の逃がし方）。
 
 ## 二つの書き方
 

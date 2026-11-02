@@ -1,6 +1,6 @@
 # 記事の類型
 
-記事は題材の種類（類型）ごとに、節の並びと Infobox の項目が変わる。原稿の `type` に類型の ID を書く（[原稿の書き方](source-format.md)）。類型の定義は `skills/wiki/assets/types.toml` にあり、`skills/wiki/scripts/wikiskill/types.py` が読む。
+記事は題材の種類（類型）ごとに、節の並びと Infobox の項目が変わる。原稿の `type` に類型の ID を書く（[原稿の書き方](source-format.md)）。類型の定義は `plugins/wiki-style-article/skills/wiki/assets/types.toml` にあり、`plugins/wiki-style-article/skills/wiki/scripts/wikiskill/types.py` が読む。
 
 ## 二層の構成
 

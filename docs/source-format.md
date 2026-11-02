@@ -1,6 +1,6 @@
 # 原稿の書き方
 
-記事の原稿は、冒頭の TOML の設定欄と、Markdown 風の本文でできた一つのファイル。HTML とウィキテキストは、どちらもこの原稿から書き出す（[ADR 0001](adr/0001-article-source-generates-both-outputs.md)）。読み取りは `skills/wiki/scripts/wikiskill/` の `read_article` / `read_article_file` が行い、記事を変更できないデータ（`wikiskill.model.Article`）にして返す。
+記事の原稿は、冒頭の TOML の設定欄と、Markdown 風の本文でできた一つのファイル。HTML とウィキテキストは、どちらもこの原稿から書き出す（[ADR 0001](adr/0001-article-source-generates-both-outputs.md)）。読み取りは `plugins/wiki-style-article/skills/wiki/scripts/wikiskill/` の `read_article` / `read_article_file` が行い、記事を変更できないデータ（`wikiskill.model.Article`）にして返す。
 
 見本は `tests/fixtures/sample_article.md`（架空の漫画の記事）。
 

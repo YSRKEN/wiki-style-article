@@ -184,7 +184,9 @@ def test_基本型から細かい種類を引ける() -> None:
 
 
 def test_ファイルからも読める() -> None:
-    path = REPO_ROOT / "skills" / "wiki" / "assets" / "types.toml"
+    path = (
+        REPO_ROOT / "plugins" / "wiki-style-article" / "skills" / "wiki" / "assets" / "types.toml"
+    )
     assert len(read_registry_file(path)) == len(load_default_registry())
 
 

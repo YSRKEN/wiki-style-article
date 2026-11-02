@@ -1,6 +1,6 @@
 # 原稿の検査
 
-AI が書いた原稿を読み取った結果（[原稿の書き方](source-format.md)）を検査して、**エラー**と**警告**の一覧を返す。実装は `skills/wiki/scripts/wikiskill/checks/`。
+AI が書いた原稿を読み取った結果（[原稿の書き方](source-format.md)）を検査して、**エラー**と**警告**の一覧を返す。実装は `plugins/wiki-style-article/skills/wiki/scripts/wikiskill/checks/`。
 
 ```python
 from wikiskill import read_article_file
