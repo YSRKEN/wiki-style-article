@@ -5,13 +5,15 @@
     python -m wikiskill build 原稿.md [--style plain] [--out-dir 出力先] [--updated 日時]
     python -m wikiskill check 原稿.md
     python -m wikiskill type [類型の ID]
-    python -m wikiskill fetch URL [--max-chars 字数] [--offset 字数]
+    python -m wikiskill fetch URL [--max-chars 字数] [--offset 字数] [--archive-year 年]
+    python -m wikiskill wikipedia 記事名
 
 ``build`` は原稿の隣（``--out-dir`` で変えられる）に ``<原稿の名前>.html`` と
 ``<原稿の名前>.wikitext`` を書き出す。``check`` は検査だけして何も書き出さない。
 ``type`` は類型の一覧か、原稿の設定欄に貼る ``type`` と Infobox の雛形を出す。
 ``fetch`` は Web のページを取り、題と本文の文字を出す（調べものの担当が使う。
-:mod:`wikiskill.fetch`）。``build`` は、印と冒頭の警告の枠に今の現地時刻の年月
+:mod:`wikiskill.fetch`）。``wikipedia`` は本家の記事の節の並びと出典の一覧を出す
+（:mod:`wikiskill.wikipedia_refs`）。``build`` は、印と冒頭の警告の枠に今の現地時刻の年月
 （``2026年11月``）を添える。
 
 出力は 1 行に 1 件で、検査の指摘（``12 行目 [警告] RULE: …``）、件数のまとめ、
@@ -19,7 +21,7 @@
 
 - 0: 書き出した（``check`` ではエラーが無かった）。警告があっても 0
 - 1: 原稿にエラーがあって書き出していない。指摘を見て原稿を直す
-  （``fetch`` ではページを取れなかった）
+  （``fetch``・``wikipedia`` ではページを取れなかった）
 - 2: 呼び方の誤り（引数・原稿のファイルが無い）
 
 詳しくは ``docs/cli.md``。
@@ -37,6 +39,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import NoReturn
 
+from wikiskill import wikipedia_refs
 from wikiskill.checks import Finding, Level, check_article
 from wikiskill.errors import SourceError
 from wikiskill.fetch import FetchError, Pacer, fetch_page
@@ -73,8 +76,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return stop.code if isinstance(stop.code, int) else 2
     if args.command == "type":
         return _type(args.type_id)
+    if args.command == "wikipedia":
+        return _wikipedia(args.title)
     if args.command == "fetch":
-        return _fetch(args.url, max_chars=args.max_chars, offset=args.offset)
+        return _fetch(
+            args.url, max_chars=args.max_chars, offset=args.offset, archive_year=args.archive_year
+        )
     source = Path(args.source)
     if not source.is_file():
         print(f"原稿が見つからない: {source}", file=sys.stderr)
@@ -179,15 +186,74 @@ def _parser() -> argparse.ArgumentParser:
         "--max-chars", type=int, default=30000, help="出す本文の字数の上限（既定 30000）"
     )
     fetch.add_argument("--offset", type=int, default=0, help="本文の何字目から出すか（既定 0）")
+    fetch.add_argument(
+        "--archive-year",
+        type=int,
+        help="元のページが無いときに探す保存版の年（例 2016）。省くと今年に近い保存版",
+    )
+
+    wiki = commands.add_parser("wikipedia", help="本家の記事の節の並びと出典の一覧を出す")
+    wiki.add_argument("title", help="本家の記事名（例 カップヌードル）")
     return parser
 
 
-def _fetch(url: str, *, max_chars: int, offset: int) -> int:
-    state = os.environ.get("WIKISKILL_FETCH_STATE") or str(
-        Path(tempfile.gettempdir()) / "wiki-style-article-fetch"
+def _state_dir() -> Path:
+    return Path(
+        os.environ.get("WIKISKILL_FETCH_STATE")
+        or str(Path(tempfile.gettempdir()) / "wiki-style-article-fetch")
     )
+
+
+def _wikipedia(title: str) -> int:
+    pacer = Pacer(_state_dir())
     try:
-        page = fetch_page(url, pacer=Pacer(Path(state)))
+        try:
+            raw = wikipedia_refs.fetch_raw(title, pacer=pacer)
+            article = wikipedia_refs.parse_article(title, raw)
+        except wikipedia_refs.WikipediaError as error:
+            if error.redirect_to is None:
+                raise
+            target = error.redirect_to
+            print(
+                f"「{title}」は「{target}」への転送なので、転送先を読む（本家に 2 回問い合わせた）"
+            )
+            title = target
+            article = wikipedia_refs.parse_article(
+                title, wikipedia_refs.fetch_raw(title, pacer=pacer)
+            )
+    except wikipedia_refs.WikipediaError as error:
+        print(f"[エラー] WIKIPEDIA: {error}", file=sys.stderr)
+        return 1
+    archived = sum(1 for c in article.citations if c.archive_url)
+    print(f"記事: {title}（https://ja.wikipedia.org/wiki/{title.replace(' ', '_')}）")
+    print(f"出典 {len(article.citations)} 件（保存版つき {archived} 件）。")
+    print("本家の本文は写さず、節の並びと出典の手がかりにだけ使う。本家そのものは出典にしない。")
+    print()
+    print("## 節の並び")
+    for level, heading in article.sections:
+        print(f"{'  ' * (level - 2)}- {heading}")
+    print()
+    print("## 関連項目（関連の記事の候補）")
+    for name in article.related:
+        print(f"- {name}")
+    print()
+    print("## 出典（節ごと）")
+    current = None
+    for citation in article.citations:
+        if citation.section != current:
+            current = citation.section
+            print(f"### {current}")
+        print("- " + " ｜ ".join(x for x in (citation.title, citation.source, citation.date) if x))
+        if citation.url:
+            print(f"  元: {citation.url}")
+        if citation.archive_url:
+            print(f"  保存版: {citation.archive_url}")
+    return 0
+
+
+def _fetch(url: str, *, max_chars: int, offset: int, archive_year: int | None) -> int:
+    try:
+        page = fetch_page(url, pacer=Pacer(_state_dir()), archive_year=archive_year)
     except FetchError as error:
         print(f"[エラー] FETCH: {error}", file=sys.stderr)
         print(
@@ -199,7 +265,10 @@ def _fetch(url: str, *, max_chars: int, offset: int) -> int:
     end = min(len(page.text), offset + max_chars)
     print(f"題: {page.title}")
     print(f"URL: {page.url}")
-    if page.fetched_url != page.url:
+    if page.archive_reason is not None:
+        reason = page.archive_reason
+        print(f"取った URL: {page.fetched_url}（元のページが {reason} のため保存版を取った）")
+    elif page.fetched_url != page.url:
         print(f"取った URL: {page.fetched_url}")
     print(f"本文: 全 {len(page.text)} 字のうち {offset}〜{end} 字目")
     print("---")
