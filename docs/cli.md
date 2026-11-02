@@ -7,7 +7,7 @@ sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh build 原稿.md
 sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh check 原稿.md
 ```
 
-- `build`: 検査して、エラーが無ければ原稿と同じフォルダに `<原稿の名前>.html` と `<原稿の名前>.wikitext` を書き出す。同じ名前のファイルがあれば上書きする
+- `build`: 検査して、エラーが無ければ原稿と同じフォルダに `<原稿の名前>.html` と `<原稿の名前>.wikitext` を書き出す。噂のある原稿では 3 本を書き出す（下の「噂のある原稿」）。同じ名前のファイルがあれば上書きする
 - `check`: 検査だけして、何も書き出さない
 - `type`: 類型の一覧を出す。`type manga` のように ID を渡すと、原稿の設定欄に貼る `type` と `[infobox]` の雛形を出す（下記）
 - `fetch`: Web のページを取り、題と本文の文字を出す（下記）。調べものの担当が使う
@@ -22,6 +22,25 @@ sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh check 原稿.md
 | `--updated 日時` | フッタの最終更新の日時の文字列。そのまま入れる | 今の現地時刻（下記） |
 
 実装は `plugins/wiki-style-article/skills/wiki/scripts/wiki.sh`（Python を探す）、`wiki.py`（入口のファイル）、`wikiskill/cli.py`（中身）。
+
+## 噂のある原稿
+
+噂（`[!噂|…]` の範囲か `[!噂]` の節。[原稿の書き方](source-format.md#噂)）のある原稿では、`check` と `build` の検査を、通常の版と噂込みの版の両方にかけて指摘を合わせて出す（同じ指摘は一つにまとめる。[検査の規則](checks.md#噂のある原稿二つの版)）。`build` は次の 3 本を書き出し、それぞれ「書き出した: …」を出す。
+
+| ファイル | 中身 |
+| --- | --- |
+| `<原稿の名前>.html` | 二つの版を入れ、記事名の下のボタンで切り替える HTML（[HTML の書き出し](html.md#噂のある原稿二つの版)）。開いたときは通常の版 |
+| `<原稿の名前>.wikitext` | 通常の版のウィキテキスト |
+| `<原稿の名前>.噂込み.wikitext` | 噂込みの版のウィキテキスト |
+
+```text
+エラー 0 件、警告 0 件。
+書き出した: /path/to/騒動.html
+書き出した: /path/to/騒動.wikitext
+書き出した: /path/to/騒動.噂込み.wikitext
+```
+
+噂の無い原稿は今までどおり 2 本で、`.噂込み.wikitext` は書き出さない。`--style plain` は両方のウィキテキストに効く。書き出した HTML は、噂の無い原稿と同じく `check_html` に通す。
 
 ## Python の探し方
 

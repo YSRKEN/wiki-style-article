@@ -15,6 +15,7 @@ allowed-tools: WebSearch WebFetch Write Edit Bash(sh *wiki.sh* *)
 
 ### 4. 担当を並べて調べる
 
+- 担当は、`wiki` の工程 4 のとおり前面に並べる（Agent の呼び出しに必ず `run_in_background: false` を書く）
 - 担当への頼む文の「噂・考察」の欄を「集める」にする（`../wiki/references/research.md` の雛形）。担当は、事実として確かめられていない見方・推測・非難も集め、誰の見方かと出どころを書く
 - 騒動や反響の大きい題材では、「反響」「騒動」のような観点を一つ立て、噂・考察を主に受け持たせてよい
 

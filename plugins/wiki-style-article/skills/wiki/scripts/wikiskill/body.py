@@ -3,6 +3,7 @@
 本文の書き方は次のとおり。
 
 - ``## ``・``### ``・``#### `` で始まる行が見出し（h2〜h4）。``# `` は使えない
+- 見出しの末尾の ``[!噂]`` は、その節と子の節を噂として扱う印。見出しの文字からは取り除く
 - 空行で段落を区切る。段落の中の改行は空白なしでつなぐ
 - 行頭の ``- `` で始まる行の連なりが箇条書き（入れ子なし）。字下げした行は前の項目の続き
 - 最初の見出しより前の段落・箇条書きは導入部
@@ -24,6 +25,9 @@ _NESTED_BULLET = re.compile(r"[ \t]+- ")
 
 _INDENT = " 	"
 """行頭・行末から取り除く空白。全角空白は取り除かず、字下げの誤りとして検査（FULLWIDTH-SPACE）に回す。"""
+
+_RUMOR_MARK = "[!噂]"
+"""見出しの末尾に付けて、節ごと噂にする印。"""
 
 _MIN_HEADING_LEVEL = 2
 _MAX_HEADING_LEVEL = 4
@@ -50,7 +54,8 @@ def parse_body(
     Raises
     ------
     MarkupError
-        使えない見出し、飛んだ見出しの階層、入れ子の箇条書き、壊れた文中の記法があるとき。
+        使えない見出し、飛んだ見出しの階層、入れ子の箇条書き、壊れた文中の記法、
+        見出しの途中の ``[!噂]`` があるとき。
     """
     return _BodyBuilder().build(lines, first_line)
 
@@ -89,10 +94,11 @@ class _Lines:
 class _SectionBuilder:
     """組み立て中の節。"""
 
-    def __init__(self, level: int, title: str, line: int) -> None:
+    def __init__(self, level: int, title: str, line: int, *, rumor: bool) -> None:
         self.level = level
         self.title = title
         self.line = line
+        self.rumor = rumor
         self.blocks: list[Block] = []
         self.children: list[_SectionBuilder] = []
 
@@ -104,6 +110,7 @@ class _SectionBuilder:
             tuple(self.blocks),
             tuple(child.build() for child in self.children),
             line=self.line,
+            rumor=self.rumor,
         )
 
 
@@ -162,8 +169,15 @@ class _BodyBuilder:
                 f"見出しに使えるのは ## から #### まで（{'#' * level} は使えない）",
                 number,
             )
+        rumor = title.endswith(_RUMOR_MARK)
+        if rumor:
+            title = title.removesuffix(_RUMOR_MARK).rstrip(_INDENT)
         if not title:
             raise MarkupError("見出しの文字が空", number)
+        if "[!噂" in title:
+            raise MarkupError(
+                "見出しの [!噂] は末尾にだけ付けられる（## 騒動 [!噂] の形で書く）", number
+            )
 
         self._flush()
         while self._stack and self._stack[-1].level >= level:
@@ -175,7 +189,7 @@ class _BodyBuilder:
                 number,
             )
 
-        section = _SectionBuilder(level, title, number)
+        section = _SectionBuilder(level, title, number, rumor=rumor)
         (self._stack[-1].children if self._stack else self._roots).append(section)
         self._stack.append(section)
 

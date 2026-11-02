@@ -113,6 +113,12 @@ def test_雛形の差し込み口はすべて知られている() -> None:
         "EXTERNAL_LINKS",
         "CATEGORIES",
         "UPDATED",
+        "VARIANT_STYLE",
+        "VARIANT_SWITCH",
+        "VARIANT_OPEN",
+        "VARIANT_CLOSE",
+        "RUMOR_VARIANT",
+        "VARIANT_SCRIPT",
     }
 
 

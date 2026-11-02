@@ -103,7 +103,20 @@ class Bold:
     children: tuple[Text | RefMark | NoteMark | InternalLink | FixMark, ...]
 
 
-Inline: TypeAlias = Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold
+@dataclass(frozen=True)
+class RumorRange:
+    """噂の範囲 ``[!噂|範囲の文]``。通常の記事では取り除き、噂込みの記事では中身にほどく。
+
+    範囲の文には、文字・内部リンク・太字・出典の印・注釈の印・点の印・範囲の印を入れられる
+    （噂の範囲の入れ子は入れない）。二つの版への分け方は :mod:`wikiskill.variants`。
+    """
+
+    children: tuple[Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold, ...]
+
+
+Inline: TypeAlias = (
+    Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold | RumorRange
+)
 """文中の部品のいずれか。"""
 
 
@@ -136,13 +149,17 @@ Block: TypeAlias = Paragraph | BulletList
 
 @dataclass(frozen=True)
 class Section:
-    """節。``blocks`` は見出しの直後から最初の子の節の前まで、``children`` は一段下の節。"""
+    """節。``blocks`` は見出しの直後から最初の子の節の前まで、``children`` は一段下の節。
+
+    ``rumor`` は見出しの末尾に ``[!噂]`` を付けた節（子の節を含めて噂として扱う）であること。
+    """
 
     level: int
     title: str
     blocks: tuple[Block, ...]
     children: tuple[Section, ...]
     line: int = field(default=0, compare=False)
+    rumor: bool = False
 
 
 # --- 設定欄 ----------------------------------------------------------------
