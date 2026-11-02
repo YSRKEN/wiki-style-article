@@ -1,6 +1,6 @@
 """文中の記法（太字・脚注の印・注釈の印・内部リンク・点と範囲の印・噂の範囲）を部品に分ける。
 
-使える記法は次の七つだけで、それ以外の文字はそのまま本文になる。
+使える記法は次の八つだけで、それ以外の文字はそのまま本文になる。
 
 - ``'''…'''``: 太字
 - ``[^キー]``: 出典への脚注の印
@@ -11,6 +11,8 @@
   内部リンク・脚注の印・注釈の印を書ける。範囲の終わりは ``[`` と ``]`` の入れ子を数えて決める
 - ``[!噂|範囲の文]``: 噂の範囲。範囲の文には文字・内部リンク・太字・脚注の印・注釈の印・
   点の印・範囲の印を書ける（噂の範囲の入れ子は書けない）。終わりの決め方は範囲の印と同じ
+- ``[!原文|言語タグ|文]``: 外国語の原文。言語タグは BCP 47 の形。文は記法を含まない文字で、
+  脚注の印は原文の外に置く。太字・範囲の印の中には書けず、噂の範囲の中には書ける
 
 印が指すキーが設定欄にあるかはここでは見ない。記法として壊れているものだけをエラーにする。
 """
@@ -31,6 +33,7 @@ from wikiskill.model import (
     Inline,
     InternalLink,
     NoteMark,
+    Original,
     RefMark,
     RumorRange,
     Text,
@@ -46,10 +49,17 @@ _NOTE_PREFIX = "n:"
 _BOLD = "'''"
 _FIX = "[!"
 _RUMOR = "噂"
+_ORIGINAL = "原文"
+
+LANG_PATTERN = re.compile(
+    r"[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?"
+    r"(?:-(?:[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*"
+)
+"""言語タグとして使える形（BCP 47 の、言語・文字種・地域・変種の並び）。"""
 
 _BoldChild = Text | RefMark | NoteMark | InternalLink | FixMark
 _RangeChild = Text | RefMark | NoteMark | InternalLink
-_RumorChild = Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold
+_RumorChild = Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold | Original
 
 
 def parse_inline(text: str, line: int | LineOf = 1) -> tuple[Inline, ...]:
@@ -151,8 +161,8 @@ class _Parser:
         # 太字の中では太字と範囲の印を開かないので、子はそれ以外に限られる。
         return Bold(tuple(child for child in children if isinstance(child, _BoldChild)))
 
-    def _parse_fix(self, *, in_bold: bool) -> FixMark | FixRange | RumorRange:
-        """点の印 ``[!名前]``・範囲の印 ``[!名前|範囲の文]``・噂の範囲 ``[!噂|…]`` を読む。"""
+    def _parse_fix(self, *, in_bold: bool) -> FixMark | FixRange | RumorRange | Original:
+        """点の印・範囲の印・噂の範囲 ``[!噂|…]``・原文 ``[!原文|言語タグ|文]`` を読む。"""
         text = self._text
         start = self._pos
         name_end = start + len(_FIX)
@@ -196,7 +206,11 @@ class _Parser:
             if self._in_rumor:
                 raise self._error("噂の範囲は入れ子にできない", start)
             return self._parse_rumor(start, name_end + 1)
-        names = "、".join((*FIX_MARK_KINDS, *FIX_RANGE_KINDS, _RUMOR))
+        if name == _ORIGINAL:
+            if in_bold:
+                raise self._error("太字の中に原文は書けない（太字の外に置く）", start)
+            return self._parse_original(start, name_end, has_range=has_range)
+        names = "、".join((*FIX_MARK_KINDS, *FIX_RANGE_KINDS, _RUMOR, _ORIGINAL))
         raise self._error(f"未知の印 [!{name}] は使えない（使える印: {names}）", start)
 
     def _parse_range(self, kind: FixRangeKind, start: int, body_start: int) -> FixRange:
@@ -222,6 +236,31 @@ class _Parser:
         self._pos = end + 1
         # 噂の範囲の文の中では噂の範囲を開かないので、子はそれ以外に限られる。
         return RumorRange(tuple(child for child in children if isinstance(child, _RumorChild)))
+
+    def _parse_original(self, start: int, name_end: int, *, has_range: bool) -> Original:
+        """原文 ``[!原文|言語タグ|文]`` を、閉じる ``]`` まで読む。"""
+        shape = "[!原文|言語タグ|文] の形で書く"
+        text = self._text
+        lang_end = text.find("|", name_end + 1) if has_range else -1
+        if lang_end == -1 or "]" in text[name_end + 1 : lang_end]:
+            raise self._error(f"原文に | が足りない（{shape}）", start)
+        lang = text[name_end + 1 : lang_end]
+        if not LANG_PATTERN.fullmatch(lang):
+            raise self._error(
+                f"言語タグ {lang!r} は BCP 47 の形ではない（en・en-US・zh-Hans のように書く）",
+                start,
+            )
+        end = self._range_end(start, lang_end + 1, "原文")
+        body = text[lang_end + 1 : end].strip()
+        if not body:
+            raise self._error("原文 [!原文|…|…] の文が空", start)
+        for opener, what in (("[^", "脚注の印"), ("[!", "印"), ("[[", "内部リンク")):
+            if opener in body:
+                raise self._error(
+                    f"原文の文に{what}は書けない（{what}は [!原文|…] の外に置く）", start
+                )
+        self._pos = end + 1
+        return Original(lang, body)
 
     def _range_end(self, start: int, body_start: int, what: str) -> int:
         """範囲の文を閉じる ``]`` の位置を、``[`` と ``]`` の入れ子を数えて探す。"""

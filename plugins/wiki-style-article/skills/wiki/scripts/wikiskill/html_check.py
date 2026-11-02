@@ -6,7 +6,8 @@
 - タグの開き閉じが合うこと（``HTML-TAG``）
 - ``id`` が重ならず（``HTML-ID-DUPLICATE``）、``#…`` のリンク先に対応する ``id`` があること
   （目次などは ``HTML-ANCHOR-MISSING``、脚注は ``HTML-FOOTNOTE-MISSING``）
-- 脚注番号が、リンクにならずプレーンな文字のまま残っていないこと（``HTML-FOOTNOTE-PLAIN``）
+- 脚注番号が、リンクにならずプレーンな文字のまま残っていないこと（``HTML-FOOTNOTE-PLAIN``。
+  ``lang`` 属性つきの ``<span>`` ＝外国語の原文の中の ``[24]`` のような文字は見ない）
 - 脚注の過不足（参照されない脚注は ``HTML-FOOTNOTE-UNREFERENCED``）と、番号とリンク先・並びの
   食い違い（``HTML-FOOTNOTE-NUMBER``）
 - 外部の CSS・JS・フォント・画像を読まないこと（``HTML-EXTERNAL-RESOURCE``）
@@ -123,6 +124,8 @@ class _Scanner(HTMLParser):
         self.plain_text: list[str] = []  # リンクの外の文字
         self.reference_lists: list[list[str]] = []  # ol.references ごとの li の id
         self._stack: list[tuple[str, int]] = []
+        self._lang_spans: list[int] = []  # lang 属性つきの span の深さ（原文の中にいる間だけ入る）
+        self._opening_lang = False
         self._anchor: tuple[str, list[str]] | None = None
         self._raw: str | None = None  # script・style の中にいる間だけ入る
         self._raw_text: list[str] = []
@@ -135,6 +138,8 @@ class _Scanner(HTMLParser):
         self._open(tag, attrs)
         if tag not in _VOID:
             self._stack.append((tag, self.getpos()[0]))
+            if self._opening_lang:
+                self._lang_spans.append(len(self._stack))
         if tag in ("script", "style"):
             self._raw, self._raw_text = tag, []
 
@@ -163,6 +168,8 @@ class _Scanner(HTMLParser):
         while self._stack[-1][0] != tag:
             open_tag, open_line = self._stack.pop()
             self._tag(f"<{open_tag}>（{open_line} 行目）が閉じられないまま </{tag}> に達した")
+        if self._lang_spans and self._lang_spans[-1] == len(self._stack):
+            self._lang_spans.pop()
         self._stack.pop()
 
     def handle_data(self, data: str) -> None:
@@ -172,7 +179,8 @@ class _Scanner(HTMLParser):
             return
         if self._anchor is not None:
             self._anchor[1].append(data)
-        else:
+        elif not self._lang_spans:
+            # 外国語の原文（lang つきの span）の中の ``[24]`` は引用元の番号で、脚注番号ではない。
             self.plain_text.append(data)
 
     def close(self) -> None:
@@ -186,6 +194,7 @@ class _Scanner(HTMLParser):
 
     def _open(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {name: value or "" for name, value in attrs}
+        self._opening_lang = tag == "span" and "lang" in values
         if "id" in values:
             self.ids.append(values["id"])
             if _is_footnote(values["id"]) and self._references is not None:

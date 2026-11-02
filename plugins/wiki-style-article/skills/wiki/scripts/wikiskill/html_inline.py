@@ -29,6 +29,7 @@ from wikiskill.model import (
     Inline,
     InternalLink,
     NoteMark,
+    Original,
     Paragraph,
     RefMark,
     RumorRange,
@@ -205,6 +206,8 @@ class InlineWriter:
         if isinstance(item, FixRange):
             inner = self.inline(item.children)
             return f'<span class="fix-range">{inner}</span>{fix_mark(FIX_RANGE_LABELS[item.kind])}'
+        if isinstance(item, Original):
+            return f'<span lang="{escape(item.lang)}">{escape(item.text)}</span>'
         if isinstance(item, RumorRange):
             # 書き出す前に二つの版へ分けるので、ふつうは来ない。来たら中身だけを書く。
             return self.inline(item.children)

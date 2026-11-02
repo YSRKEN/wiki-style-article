@@ -89,8 +89,9 @@ def scan(units: Iterable[TextUnit], patterns: Iterable[Pattern]) -> Iterator[Fin
     patterns = tuple(patterns)
     seen: set[tuple[str, int, str]] = set()
     for unit in units:
+        searchable = unit.searchable
         for item in patterns:
-            for found in item.regex.finditer(unit.text):
+            for found in item.regex.finditer(searchable):
                 if _skipped(unit, found.start(), item.skip):
                     continue
                 key = (item.rule, unit.line, found.group())
