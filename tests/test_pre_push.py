@@ -138,7 +138,9 @@ def _tag_with(repo: Path, tag: str, commit: str, message: str | None) -> str:
     return _git(repo, "rev-parse", f"refs/tags/{tag}")
 
 
-@pytest.mark.parametrize("message", ["0.1.1", "リリース", None], ids=["版だけ", "別の文", "軽いタグ"])
+@pytest.mark.parametrize(
+    "message", ["0.1.1", "リリース", None], ids=["版だけ", "別の文", "軽いタグ"]
+)
 def test_版のタグの注記が_v版_で始まらなければ止める(repo: Path, message: str | None) -> None:
     base = _commit(repo, {MANIFEST: _manifest("0.1.0"), "plugins/wiki-style-article/a.md": "前\n"})
     head = _commit(repo, {MANIFEST: _manifest("0.1.1"), "plugins/wiki-style-article/a.md": "後\n"})
