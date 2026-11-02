@@ -13,6 +13,7 @@ from wikiskill.model import (
     InternalLink,
     NoteMark,
     RefMark,
+    RumorRange,
     Text,
 )
 
@@ -205,4 +206,73 @@ def test_印の読み取りのエラーは印の行を指す() -> None:
 
     with pytest.raises(MarkupError) as info:
         parse_inline("12345[!要出典範囲|文'''太字'''", line_of)
+    assert info.value.line == 4
+
+
+# --- 噂の範囲 -----------------------------------------------------------------------
+
+
+def test_噂の範囲は範囲の文を包む() -> None:
+    assert parse_inline("前置き。[!噂|閉館が近いという]。") == (
+        Text("前置き。"),
+        RumorRange((Text("閉館が近いという"),)),
+        Text("。"),
+    )
+
+
+def test_噂の範囲には太字と出典と点の印と範囲の印を書ける() -> None:
+    text = (
+        "[!噂|'''店主'''が[[漫画家]]だった[^w][!信頼性要検証]とも"
+        "[!独自研究範囲|[[記事|表示]]の話]とも言う[^n:a]]"
+    )
+    assert parse_inline(text) == (
+        RumorRange(
+            (
+                Bold((Text("店主"),)),
+                Text("が"),
+                InternalLink("漫画家", None),
+                Text("だった"),
+                RefMark("w"),
+                FixMark("信頼性要検証"),
+                Text("とも"),
+                FixRange("独自研究範囲", (InternalLink("記事", "表示"), Text("の話"))),
+                Text("とも言う"),
+                NoteMark("a"),
+            )
+        ),
+    )
+
+
+def test_噂の範囲の中の太字に点の印を置ける() -> None:
+    assert parse_inline("[!噂|'''名物[!要出典]''']") == (
+        RumorRange((Bold((Text("名物"), FixMark("要出典"))),)),
+    )
+
+
+@pytest.mark.parametrize(
+    ("text", "keyword"),
+    [
+        ("[!噂|閉じない", "閉じていない"),
+        ("[!噂|]", "空"),
+        ("[!噂|   ]", "空"),
+        ("[!噂|外[!噂|内]]", "入れ子"),
+        ("[!噂]", "|"),
+        ("'''太字[!噂|噂]'''", "太字"),
+        ("[!要出典範囲|文[!噂|噂]]", "入れ子"),
+        ("[!噂|'''閉じない太字]", "'''"),
+    ],
+)
+def test_壊れた噂の範囲は行番号つきのエラー(text: str, keyword: str) -> None:
+    with pytest.raises(MarkupError) as info:
+        parse_inline(text, 9)
+    assert info.value.line == 9
+    assert keyword in info.value.message
+
+
+def test_噂の範囲の中のエラーは中の位置の行を指す() -> None:
+    def line_of(offset: int) -> int:
+        return 3 if offset < 6 else 4
+
+    with pytest.raises(MarkupError) as info:
+        parse_inline("[!噂|文。[^]]", line_of)
     assert info.value.line == 4

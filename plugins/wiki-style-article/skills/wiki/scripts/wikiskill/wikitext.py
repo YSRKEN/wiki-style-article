@@ -36,12 +36,14 @@ from wikiskill.model import (
     NoticeKind,
     Paragraph,
     RefMark,
+    RumorRange,
     Section,
     Settings,
     Text,
 )
 from wikiskill.notices import article_notices
 from wikiskill.types import ArticleType
+from wikiskill.variants import has_rumor
 from wikiskill.wikitext_cite import cite_plain, cite_template
 from wikiskill.wikitext_escape import escape_text, external_link, guard_line_start
 from wikiskill.wikitext_infobox import build_infobox, unknown_labels
@@ -101,7 +103,9 @@ def write_wikitext(
     Raises
     ------
     WikitextError
-        記事の ``type`` と ``article_type`` が食い違うとき。
+        記事の ``type`` と ``article_type`` が食い違うとき。噂のある記事を渡したとき
+        （:func:`wikiskill.variants.normal_view`・:func:`wikiskill.variants.rumor_view` で
+        二つの版に分けてから渡す）。
     UnknownReferenceError
         本文の印が指す出典・注釈が設定欄にないとき。
     NestedNoteError
@@ -111,6 +115,11 @@ def write_wikitext(
     if article_type.id != settings.type_id:
         raise WikitextError(
             f"原稿の type は {settings.type_id!r} だが、渡された類型は {article_type.id!r}"
+        )
+    if has_rumor(article):
+        raise WikitextError(
+            "噂のある原稿は wikiskill.variants の normal_view・rumor_view で"
+            "二つの版に分けてから書き出す"
         )
     plain = style == "plain"
     # 同じ出典・注釈を二回以上使うかは、通して書かないと分からない。
@@ -254,6 +263,9 @@ class _BodyWriter:
             return f"{{{{{item.kind}{self._date_arg()}}}}}"
         if isinstance(item, FixRange):
             return self._range(item)
+        if isinstance(item, RumorRange):
+            # 書き出す前に二つの版へ分けるので、ふつうは来ない。来たら中身だけを書く。
+            return self.inline(item.children)
         if isinstance(item, RefMark):
             return self._ref(item.key)
         return self._note(item.key)
@@ -328,7 +340,8 @@ class _BodyWriter:
 def _has_ref_mark(items: Sequence[Inline]) -> bool:
     """文中の部品の並びに、出典への印があるか（太字と範囲の印の中も見る）。"""
     return any(
-        isinstance(i, RefMark) or (isinstance(i, Bold | FixRange) and _has_ref_mark(i.children))
+        isinstance(i, RefMark)
+        or (isinstance(i, Bold | FixRange | RumorRange) and _has_ref_mark(i.children))
         for i in items
     )
 

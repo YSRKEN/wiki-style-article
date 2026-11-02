@@ -6,6 +6,7 @@ import pytest
 from wikiskill import wikitext
 from wikiskill.reader import read_article, read_article_file
 from wikiskill.types import load_default_registry
+from wikiskill.variants import normal_view, rumor_view
 from wikiskill.wikitext import (
     NestedNoteError,
     UnknownReferenceError,
@@ -730,3 +731,45 @@ def test_印も枠も無ければ枠を書かない(style: WikitextStyle) -> Non
     out = _render_marked(_src("甲。\n"), style)
 
     assert out == "甲。\n"
+
+
+# --- 噂のある原稿 -------------------------------------------------------------------
+
+_RUMOR_SOURCE = _src(
+    "'''テスト記事'''は架空の概念である[^a]。[!噂|裏の意味があるという[^b][!信頼性要検証]。]"
+    "\n\n## 概要\n\n概要。\n\n## 騒動 [!噂]\n\n炎上したという[^b][!信頼性要検証]。\n",
+    '[refs.a]\nkind = "web"\ntitle = "確かな出典"\n'
+    '[refs.b]\nkind = "web"\ntitle = "噂の出典"\nweak = true\n',
+)
+
+
+def test_噂のある原稿は分けずに渡せない() -> None:
+    with pytest.raises(WikitextError, match="normal_view"):
+        _render(_RUMOR_SOURCE)
+
+
+@pytest.mark.parametrize("style", ["wikipedia", "plain"])
+def test_通常の版は噂も噂の出典も観点の枠も書かない(style: WikitextStyle) -> None:
+    article = read_article(_RUMOR_SOURCE)
+
+    out = write_wikitext(
+        normal_view(article), REGISTRY["concept"], style=style, mark_date="2026年11月"
+    )
+
+    assert "裏の意味" not in out
+    assert "騒動" not in out
+    assert "噂の出典" not in out
+    assert "観点" not in out
+    assert "確かな出典" in out
+
+
+def test_噂込みの版は噂を中身にほどき観点の枠を貼る() -> None:
+    article = read_article(_RUMOR_SOURCE)
+
+    out = write_wikitext(rumor_view(article), REGISTRY["concept"], mark_date="2026年11月")
+
+    assert out.startswith("{{複数の問題|出典の明記=2026年11月|観点=2026年11月}}\n")
+    assert "架空の概念である<ref>" in out
+    assert '裏の意味があるという<ref name="b">' in out
+    assert '== 騒動 ==\n炎上したという<ref name="b" />' in out
+    assert "[!噂" not in out

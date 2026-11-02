@@ -12,6 +12,7 @@ from wikiskill.model import (
     Inline,
     InternalLink,
     Paragraph,
+    RumorRange,
     Section,
 )
 
@@ -50,11 +51,11 @@ def iter_inline_groups(article: Article) -> Iterator[tuple[tuple[Inline, ...], i
 
 
 def flatten(parts: tuple[Inline, ...]) -> Iterator[Inline]:
-    """太字と範囲の印の中身を展開して、文中の部品を一列にたどる（太字・範囲の印そのものも返す）。"""
+    """太字・範囲の印・噂の範囲の中身を展開して、文中の部品を一列にたどる（それら自身も返す）。"""
     for part in parts:
         yield part
-        if isinstance(part, Bold | FixRange):
-            yield from part.children
+        if isinstance(part, Bold | FixRange | RumorRange):
+            yield from flatten(part.children)
 
 
 def iter_links(article: Article) -> Iterator[tuple[InternalLink, int]]:

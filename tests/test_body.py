@@ -9,6 +9,7 @@ from wikiskill.model import (
     InternalLink,
     Paragraph,
     RefMark,
+    RumorRange,
     Section,
     Text,
 )
@@ -187,3 +188,49 @@ def test_全角空白の字下げは本文に残して検査に回す() -> None:
 def test_全角空白だけの行は空行として扱う() -> None:
     lead, _ = parse("一つ目。\n\u3000\n二つ目。")
     assert lead == (para("一つ目。"), para("二つ目。"))
+
+
+# --- 噂の節 -----------------------------------------------------------------------
+
+
+def test_見出しの末尾の噂の印で節ごと噂になる() -> None:
+    _, sections = parse("## 騒動 [!噂]\n本文。\n### 経緯\n経緯。\n## 評価\n評価。")
+    assert sections == (
+        Section(
+            2,
+            "騒動",
+            (para("本文。"),),
+            (Section(3, "経緯", (para("経緯。"),), ()),),
+            rumor=True,
+        ),
+        Section(2, "評価", (para("評価。"),), ()),
+    )
+    assert sections[0].children[0].rumor is False
+    assert sections[1].rumor is False
+
+
+def test_子の節だけを噂にもできる() -> None:
+    _, sections = parse("## 歴史\n### 噂の時代 [!噂]\n本文。")
+    assert sections[0].rumor is False
+    assert sections[0].children[0] == Section(3, "噂の時代", (para("本文。"),), (), rumor=True)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["## [!噂] 騒動", "## 騒[!噂]動", "## 騒動 [!噂] [!噂]", "## 騒動 [!噂|x]"],
+)
+def test_見出しの途中の噂の印はエラー(text: str) -> None:
+    with pytest.raises(MarkupError) as info:
+        parse(f"導入。\n\n{text}")
+    assert info.value.line == 3
+    assert "見出し" in info.value.message
+
+
+def test_噂の印だけの見出しは空の見出しのエラー() -> None:
+    with pytest.raises(MarkupError, match="空"):
+        parse("## [!噂]")
+
+
+def test_噂の範囲は段落の中で読む() -> None:
+    lead, _ = parse("[!噂|一行目\nと二行目]")
+    assert lead == (Paragraph((RumorRange((Text("一行目と二行目"),)),)),)

@@ -6,6 +6,9 @@
 
 ページの並びは、冒頭の警告の枠、Infobox、導入部、節、脚注（注釈・出典の小節）、関連項目、
 外部リンク、カテゴリ欄、フッタ。値のない部分は節も欄も作らない。目次は節の見出し（脚注以降の見出しも含む）から作る。
+
+噂のある原稿は :func:`write_html_both` で、通常の記事と噂込みの記事を一枚に入れ、記事名の下の
+ボタンで切り替えて読めるようにする（:mod:`wikiskill.html_switch`）。
 """
 
 from __future__ import annotations
@@ -33,9 +36,19 @@ from wikiskill.html_inline import (
     ref_item_id,
     ref_mark_id,
 )
+from wikiskill.html_switch import (
+    NORMAL,
+    RUMOR,
+    RUMOR_PREFIX,
+    SWITCH_SCRIPT,
+    SWITCH_STYLE,
+    switch_html,
+    variant_attrs,
+)
 from wikiskill.model import Article, InternalLink, NoticeKind, Section
 from wikiskill.notices import article_notices
 from wikiskill.types import ArticleType
+from wikiskill.variants import has_rumor, normal_view, rumor_view
 
 __all__ = [
     "DEFAULT_TEMPLATE_PATH",
@@ -45,6 +58,7 @@ __all__ = [
     "load_template",
     "notice_box_html",
     "write_html",
+    "write_html_both",
 ]
 
 DEFAULT_TEMPLATE_PATH = Path(__file__).resolve().parents[2] / "assets" / "page-template.html"
@@ -67,6 +81,34 @@ NOTICE_TEXTS: dict[NoticeKind, str] = {
 
 NOTICE_HEADING = "この記事には次の問題があります。"
 """枠が二つ以上のときに、箇条の前に置く文。"""
+
+_BODY_KEYS = (
+    "NOTICES",
+    "INFOBOX",
+    "LEAD",
+    "SECTIONS",
+    "FOOTNOTES",
+    "RELATED",
+    "EXTERNAL_LINKS",
+    "CATEGORIES",
+)
+"""記事の中身の差し込み口。雛形に並ぶ順。"""
+
+_NO_VARIANTS: dict[str, str] = dict.fromkeys(
+    (
+        "VARIANT_STYLE",
+        "VARIANT_SWITCH",
+        "VARIANT_OPEN",
+        "VARIANT_CLOSE",
+        "RUMOR_VARIANT",
+        "VARIANT_SCRIPT",
+    ),
+    "",
+)
+"""版が一つのときの、切り替えの差し込み口の値（どれも空なので行ごと消える）。"""
+
+_VARIANT_END = "</div><!-- /variant -->"
+"""版を包む要素の閉じ。"""
 
 
 def load_template(path: str | Path | None = None) -> str:
@@ -119,38 +161,106 @@ def write_html(
     Raises
     ------
     HtmlError
-        記事の ``type`` と ``article_type`` が食い違うとき。
-        雛形に知らない差し込み口があるときも。
+        記事の ``type`` と ``article_type`` が食い違うとき。噂のある記事を渡したとき
+        （:func:`write_html_both` を使う）。雛形に知らない差し込み口があるときも。
     UnknownFootnoteError
         本文の印が指す出典・注釈が設定欄にないとき。
     NestedFootnoteError
         注釈の本文に別の注釈への印があるとき。
     """
-    settings = article.settings
-    if article_type.id != settings.type_id:
+    _check_type(article, article_type)
+    if has_rumor(article):
         raise HtmlError(
-            f"原稿の type は {settings.type_id!r} だが、渡された類型は {article_type.id!r}"
+            "噂のある原稿は write_html_both で書き出す（通常の記事と噂込みの記事を一枚に入れる）"
         )
     page = _Page(article)
-    lead = page.lead()
-    sections = page.sections()
-    footnotes = page.footnotes()
-    related = page.related()
-    external_links = page.external_links()
+    body = page.body(article_type, mark_date)
     values = {
-        "PAGE_TITLE": escape(settings.title),
+        "PAGE_TITLE": escape(article.settings.title),
         "TOC": page.toc(),
-        "NOTICES": notice_box_html(article_notices(article), mark_date),
-        "INFOBOX": build_infobox_html(settings, article_type),
-        "LEAD": lead,
-        "SECTIONS": sections,
-        "FOOTNOTES": footnotes,
-        "RELATED": related,
-        "EXTERNAL_LINKS": external_links,
-        "CATEGORIES": page.categories(),
+        **body,
+        **_NO_VARIANTS,
         "UPDATED": escape(updated),
     }
     return _fill(load_template() if template is None else template, values)
+
+
+def write_html_both(
+    article: Article,
+    article_type: ArticleType,
+    updated: str,
+    *,
+    template: str | None = None,
+    mark_date: str | None = None,
+) -> str:
+    """噂のある記事を、通常の記事と噂込みの記事の二つの版を入れた HTML 1 枚に書き出す。
+
+    記事名のすぐ下に二つのボタン（通常の記事・噂込みの記事）を置き、押すと本文（冒頭の枠・
+    Infobox・導入部・節・脚注・関連項目・外部リンク・カテゴリ）と目次（左の列と浮き窓）が、
+    その版のものに切り替わる。開いたときと、スクリプトが動かないときは通常の記事が見える。
+
+    版は :func:`wikiskill.variants.normal_view`・:func:`wikiskill.variants.rumor_view` で作る。
+    脚注の番号は版ごとに振り、噂込みの版の id には接頭辞 ``rumor-`` を付けて重ならないようにする。
+
+    Parameters
+    ----------
+    article : Article
+        :func:`wikiskill.read_article` で読み取った記事。噂の部品を含んでよい。
+    article_type : ArticleType
+        記事の類型の定義。
+    updated : str
+        フッタに出す最終更新の日時。
+    template : str | None
+        雛形の全文。省略すると同梱の雛形を読む。
+    mark_date : str | None
+        冒頭の警告の枠に添える日付。None なら日付を出さない。
+
+    Returns
+    -------
+    str
+        HTML 全文。改行で終わる。
+
+    Raises
+    ------
+    HtmlError
+        記事の ``type`` と ``article_type`` が食い違うとき。雛形に知らない差し込み口があるときも。
+    UnknownFootnoteError
+        本文の印が指す出典・注釈が設定欄にないとき。
+    NestedFootnoteError
+        注釈の本文に別の注釈への印があるとき。
+    """
+    _check_type(article, article_type)
+    normal = _Page(normal_view(article))
+    rumor = _Page(rumor_view(article), prefix=RUMOR_PREFIX)
+    normal_body = normal.body(article_type, mark_date)
+    rumor_body = rumor.body(article_type, mark_date)
+    toc = "\n".join(part for part in (normal.toc(NORMAL), rumor.toc(RUMOR)) if part)
+    rumor_html = "\n".join(
+        [
+            f'<div class="variant"{variant_attrs(RUMOR)}>',
+            *(value for value in rumor_body.values() if value),
+            _VARIANT_END,
+        ]
+    )
+    values = {
+        "PAGE_TITLE": escape(article.settings.title),
+        "TOC": toc,
+        **normal_body,
+        "VARIANT_STYLE": SWITCH_STYLE,
+        "VARIANT_SWITCH": switch_html(),
+        "VARIANT_OPEN": f'<div class="variant"{variant_attrs(NORMAL)}>',
+        "VARIANT_CLOSE": _VARIANT_END,
+        "RUMOR_VARIANT": rumor_html,
+        "VARIANT_SCRIPT": SWITCH_SCRIPT,
+        "UPDATED": escape(updated),
+    }
+    return _fill(load_template() if template is None else template, values)
+
+
+def _check_type(article: Article, article_type: ArticleType) -> None:
+    type_id = article.settings.type_id
+    if article_type.id != type_id:
+        raise HtmlError(f"原稿の type は {type_id!r} だが、渡された類型は {article_type.id!r}")
 
 
 def notice_box_html(kinds: tuple[NoticeKind, ...], mark_date: str | None) -> str:
@@ -228,14 +338,39 @@ class _Node:
 
 
 class _Page:
-    """記事の各部分を、書き出す順に HTML にする。見出しと脚注の使用回数を覚える。"""
+    """記事の各部分を、書き出す順に HTML にする。見出しと脚注の使用回数を覚える。
 
-    def __init__(self, article: Article) -> None:
+    ``prefix`` は見出し・脚注の id に付ける接頭辞（一枚に二つの版を入れるときの噂込みの版）。
+    """
+
+    def __init__(self, article: Article, *, prefix: str = "") -> None:
         self._article = article
+        self._prefix = prefix
         self._numbering: Numbering = number_footnotes(article)
-        self._writer = InlineWriter(self._numbering)
+        self._writer = InlineWriter(self._numbering, prefix=prefix)
         self._headings: list[_Heading] = []
         self._counters: list[int] = []
+
+    def body(self, article_type: ArticleType, mark_date: str | None) -> dict[str, str]:
+        """記事の中身の差し込み口の値（雛形に並ぶ順）。目次より先に呼ぶ（見出しを覚える）。"""
+        article = self._article
+        # 見出しの番号は書く順に振るので、本文・脚注・末尾の節の順に作る。
+        lead = self.lead()
+        sections = self.sections()
+        footnotes = self.footnotes()
+        related = self.related()
+        external_links = self.external_links()
+        values = {
+            "NOTICES": notice_box_html(article_notices(article), mark_date),
+            "INFOBOX": build_infobox_html(article.settings, article_type),
+            "LEAD": lead,
+            "SECTIONS": sections,
+            "FOOTNOTES": footnotes,
+            "RELATED": related,
+            "EXTERNAL_LINKS": external_links,
+            "CATEGORIES": self.categories(),
+        }
+        return {key: values[key] for key in _BODY_KEYS}
 
     # -- 見出しと目次
 
@@ -248,7 +383,8 @@ class _Page:
         else:
             self._counters.extend([1] * (depth - len(self._counters)))
         number = ".".join(str(n) for n in self._counters)
-        heading = _Heading(level, "section-" + number.replace(".", "-"), number, title)
+        heading_id = f"{self._prefix}section-" + number.replace(".", "-")
+        heading = _Heading(level, heading_id, number, title)
         self._headings.append(heading)
         return (
             f'<div class="mw-heading mw-heading{level}"><h{level} id="{heading.id}">'
@@ -258,8 +394,12 @@ class _Page:
             "</div>"
         )
 
-    def toc(self) -> str:
-        """目次の項目（``<li>`` の並び）。節がなければ空文字列。"""
+    def toc(self, variant: str | None = None) -> str:
+        """目次の項目（``<li>`` の並び）。節がなければ空文字列。
+
+        ``variant`` を渡すと、一段目の項目に版の印（``data-variant``。通常の版のほかは ``hidden``）
+        を付ける。子の項目は親の項目ごと隠れるので印を付けない。
+        """
         root = _Node(_Heading(1, "", "", ""))
         stack = [root]
         for heading in self._headings:
@@ -268,7 +408,7 @@ class _Page:
             node = _Node(heading)
             stack[-1].children.append(node)
             stack.append(node)
-        return _toc_items(root.children)
+        return _toc_items(root.children, "" if variant is None else variant_attrs(variant))
 
     # -- 本文
 
@@ -310,9 +450,9 @@ class _Page:
         for key, number in self._numbering.notes.items():
             # 注釈の中の出典の印は、この一覧の中に置かれる。先に本文を書いて使用回数を数える。
             text = self._writer.inline(notes[key].text)
-            back = _backlink(note_mark_id, number, self._writer.note_uses[key])
+            back = _backlink(note_mark_id, number, self._writer.note_uses[key], self._prefix)
             items.append(
-                f'<li id="{note_item_id(number)}">{back} '
+                f'<li id="{note_item_id(number, self._prefix)}">{back} '
                 f'<span class="reference-text">{text}</span></li>'
             )
         return _reflist(items)
@@ -321,9 +461,9 @@ class _Page:
         refs = {r.key: r for r in self._article.settings.references}
         items: list[str] = []
         for key, number in self._numbering.refs.items():
-            back = _backlink(ref_mark_id, number, self._writer.ref_uses[key])
+            back = _backlink(ref_mark_id, number, self._writer.ref_uses[key], self._prefix)
             items.append(
-                f'<li id="{ref_item_id(number)}">{back} '
+                f'<li id="{ref_item_id(number, self._prefix)}">{back} '
                 f'<span class="reference-text">{cite_html(refs[key])}</span></li>'
             )
         return _reflist(items)
@@ -368,7 +508,8 @@ class _Page:
         return f'<div class="catlinks">{label}: <ul>\n{body}\n</ul></div>'
 
 
-def _toc_items(nodes: list[_Node]) -> str:
+def _toc_items(nodes: list[_Node], attrs: str = "") -> str:
+    """目次の項目。``attrs`` はこの段の項目に付ける属性（子の段には付けない）。"""
     items: list[str] = []
     for node in nodes:
         h = node.heading
@@ -378,18 +519,19 @@ def _toc_items(nodes: list[_Node]) -> str:
         )
         if node.children:
             children = _toc_items(node.children)
-            items.append(f'<li data-id="{h.id}">{link}\n<ul>\n{children}\n</ul></li>')
+            items.append(f'<li data-id="{h.id}"{attrs}>{link}\n<ul>\n{children}\n</ul></li>')
         else:
-            items.append(f'<li data-id="{h.id}">{link}</li>')
+            items.append(f'<li data-id="{h.id}"{attrs}>{link}</li>')
     return "\n".join(items)
 
 
-def _backlink(mark_id: Callable[[int, int], str], number: int, count: int) -> str:
+def _backlink(mark_id: Callable[[int, int, str], str], number: int, count: int, prefix: str) -> str:
     """脚注欄の項目の戻りリンク。一回なら「↑」、複数なら「↑ a b …」。"""
     if count <= 1:
-        return f'<span class="mw-cite-backlink"><a href="#{mark_id(number, 1)}">↑</a></span>'
+        href = mark_id(number, 1, prefix)
+        return f'<span class="mw-cite-backlink"><a href="#{href}">↑</a></span>'
     links = "".join(
-        f'<a href="#{mark_id(number, nth)}">{label}</a>'
+        f'<a href="#{mark_id(number, nth, prefix)}">{label}</a>'
         for nth, label in enumerate(letters(count), start=1)
     )
     return f'<span class="mw-cite-backlink">↑ {links}</span>'

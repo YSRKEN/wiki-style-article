@@ -200,6 +200,43 @@ def test_一覧の並びと脚注のidの数字の食い違いを見つける() 
     assert "HTML-FOOTNOTE-NUMBER" in _rules(html)
 
 
+# --- 接頭辞の付いた脚注（噂込みの版） ---------------------------------------------------
+
+_TWO_VERSIONS = (
+    '<sup><a href="#cite_note-1">[1]</a></sup>'
+    '<ol class="references"><li id="cite_note-1">甲</li></ol>'
+    '<sup><a href="#rumor-cite_note-1">[1]</a></sup>'
+    '<sup><a href="#rumor-cite_note-note-1">[注 1]</a></sup>'
+    '<ol class="references"><li id="rumor-cite_note-note-1">注</li></ol>'
+    '<ol class="references"><li id="rumor-cite_note-1">乙</li></ol>'
+)
+
+
+def test_接頭辞の付いた脚注も版ごとに番号を見る() -> None:
+    assert _rules(_page(_TWO_VERSIONS)) == []
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "rule"),
+    [
+        ('href="#rumor-cite_note-1">[1]', 'href="#rumor-cite_note-1">[2]', "HTML-FOOTNOTE-NUMBER"),
+        ('<li id="rumor-cite_note-1">', '<li id="rumor-cite_note-2">', "HTML-FOOTNOTE-NUMBER"),
+        ('href="#rumor-cite_note-1"', 'href="#rumor-cite_note-3"', "HTML-FOOTNOTE-MISSING"),
+        ('href="#rumor-cite_note-1"', 'href="#cite_note-1"', "HTML-FOOTNOTE-UNREFERENCED"),
+    ],
+)
+def test_接頭辞の付いた脚注の食い違いを見つける(old: str, new: str, rule: str) -> None:
+    assert old in _TWO_VERSIONS
+
+    assert rule in _rules(_page(_TWO_VERSIONS.replace(old, new, 1)))
+
+
+def test_接頭辞の付いた脚注の欠けは目次の欠けと分けて報告する() -> None:
+    rules = _rules(_page('<sup><a href="#rumor-cite_note-1">[1]</a></sup>'))
+
+    assert rules == ["HTML-FOOTNOTE-MISSING"]
+
+
 # --- 外部の資源 -----------------------------------------------------------------
 
 
