@@ -2,6 +2,8 @@
 
 どれも誤検出の余地が小さい（印と定義の突き合わせ、書式、ホスト名）ので、原則エラーにする。
 例外は出典の題や発行元がウィキペディアを名乗るだけの場合で、実在の書名に含まれうるため警告にする。
+弱い出典（``weak = true``）を指す印の直後に信頼性要検証の印が無いのも、印の並びを見るだけなので
+エラーにする。
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ from urllib.parse import urlsplit
 
 from wikiskill.checks.finding import Finding, Level
 from wikiskill.checks.walk import flatten, iter_inline_groups
-from wikiskill.model import Article, NoteMark, Reference, RefMark
+from wikiskill.model import Article, Bold, FixMark, FixRange, NoteMark, Reference, RefMark
 
 WIKIPEDIA_HOSTS: tuple[str, ...] = (
     "wikipedia.org",
@@ -50,6 +52,7 @@ _DATE_YEAR = re.compile(r"\d{4}")
 def check_references(article: Article) -> Iterator[Finding]:
     """脚注の印と一覧の対応、出典・外部リンクの中身を検査する。"""
     yield from _check_marks(article)
+    yield from _check_weak_marks(article)
     for reference in article.settings.references:
         yield from _check_reference(reference)
     for link in article.settings.external_links:
@@ -107,6 +110,34 @@ def _check_marks(article: Article) -> Iterator[Finding]:
                 f"注釈 [notes.{note.key}] が本文で使われていない"
                 f"（[^n:{note.key}] を付けるか、定義を消す）",
                 note.line,
+            )
+
+
+def _check_weak_marks(article: Article) -> Iterator[Finding]:
+    """弱い出典を指す印の直後に ``[!信頼性要検証]`` があるかを見る。
+
+    印の直後とは、間に続く出典の印だけを挟んでよい位置。太字と範囲の印は中身を一列に
+    並べて見るので、範囲の文の最後の出典の印は、範囲の印の後ろの印で満たされる。
+    """
+    weak_keys = {reference.key for reference in article.settings.references if reference.weak}
+    if not weak_keys:
+        return
+    for parts, line in iter_inline_groups(article):
+        leaves = [part for part in flatten(parts) if not isinstance(part, Bold | FixRange)]
+        for index, part in enumerate(leaves):
+            if not isinstance(part, RefMark) or part.key not in weak_keys:
+                continue
+            following = index + 1
+            while following < len(leaves) and isinstance(leaves[following], RefMark):
+                following += 1
+            if following < len(leaves) and leaves[following] == FixMark("信頼性要検証"):
+                continue
+            yield Finding(
+                Level.ERROR,
+                "REF-WEAK-UNMARKED",
+                f"弱い出典 [refs.{part.key}] を指す [^{part.key}] の直後に [!信頼性要検証] が無い"
+                "（印を付けるか、弱くない出典に替える）",
+                line,
             )
 
 

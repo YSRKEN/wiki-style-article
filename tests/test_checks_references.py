@@ -18,6 +18,7 @@ REFERENCE_RULES = {
     "REF-ACCESS-DATE",
     "REF-URL",
     "LINK-URL",
+    "REF-WEAK-UNMARKED",
 }
 
 
@@ -223,3 +224,63 @@ def test_補助の行番号の約束() -> None:
     article = make_article("本文。", ref())
     assert article.lead[0].line == 8
     assert only(check_article(article), "REF-UNUSED")[0].line == 4
+
+
+# --- 弱い出典 -----------------------------------------------------------------
+
+
+def weak(key: str = "a") -> str:
+    """弱い出典を 1 件。``[refs.a]`` が 4 行目。"""
+    return ref("weak = true\n", key)
+
+
+def test_弱い出典の直後に信頼性要検証があれば通る() -> None:
+    assert run("本文[^a][!信頼性要検証]。", weak()) == ()
+
+
+def test_弱い出典の直後に信頼性要検証が無ければエラー() -> None:
+    findings = run("一行目。\n本文[^a]。", weak())
+    assert rules(findings) == ["REF-WEAK-UNMARKED"]
+    assert findings[0].level is Level.ERROR
+    # 段落の先頭の行（設定欄が 4 行なので本文は 9 行目から）。
+    assert findings[0].line == 9
+    assert "[refs.a]" in findings[0].message
+    assert "[!信頼性要検証]" in findings[0].message
+
+
+def test_弱い出典と信頼性要検証の間に出典の印が続いてもよい() -> None:
+    settings = weak("a") + "\n" + ref("", "b")
+    assert run("本文[^a][^b][!信頼性要検証]。", settings) == ()
+
+
+def test_間に文字や別の印があればエラー() -> None:
+    assert rules(run("本文[^a]。[!信頼性要検証]", weak())) == ["REF-WEAK-UNMARKED"]
+    assert rules(run("本文[^a][!要出典]。", weak())) == ["REF-WEAK-UNMARKED"]
+
+
+def test_弱い出典を使うたびに見る() -> None:
+    findings = run("甲[^a][!信頼性要検証]。乙[^a]。\n\n丙[^a]。", weak())
+    assert rules(findings) == ["REF-WEAK-UNMARKED", "REF-WEAK-UNMARKED"]
+    assert [f.line for f in findings] == [9, 11]
+
+
+def test_弱くない出典には印は要らない() -> None:
+    assert run("本文[^a]。", ref("weak = false\n")) == ()
+
+
+def test_箇条書きと範囲の印の中の弱い出典も見る() -> None:
+    assert rules(run("- 項目[^a]", weak())) == ["REF-WEAK-UNMARKED"]
+    assert run("[!要出典範囲|範囲[^a]][!信頼性要検証]。", weak()) == ()
+    assert rules(run("[!要出典範囲|範囲[^a]]。", weak())) == ["REF-WEAK-UNMARKED"]
+
+
+def test_注釈の中の弱い出典も見て行は注釈の本文の行() -> None:
+    settings = weak() + '\n[notes.n]\ntext = "注[^a]"'
+    findings = run("本文[^n:n]。", settings)
+    assert rules(findings) == ["REF-WEAK-UNMARKED"]
+    assert findings[0].line == 10
+
+
+def test_弱い出典でもウィキペディアは出典にできない() -> None:
+    settings = ref('url = "https://ja.wikipedia.org/wiki/A"\nweak = true\n')
+    assert "REF-WIKIPEDIA" in rules(run("本文[^a][!信頼性要検証]。", settings))
