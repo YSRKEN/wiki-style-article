@@ -185,3 +185,56 @@ def test_出典を使うと止める(tmp_path: Path) -> None:
     assert checked.returncode == 1
     assert "REF-NOT-ALLOWED" in checked.stdout
     assert "未知の項目" not in checked.stderr
+
+
+_WIKI_BANNER = (
+    "ユーモア欠落症患者のために、ウィキペディアの専門家気取りたちが"
+    "「三時のおやつ」の項目を執筆していません。"
+)
+
+
+def _built(tmp_path: Path, text: str) -> str:
+    path = _write(tmp_path, "sample.md", text)
+    built = _run("build", str(path), "--updated", "2026-11-02")
+    assert built.returncode == 0, built.stdout + built.stderr
+    html = (tmp_path / "三時のおやつ.html").read_text(encoding="utf-8")
+    # バナーは本物と同じく語を太字にするので、文を比べるときは太字の札を外す
+    return re.sub(r"</?b>", "", html)
+
+
+def test_ロゴは_W_ではなくジャガイモ(tmp_path: Path) -> None:
+    html = _built(tmp_path, SAMPLE)
+
+    assert '<span class="logo-w">🥔</span>' in html
+    assert '<span class="logo-w">W</span>' not in html
+
+
+def test_ウィキペディアのバナーは関連項目の見出しの直後に一度だけ出る(tmp_path: Path) -> None:
+    html = _built(tmp_path, SAMPLE)
+
+    assert html.count(_WIKI_BANNER) == 1
+    heading = html.index(">関連項目</h2>")
+    banner = html.index(_WIKI_BANNER)
+    first_item = html.index("四時のおやつ（この記事はまだ無い）")
+    assert heading < banner < first_item
+    assert '<span class="uncyc-globe" aria-hidden="true">🌐</span>' in html
+
+
+def test_関連項目が無ければバナーはカテゴリの前に出る(tmp_path: Path) -> None:
+    html = _built(tmp_path, SAMPLE.replace('related = ["四時のおやつ"]\n', ""))
+
+    assert ">関連項目</h2>" not in html
+    assert html.count(_WIKI_BANNER) == 1
+    assert html.index(_WIKI_BANNER) < html.index('<div class="catlinks">')
+
+
+def test_バナーの題名は_HTML_として逃がす(tmp_path: Path) -> None:
+    text = SAMPLE.replace('title = "三時のおやつ"', 'title = "三時<のおやつ>"').replace(
+        "'''三時のおやつ'''", "'''三時<のおやつ>'''"
+    )
+    path = _write(tmp_path, "sample.md", text)
+    built = _run("build", str(path), "--updated", "2026-11-02")
+    assert built.returncode == 0, built.stdout + built.stderr
+
+    html = re.sub(r"</?b>", "", next(tmp_path.glob("*.html")).read_text(encoding="utf-8"))
+    assert "「三時&lt;のおやつ&gt;」の項目を執筆していません。" in html

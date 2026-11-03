@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import argparse
+import html as html_lib
 import re
 import sys
 from datetime import datetime, timedelta, timezone
@@ -80,9 +81,15 @@ _FICTION_BANNER = (
     "</div>"
 )
 
-#: 共有雛形の頭に足すもの（赤リンクの色と、検索避け）。
+#: 共有雛形の頭に足すもの（赤リンクの色、ウィキペディアのバナー、検索避け）。
 _EXTRA_HEAD = (
-    "<style>.redlink{color:#d73333}.redlink:hover{text-decoration:underline}</style>"
+    "<style>.redlink{color:#d73333}.redlink:hover{text-decoration:underline}"
+    ".uncyc-wikibox{display:flex;align-items:center;gap:.8em;margin:.5em 0 1em;"
+    "padding:.5em .8em;border:1px solid #a2a9b1;background:#f8f9fa;font-size:.9em}"
+    ".uncyc-globe{display:inline-block;font-size:2.2em;line-height:1;"
+    "animation:uncyc-bounce 1.2s ease-in-out infinite}"
+    "@keyframes uncyc-bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-.25em)}}"
+    "@media (prefers-reduced-motion:reduce){.uncyc-globe{animation:none}}</style>"
     '<meta name="robots" content="noindex, nofollow">'
 )
 
@@ -99,6 +106,8 @@ _LABELS: tuple[tuple[str, str], ...] = (
         "このページはアンサイクロペディアの本物ではなく、その見た目に寄せて作った冗談のページです。",
     ),
     ("WIKIPEDIA風", "アンサイクロペディア"),
+    # 本物のアンサイクロペディアのロゴ（ジャガイモ）への目配せ。絵そのものは写さない。
+    ('<span class="logo-w">W</span>', '<span class="logo-w">🥔</span>'),
     (" - Wikipedia風ページ</title>", " - アンサイクロペディア</title>"),
 )
 
@@ -106,6 +115,39 @@ _LABELS: tuple[tuple[str, str], ...] = (
 _WIKI_LINK = re.compile(
     r'<a href="https://ja\.wikipedia\.org/wiki/[^"]*"[^>]*>(.*?)</a>', re.DOTALL
 )
+
+
+#: ウィキペディアのバナーの仮置き。関連項目の節が無いときは、この位置（カテゴリの前）に出す。
+_WIKIBOX_MARK = "<!--uncyc-wikibox-->"
+_RELATED_HEADING = re.compile(
+    r'<div class="mw-heading mw-heading2"><h2 id="[^"]*">関連項目</h2>.*?</div>\n?', re.DOTALL
+)
+
+
+def _wikibox(title: str) -> str:
+    """本物の「テンプレート:ウィキペディア」をもじったバナー。
+
+    本物は「…の項目を執筆しています。」と本家の記事へ案内するが、この記事は本家に無いので
+    「執筆していません。」とひっくり返す。左の絵は、本物の跳ねる地球儀のロゴの代わりの絵文字。
+    """
+    return (
+        '<div class="uncyc-wikibox" role="note">'
+        '<span class="uncyc-globe" aria-hidden="true">🌐</span>'
+        "<span>ユーモア欠落症患者のために、<b>ウィキペディア</b>の専門家気取りたちが"
+        "「<b>" + html_lib.escape(title) + "</b>」の項目を執筆していません。</span>"
+        "</div>"
+    )
+
+
+def _place_wikibox(html: str, title: str) -> str:
+    """バナーを、本物と同じく「関連項目」の見出しの直後に置く。節が無ければ仮置きの位置に置く。"""
+    box = _wikibox(title)
+    heading = _RELATED_HEADING.search(html)
+    if heading is None:
+        return html.replace(_WIKIBOX_MARK, box)
+    # 仮置きは関連項目の節より後ろにあるので、先に見出しの後へ差し込んでも位置はずれない
+    placed = html[: heading.end()] + box + "\n" + html[heading.end() :]
+    return placed.replace(_WIKIBOX_MARK, "")
 
 
 def _article_type(article: Article) -> ArticleType:
@@ -136,6 +178,7 @@ def _template_with_banner(template: str) -> str:
         差し込みを済ませた雛形。あとは write_html に渡す。
     """
     marked = template.replace("</head>", _EXTRA_HEAD + "\n</head>")
+    marked = marked.replace("{{RELATED}}", "{{RELATED}}\n" + _WIKIBOX_MARK)
     return marked.replace("{{NOTICES}}", "{{NOTICES}}\n" + _FICTION_BANNER)
 
 
@@ -202,6 +245,7 @@ def render(article: Article, *, updated: str, template: str) -> str:
         updated,
         template=_template_with_banner(template),
     )
+    html = _place_wikibox(html, article.settings.title)
     return _plain_categories(_redlinks(_labels(html)))
 
 
