@@ -55,11 +55,11 @@
 | `aviation-accident` | 航空事故 | `event` | `Infobox aircraft occurrence` | 日付、場所、機種 |
 | `battle` | 戦闘 | `event` | `Battlebox` | 日付、場所、結果 |
 | `court-case` | 判例 | `event` | なし | ― |
-| `election` | 選挙 | `event` | なし | ― |
+| `election` | 選挙 | `event` | `Infobox Election` | 投票日 |
 | `castle` | 城 | `place` | `日本の城郭概要表` | 都道府県 |
 | `river` | 河川 | `place` | `Infobox 河川` | 水源、河口 |
 | `mountain` | 山 | `place` | `Infobox 山` | 標高、所在地 |
-| `island` | 島 | `place` | `Infobox 島` | 面積、所在地 |
+| `island` | 島 | `place` | `Infobox 島` | 所在地、面積 |
 | `lake` | 湖 | `place` | `Infobox 湖` | 所在地、面積 |
 | `peninsula` | 半島 | `place` | `Infobox 半島` | 面積、所属国・地域 |
 | `road` | 道路 | `place` | `Infobox road` | 起点、終点 |
