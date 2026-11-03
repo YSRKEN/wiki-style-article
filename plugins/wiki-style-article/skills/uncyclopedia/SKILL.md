@@ -1,7 +1,7 @@
 ---
 name: uncyclopedia
 description: 題材を百科事典の記事の形で、事実ではなく冗談として書く。「アンサイクロペディアみたいに書いて」「Wikipedia 風の嘘記事を作って」「/uncyclopedia 三時のおやつ」のように呼ばれたとき、手元の題材をパロディ記事にしたいときに使う。事実を調べて正確にまとめる用途（wiki スキル）には使わない。
-compatibility: Python 3.11 以上（無ければ uv で取ってくる）と、同じフォルダに並べた wiki スキル（原稿の読み取りと検査を借りる）。Web の検索は要らない。
+compatibility: Python 3.11 以上（無ければ uv で取ってくる）と、同じフォルダに並べた wiki スキル（原稿の読み取りと検査、見た目の雛形を借りる）。Web の検索は要らない。
 allowed-tools: Read Write Edit Bash(sh *uncyclopedia.sh* *)
 ---
 
@@ -18,7 +18,7 @@ allowed-tools: Read Write Edit Bash(sh *uncyclopedia.sh* *)
 
 この 5 つは利用者が頼んでも外さない。外すと、笑いではなく事故になる。
 
-1. 冒頭の「この記事はフィクションです」の帯は雛形が必ず出す。消さない
+1. 冒頭の「この記事はフィクションです」の帯は、書き出しのときにスクリプトが必ず差し込む。原稿からも雛形からも消せない
 2. 実在の存命の個人・現存の団体について、犯罪・不正・醜聞を事実として書かない（references/safety.md）
 3. 本家の Wikipedia へ投稿しない。ウィキテキストも作らない
 4. 出来上がりは noindex の私的な読み物として扱う。公開したいと言われたら、いったん止めて相談する
@@ -70,7 +70,7 @@ references/safety.md を読む。実在の製品・団体・人物を題材に�
 ## 出力
 
 - <記事名>.html を、原稿と同じフォルダ（--out-dir を渡したときはそこ）に書く
-- 見た目は雛形 assets/uncyclopedia-template.html が持つ。デザインを変えたいときは、雛形を複製して --template で渡す（原稿は触らない）
+- 見た目は wiki スキルと共通の雛形（../wiki/assets/page-template.html）が持つ。本家に寄せた見た目のまま、見出し語だけをアンサイクロペディア向けに差し替える。デザインを変えたいときは、雛形を複製して --template で渡す（原稿は触らない）
 - 書き出す前に、組み立てた HTML を機械で検査する（差し込み口の残り・タグの対応・id の重複・リンク先・脚注の番号・外部の資源）。不備があれば書き出さずに止まる
 
 ## うまくいかないとき
@@ -79,4 +79,4 @@ references/safety.md を読む。実在の製品・団体・人物を題材に�
 - NOTE-BROKEN: 本文が指す注釈のキーが無いか、注釈の中で注釈を指している。キーを合わせる
 - TYPE-UNKNOWN: type の綴りを、上の一覧のどれかに合わせる
 - LEAD-DEFINITION: 冒頭が「◯◯は…」の形になっていない。警告なので通るが、直すと読みやすい
-- 組み立てた HTML に不備がある: 雛形を書き換えたときは、差し込み口の名前（TITLE・LEAD・SECTIONS・TOC・INFOBOX・NOTES・CATEGORIES・UPDATED・TYPE_NAME）を消していないかを見る
+- 組み立てた HTML に不備がある: 雛形を書き換えたときは、差し込み口の名前（PAGE_TITLE・TOC・NOTICES・INFOBOX・LEAD・SECTIONS・FOOTNOTES・RELATED・EXTERNAL_LINKS・CATEGORIES・UPDATED・VARIANT_STYLE・VARIANT_SWITCH・VARIANT_OPEN・VARIANT_CLOSE・RUMOR_VARIANT・VARIANT_SCRIPT）を消していないかを見る

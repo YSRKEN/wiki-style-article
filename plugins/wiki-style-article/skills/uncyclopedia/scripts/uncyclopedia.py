@@ -40,28 +40,14 @@ from wikiskill.checks.notation import check_notation  # noqa: E402
 from wikiskill.checks.structure import check_structure  # noqa: E402
 from wikiskill.errors import SourceError  # noqa: E402
 from wikiskill.html_check import check_html  # noqa: E402
-from wikiskill.html_escape import escape  # noqa: E402
-from wikiskill.html_inline import (  # noqa: E402
-    InlineWriter,
-    Numbering,
-    blocks_html,
-    note_item_id,
-    note_mark_id,
-    number_footnotes,
-)
-from wikiskill.inline import parse_inline  # noqa: E402
-from wikiskill.model import (  # noqa: E402
-    Article,
-    Block,
-    Inline,
-    InternalLink,
-    Paragraph,
-    Section,
-    Text,
-)
+from wikiskill.html_inline import number_footnotes  # noqa: E402
+from wikiskill.html_writer import write_html  # noqa: E402
+from wikiskill.model import Article, Block, Paragraph, Text  # noqa: E402
 from wikiskill.reader import read_article_file  # noqa: E402
+from wikiskill.types import ArticleType, InfoboxField, InfoboxPart  # noqa: E402
 
-TEMPLATE_PATH = _SKILL_DIR / "assets" / "uncyclopedia-template.html"
+#: 見た目は wiki スキルと共通の雛形を使う（本家ウィキペディアに寄せた骨格と CSS）。
+TEMPLATE_PATH = _SKILL_DIR.parent / "wiki" / "assets" / "page-template.html"
 
 #: 使える型と、Infobox に置くと面白い項目の候補。
 TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -86,125 +72,111 @@ _BAD_CHARS = frozenset(chr(92) + '/:*?"<>|')
 _DEFINITION = re.compile("^[^。]{1,40}?(?:とは|は)")
 
 
-class ParodyWriter(InlineWriter):
-    """[[記事名]] を赤リンク（まだ無い記事）として描く。"""
+#: 冒頭に必ず出すフィクションの帯（共有雛形の警告の枠 .ambox を借りる）。
+_FICTION_BANNER = (
+    '<div class="ambox" role="note">'
+    "<b>この記事はフィクションです。</b>"
+    "実在する人物・団体・製品・出来事とは関係ありません。"
+    "</div>"
+)
 
-    def _one(self, item: Inline) -> str:
-        if isinstance(item, InternalLink):
-            title = escape(item.target + "（この記事はまだ無い）")
-            return '<span class="redlink" title="' + title + '">' + escape(item.display) + "</span>"
-        return super()._one(item)
+#: 共有雛形の頭に足すもの（赤リンクの色と、検索避け）。
+_EXTRA_HEAD = (
+    "<style>.redlink{color:#d73333}.redlink:hover{text-decoration:underline}</style>"
+    '<meta name="robots" content="noindex, nofollow">'
+)
+
+#: 共有雛形の見出し語を、アンサイクロペディア向けに差し替える組（長いものから当てる）。
+_LABELS: tuple[tuple[str, str], ...] = (
+    ("Wikipedia風を検索", "アンサイクロペディアを検索"),
+    (
+        "出典: フリー百科事典『ウィキペディア（Wikipedia）』風のページ",
+        "笑うための百科事典『アンサイクロペディア』風のページ",
+    ),
+    (
+        "このページは Wikipedia そのものではなく、"
+        "その見た目に寄せて作った Wikipedia風のページです。",
+        "このページはアンサイクロペディアの本物ではなく、その見た目に寄せて作った冗談のページです。",
+    ),
+    ("WIKIPEDIA風", "アンサイクロペディア"),
+    (" - Wikipedia風ページ</title>", " - アンサイクロペディア</title>"),
+)
+
+#: 共有雛形が内部リンクとして張る本家ウィキペディアへの a 要素。
+_WIKI_LINK = re.compile(
+    r'<a href="https://ja\.wikipedia\.org/wiki/[^"]*"[^>]*>(.*?)</a>', re.DOTALL
+)
 
 
-def _title_text(section: Section) -> str:
-    return section.title
+def _article_type(article: Article) -> ArticleType:
+    """原稿の型から、書き出しに渡す類型を組む。
 
-
-def _redlink(name: str) -> str:
-    return (
-        '<span class="redlink" title="'
-        + escape(name + "（この記事はまだ無い）")
-        + '">'
-        + escape(name)
-        + "</span>"
+    Infobox の候補は型ごとに決めてあるので、原稿に書かれた項目をその順で並べる。
+    """
+    name, labels = TYPES[article.settings.type_id]
+    fields = tuple(
+        InfoboxField(label=label, param="param" + str(index), required=False, unverified=False)
+        for index, label in enumerate(labels, start=1)
     )
+    part = InfoboxPart(template="Infobox", placement="top", title_field=None, fields=fields)
+    return ArticleType(id=article.settings.type_id, name=name, parents=(), infobox=(part,))
 
 
-def _chip(name: str) -> str:
-    return '<span class="cat">' + escape(name) + "</span>"
+def _template_with_banner(template: str) -> str:
+    """共有雛形に、フィクションの帯と赤リンク用の頭を差し込む。
+
+    Parameters
+    ----------
+    template
+        共有雛形の HTML。
+
+    Returns
+    -------
+    str
+        差し込みを済ませた雛形。あとは write_html に渡す。
+    """
+    marked = template.replace("</head>", _EXTRA_HEAD + "\n</head>")
+    return marked.replace("{{NOTICES}}", "{{NOTICES}}\n" + _FICTION_BANNER)
 
 
-def _infobox(article: Article) -> str:
-    fields = article.settings.infobox
-    if not fields:
-        return ""
-    writer = ParodyWriter(None)
-    rows = "\n".join(
-        '<tr><th scope="row">'
-        + escape(field.name)
-        + "</th><td>"
-        + writer.inline(parse_inline(field.value, field.line))
-        + "</td></tr>"
-        for field in fields
-    )
-    return (
-        '<table class="infobox">\n'
-        + "<caption>"
-        + escape(article.settings.title)
-        + "</caption>\n"
-        + "<tbody>\n"
-        + rows
-        + "\n</tbody>\n</table>"
-    )
+def _labels(html: str) -> str:
+    """共有雛形の見出し語を、アンサイクロペディア向けの言い方に変える。"""
+    for old, new in _LABELS:
+        html = html.replace(old, new)
+    return html
 
 
-def _sections(writer: ParodyWriter, sections: tuple[Section, ...]) -> tuple[str, str]:
-    """目次と本文の節を、同じ順で作る。"""
-    toc: list[str] = []
-    body: list[str] = []
-    counter = 0
-
-    def walk(items: tuple[Section, ...]) -> None:
-        nonlocal counter
-        for section in items:
-            counter += 1
-            anchor = "sec-" + str(counter)
-            level = min(max(section.level, 2), 4)
-            title = escape(_title_text(section))
-            toc.append(f'<li class="lv{level}"><a href="#{anchor}">{title}</a></li>')
-            body.append(
-                "<h"
-                + str(level)
-                + ' id="'
-                + anchor
-                + '">'
-                + title
-                + '<a class="anchor" href="#'
-                + anchor
-                + '" aria-label="この節へのリンク">#</a>'
-                + "</h"
-                + str(level)
-                + ">"
-            )
-            body.extend(blocks_html(writer, section.blocks))
-            walk(section.children)
-
-    walk(sections)
-    nav = ""
-    if toc:
-        nav = '<nav class="toc">\n<ol>\n' + "\n".join(toc) + "\n</ol>\n</nav>"
-    return nav, "\n".join(body)
+_CATLINKS = re.compile(r'<div class="catlinks">.*?</div>', re.DOTALL)
+_REDLINK = re.compile(r'<span class="redlink" title="[^"]*">([^<]*)</span>')
 
 
-def _notes(article: Article, numbering: Numbering, writer: InlineWriter) -> str:
-    if not numbering.notes:
-        return ""
-    plain = ParodyWriter(None)
-    by_key = {note.key: note for note in article.settings.notes}
-    items: list[str] = []
-    for key, number in sorted(numbering.notes.items(), key=lambda pair: pair[1]):
-        note = by_key.get(key)
-        if note is None:
-            continue
-        back = " ".join(
-            '<a href="#' + note_mark_id(number, nth) + '">↑</a>'
-            for nth in range(1, writer.note_uses[key] + 1)
-        )
-        items.append(
-            '<li id="'
-            + note_item_id(number)
+def _plain_categories(html: str) -> str:
+    """カテゴリの札は、記事への赤リンクではなくただの文字にする。"""
+
+    def swap(match: re.Match[str]) -> str:
+        return _REDLINK.sub(r"\1", match.group(0))
+
+    return _CATLINKS.sub(swap, html)
+
+
+def _redlinks(html: str) -> str:
+    """本家ウィキペディアへ張られた内部リンクを、赤リンクに変える。"""
+
+    def swap(match: re.Match[str]) -> str:
+        display = match.group(1)
+        if display == "カテゴリ":
+            # カテゴリの見出し語は、リンクではなくただの文字にする。
+            return display
+        return (
+            '<span class="redlink" title="'
+            + display
+            + "（この記事はまだ無い）"
             + '">'
-            + plain.inline(note.text)
-            + ' <span class="backlink">'
-            + back
-            + "</span></li>"
+            + display
+            + "</span>"
         )
-    if not items:
-        return ""
-    return (
-        '<section class="notes">\n<h2 id="notes">注</h2>\n'
-        '<ol class="references">\n' + "\n".join(items) + "\n</ol>\n</section>"
-    )
+
+    return _WIKI_LINK.sub(swap, html)
 
 
 def render(article: Article, *, updated: str, template: str) -> str:
@@ -224,31 +196,13 @@ def render(article: Article, *, updated: str, template: str) -> str:
     str
         差し込みを済ませた HTML。
     """
-    numbering = number_footnotes(article)
-    writer = ParodyWriter(numbering)
-    lead = "\n".join(blocks_html(writer, article.lead))
-    toc, body = _sections(writer, article.sections)
-    notes = _notes(article, numbering, writer)
-    if article.settings.related:
-        names = "".join("<li>" + _redlink(name) + "</li>" for name in article.settings.related)
-        body = body + '\n<h2 id="related">関連項目</h2>\n<ul>\n' + names + "\n</ul>"
-    type_name = TYPES[article.settings.type_id][0]
-    categories = " ".join(_chip(name) for name in article.settings.categories)
-    parts = {
-        "TITLE": escape(article.settings.title),
-        "TYPE_NAME": escape(type_name),
-        "INFOBOX": _infobox(article),
-        "LEAD": lead,
-        "SECTIONS": body,
-        "TOC": toc,
-        "NOTES": notes,
-        "CATEGORIES": categories,
-        "UPDATED": escape(updated),
-    }
-    html = template
-    for name, value in parts.items():
-        html = html.replace("{{" + name + "}}", value)
-    return html
+    html = write_html(
+        article,
+        _article_type(article),
+        updated,
+        template=_template_with_banner(template),
+    )
+    return _plain_categories(_redlinks(_labels(html)))
 
 
 def _plain(blocks: tuple[Block, ...]) -> str:

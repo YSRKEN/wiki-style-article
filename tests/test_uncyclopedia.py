@@ -9,6 +9,8 @@ from pathlib import Path
 
 SKILL = Path(__file__).parents[1] / "plugins" / "wiki-style-article" / "skills" / "uncyclopedia"
 SCRIPT = SKILL / "scripts" / "uncyclopedia.py"
+#: 見た目は wiki スキルと共通の雛形を借りる。
+WIKI_TEMPLATE = SKILL.parent / "wiki" / "assets" / "page-template.html"
 
 SAMPLE = """+++
 title = "三時のおやつ"
@@ -77,17 +79,30 @@ def test_確認なしで流せるシェルは_uncyclopedia_sh_だけ() -> None:
     assert re.findall(r"Bash\([^)]*\)", fields["allowed-tools"]) == ["Bash(sh *uncyclopedia.sh* *)"]
 
 
-def test_名指しする参照ファイルと雛形はすべてある() -> None:
+def test_名指しする参照ファイルはすべてある() -> None:
     text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
 
-    named = set(re.findall(r"(references/[a-z-]+\.md|assets/[a-z-]+\.html)", text))
+    named = set(re.findall(r"references/[a-z-]+\.md", text))
     assert named
     assert all((SKILL / path).is_file() for path in named), named
 
 
-def test_見本の原稿はエラー無しで通り_書き出した_HTML_は外部の資源を読まない(
-    tmp_path: Path,
-) -> None:
+def test_見た目は_wiki_スキルの雛形を借りる() -> None:
+    assert WIKI_TEMPLATE.is_file()
+    assert not (SKILL / "assets").exists(), "独自の雛形は持たない"
+
+    template = WIKI_TEMPLATE.read_text(encoding="utf-8")
+    for placeholder in (
+        "{{PAGE_TITLE}}",
+        "{{INFOBOX}}",
+        "{{LEAD}}",
+        "{{SECTIONS}}",
+        "{{FOOTNOTES}}",
+    ):
+        assert placeholder in template, placeholder
+
+
+def test_見本の原稿はエラー無しで通り_本家風の_html_を書き出す(tmp_path: Path) -> None:
     path = _write(tmp_path, "sample.md", SAMPLE)
 
     checked = _run("check", str(path))
@@ -97,14 +112,24 @@ def test_見本の原稿はエラー無しで通り_書き出した_HTML_は外�
     assert built.returncode == 0, built.stdout + built.stderr
 
     html = (tmp_path / "三時のおやつ.html").read_text(encoding="utf-8")
+    assert "<title>三時のおやつ - アンサイクロペディア</title>" in html
+    assert '<span class="logo-t">アンサイクロペディア</span>' in html
+    assert "笑うための百科事典『アンサイクロペディア』風のページ" in html
+    assert "アンサイクロペディアの本物ではなく" in html
     assert 'content="noindex' in html
-    assert "この記事は<span>フィクション</span>です" in html
-    assert "アンサイクロペディア" in html
     assert "パロディ事典" not in html
-    assert '<span class="cat">習慣</span>' in html
-    assert "習慣（この記事はまだ無い）" not in html
-    assert "http://" not in html and "https://" not in html
-    assert "ja.wikipedia.org" not in html
+    assert not re.search(r'(?:src|href)="https?://', html)
+
+
+def test_フィクションの帯は雛形の差し込み口から入る(tmp_path: Path) -> None:
+    path = _write(tmp_path, "sample.md", SAMPLE)
+
+    built = _run("build", str(path), "--updated", "2026-11-02")
+    assert built.returncode == 0, built.stdout + built.stderr
+
+    html = (tmp_path / "三時のおやつ.html").read_text(encoding="utf-8")
+    assert '<div class="ambox" role="note"><b>この記事はフィクションです。</b>' in html
+    assert "実在する人物・団体・製品・出来事とは関係ありません。" in html
 
 
 def test_赤リンクは本家へのリンクにせず_その場で描く(tmp_path: Path) -> None:
@@ -115,8 +140,20 @@ def test_赤リンクは本家へのリンクにせず_その場で描く(tmp_pa
     assert built.returncode == 0, built.stdout + built.stderr
 
     html = (tmp_path / "三時のおやつ.html").read_text(encoding="utf-8")
-    assert 'class="redlink"' in html
+    assert '<span class="redlink" title="三時のおやつ標準時（この記事はまだ無い）">' in html
     assert "ja.wikipedia.org" not in html
+
+
+def test_カテゴリの札は赤リンクにしない(tmp_path: Path) -> None:
+    path = _write(tmp_path, "sample.md", SAMPLE)
+
+    built = _run("build", str(path), "--updated", "2026-11-02")
+    assert built.returncode == 0, built.stdout + built.stderr
+
+    html = (tmp_path / "三時のおやつ.html").read_text(encoding="utf-8")
+    assert '<div class="catlinks">カテゴリ: <ul>' in html
+    assert "<li>習慣</li>" in html
+    assert "習慣（この記事はまだ無い）" not in html
 
 
 def test_知らない型は止める(tmp_path: Path) -> None:
