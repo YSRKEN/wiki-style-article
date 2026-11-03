@@ -24,11 +24,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
+from wikiskill.images import file_name
 from wikiskill.model import (
     FIX_RANGE_LABELS,
     Article,
     Block,
     Bold,
+    Figure,
     FixMark,
     FixRange,
     Inline,
@@ -241,7 +243,14 @@ class _BodyWriter:
     def _block(self, block: Block) -> str:
         if isinstance(block, Paragraph):
             return guard_line_start(self.inline(block.content))
+        if isinstance(block, Figure):
+            return self._figure(block)
         return "\n".join("* " + guard_line_start(self.inline(item)) for item in block.items)
+
+    def _figure(self, figure: Figure) -> str:
+        """画像を、本家のファイルの記法にする。画像そのものは本家に上げるので、名前だけを書く。"""
+        caption = escape_text(figure.caption, pipes=True)
+        return f"[[ファイル:{file_name(figure.source)}|thumb|{caption}]]"
 
     # -- 文中の部品
 

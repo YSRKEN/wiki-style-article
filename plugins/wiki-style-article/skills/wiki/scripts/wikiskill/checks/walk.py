@@ -8,6 +8,8 @@ from wikiskill.model import (
     Article,
     Block,
     Bold,
+    BulletList,
+    Figure,
     FixRange,
     Inline,
     InternalLink,
@@ -32,7 +34,7 @@ def _inline_groups(blocks: tuple[Block, ...]) -> Iterator[tuple[tuple[Inline, ..
     for block in blocks:
         if isinstance(block, Paragraph):
             yield block.content, block.line
-        else:
+        elif isinstance(block, BulletList):
             lines = block.item_lines or (block.line,) * len(block.items)
             yield from zip(block.items, lines, strict=True)
 
@@ -48,6 +50,19 @@ def iter_inline_groups(article: Article) -> Iterator[tuple[tuple[Inline, ...], i
         yield from _inline_groups(section.blocks)
     for note in article.settings.notes:
         yield note.text, note.line
+
+
+def _figures(blocks: tuple[Block, ...]) -> Iterator[Figure]:
+    for block in blocks:
+        if isinstance(block, Figure):
+            yield block
+
+
+def iter_figures(article: Article) -> Iterator[Figure]:
+    """記事の画像を、原稿に現れる順にたどる。"""
+    yield from _figures(article.lead)
+    for section in iter_sections(article):
+        yield from _figures(section.blocks)
 
 
 def flatten(parts: tuple[Inline, ...]) -> Iterator[Inline]:

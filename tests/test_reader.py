@@ -7,6 +7,7 @@ from wikiskill.model import (
     Bold,
     BulletList,
     ExternalLink,
+    Figure,
     FixMark,
     FixRange,
     InfoboxField,
@@ -108,6 +109,7 @@ def test_見本の原稿の節の木を読める() -> None:
                 Text("。"),
             )
         ),
+        Figure(caption="夜の屋台の挿絵", source="sample_figure.png"),
     )
     assert shops.blocks == ()
     assert [(s.level, s.title) for s in shops.children] == [(3, "屋台「天の川」"), (3, "常連客")]
