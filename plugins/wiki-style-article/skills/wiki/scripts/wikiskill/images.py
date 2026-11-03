@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import base64
+import re
 from pathlib import Path
 from typing import Final
 
@@ -38,6 +39,27 @@ def media_type(source: str) -> str | None:
 def file_name(source: str) -> str:
     """ウィキテキストに書くファイルの名前（道の最後の部分）。"""
     return Path(source).name
+
+
+IMAGE_PATTERN: Final[re.Pattern[str]] = re.compile(r"!\[(?P<caption>[^\]]*)\]\((?P<source>[^)]*)\)")
+"""原稿に書く画像の値（``![キャプション](道)``）の形。本文と Infobox で同じ形を使う。"""
+
+_INDENT = " \t"
+
+
+def split_value(text: str) -> tuple[str, str] | None:
+    """画像の値（``![キャプション](道)``）を（キャプション, 道）に分ける。
+
+    形が違うときと道が空のときは None。道が相対かどうかは見ない（``find_issue`` の仕事）。
+    """
+    matched = IMAGE_PATTERN.fullmatch(text.strip(_INDENT))
+    if matched is None:
+        return None
+    caption = matched.group("caption").strip(_INDENT)
+    source = matched.group("source").strip(_INDENT)
+    if not source:
+        return None
+    return caption, source
 
 
 def find_issue(source: str, base_dir: Path | None) -> tuple[str, str] | None:

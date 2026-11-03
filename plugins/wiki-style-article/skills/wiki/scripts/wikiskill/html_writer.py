@@ -362,7 +362,9 @@ class _Page:
         external_links = self.external_links()
         values = {
             "NOTICES": notice_box_html(article_notices(article), mark_date),
-            "INFOBOX": build_infobox_html(article.settings, article_type),
+            "INFOBOX": build_infobox_html(
+                article.settings, article_type, base_dir=article.base_dir
+            ),
             "LEAD": lead,
             "SECTIONS": sections,
             "FOOTNOTES": footnotes,

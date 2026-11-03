@@ -13,7 +13,7 @@ from wikiskill.cli import main
 from wikiskill.errors import MarkupError
 from wikiskill.html_check import check_html
 from wikiskill.html_writer import HtmlError, write_html
-from wikiskill.images import MAX_BYTES
+from wikiskill.images import MAX_BYTES, split_value
 from wikiskill.model import Article, BulletList, Figure, Paragraph
 from wikiskill.reader import read_article, read_article_file
 from wikiskill.types import load_default_registry
@@ -34,10 +34,10 @@ def _src(body: str = "", front: str = "", *, type_id: str = "concept") -> str:
     return f'+++\ntitle = "テスト記事"\ntype = "{type_id}"\n{front}+++\n{body}'
 
 
-def _file(tmp_path: Path, body: str, *, front: str = "") -> Path:
+def _file(tmp_path: Path, body: str, *, front: str = "", type_id: str = "concept") -> Path:
     """原稿を一時フォルダに書く（画像はそのフォルダからの相対で置く）。"""
     path = tmp_path / "原稿.md"
-    path.write_text(_src(body, front), encoding="utf-8")
+    path.write_text(_src(body, front, type_id=type_id), encoding="utf-8")
     return path
 
 
@@ -50,8 +50,10 @@ def _render(source: str) -> str:
     return write_html(article, _registry(article.settings.type_id), updated=UPDATED)
 
 
-def _article_html(tmp_path: Path, body: str, *, front: str = "") -> tuple[Path, str]:
-    path = _file(tmp_path, body, front=front)
+def _article_html(
+    tmp_path: Path, body: str, *, front: str = "", type_id: str = "concept"
+) -> tuple[Path, str]:
+    path = _file(tmp_path, body, front=front, type_id=type_id)
     (tmp_path / "zu.png").write_bytes(PNG)
     article = read_article_file(path)
     out = write_html(article, _registry(article.settings.type_id), updated=UPDATED)
@@ -144,6 +146,28 @@ def test_文字列から読んだ記事は置き場が分からない() -> None:
     assert read_article(_src("本文。\n")).base_dir is None
 
 
+# --- 値の分解 -------------------------------------------------------------------
+
+
+def test_画像の値をキャプションと道に分ける() -> None:
+    assert split_value("![図](images/zu.png)") == ("図", "images/zu.png")
+    assert split_value("  ![図](images/zu.png)\t") == ("図", "images/zu.png")
+    assert split_value("![ 図 ]( images/zu.png )") == ("図", "images/zu.png")
+    assert split_value("![](zu.png)") == ("", "zu.png")
+
+
+def test_画像の形でない値は分けない() -> None:
+    for value in (
+        "図",
+        "![図]",
+        "![図](zu.png) の説明",
+        "前![図](zu.png)",
+        "![図]（zu.png）",
+    ):
+        assert split_value(value) is None, value
+    assert split_value("![図]()") is None
+
+
 # --- HTML ---------------------------------------------------------------------
 
 
@@ -200,6 +224,33 @@ def test_画像の種類が違えば埋め込めない(tmp_path: Path) -> None:
 
     with pytest.raises(HtmlError, match="種類ではない"):
         write_html(article, _registry(article.settings.type_id), updated=UPDATED)
+
+
+def test_Infoboxの画像の項目もdataのURIとして埋め込む(tmp_path: Path) -> None:
+    front = '[infobox]\n"地図" = "![図](zu.png)"\n'
+    _, out = _article_html(tmp_path, "'''試験'''は本文。\n", front=front, type_id="election")
+
+    encoded = base64.b64encode(PNG).decode("ascii")
+    figure = (
+        f'<figure class="thumb"><img src="data:image/png;base64,{encoded}" alt="図">'
+        "<figcaption>図</figcaption></figure>"
+    )
+    assert f'<tr><th scope="row">地図</th><td>{figure}</td></tr>' in out
+
+
+def test_Infoboxの画像の項目でも形が違えば文字のまま(tmp_path: Path) -> None:
+    front = '[infobox]\n"地図" = "地図はこちら"\n'
+    _, out = _article_html(tmp_path, "'''試験'''は本文。\n", front=front, type_id="election")
+
+    assert '<tr><th scope="row">地図</th><td>地図はこちら</td></tr>' in out
+
+
+def test_Infoboxの画像でない項目の画像の記法は文字として出す(tmp_path: Path) -> None:
+    front = '[infobox]\n"選挙制度" = "![図](zu.png)"\n'
+    _, out = _article_html(tmp_path, "'''試験'''は本文。\n", front=front, type_id="election")
+
+    assert '<tr><th scope="row">選挙制度</th><td>![図](zu.png)</td></tr>' in out
+    assert "<figure" not in out.split('<table class="infobox">')[1].split("</table>")[0]
 
 
 # --- ウィキテキスト -------------------------------------------------------------

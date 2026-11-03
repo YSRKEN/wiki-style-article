@@ -6,15 +6,19 @@
 
 値が空の項目は「書かれていない」ものとして扱う。Infobox テンプレートに書き出せない項目
 （類型の定義にない項目名、Infobox を持たない類型の項目）は捨てずに HTML コメントで残す。
+
+画像の項目（定義の ``image_fields``）は、値の ``![キャプション](道)`` を定義の書式に従って
+``名前だけ`` または ``[[ファイル:名前|thumb|キャプション]]`` にする。形の違う値はそのまま出す。
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from wikiskill.images import file_name, split_value
 from wikiskill.model import InfoboxField, Settings
-from wikiskill.types import ArticleType, InfoboxPart
-from wikiskill.wikitext_escape import escape_template_value
+from wikiskill.types import ArticleType, ImageFormat, InfoboxPart
+from wikiskill.wikitext_escape import escape_template_value, escape_text
 
 _TABLE_OPEN = (
     '{| class="infobox" cellpadding="4" style="float: right; clear: right; width: 22em; '
@@ -107,6 +111,7 @@ def _template(part: InfoboxPart, values: dict[str, str], title: str) -> str:
         if value is None and field.label == part.title_field:
             value = title
         if value is not None:
+            value = _render_value(field.image, value)
             lines.append(f"| {field.param} = {escape_template_value(value)}")
     if not lines:
         return f"{{{{{part.template}}}}}"
@@ -124,7 +129,10 @@ def _plain(
         return InfoboxText(top=comment)
     rows = [_TABLE_OPEN, "|-", _TITLE_ROW + settings.title]
     for field in items:
-        rows += ["|-", _LABEL_CELL + field.name, "| " + escape_template_value(field.value.strip())]
+        defined = article_type.find_field(field.name)
+        image_format = defined.image if defined is not None else None
+        value = _render_value(image_format, field.value.strip())
+        rows += ["|-", _LABEL_CELL + field.name, "| " + escape_template_value(value)]
     rows.append("|}")
     table = "\n".join(rows)
     if article_type.infobox[0].placement == "lead":
@@ -133,6 +141,27 @@ def _plain(
 
 
 # --- 共通 -------------------------------------------------------------------------
+
+
+def _render_value(image_format: ImageFormat | None, value: str) -> str:
+    """画像の項目なら、書式に従ったウィキテキストにする。形の違う値はそのまま返す。"""
+    if image_format is None:
+        return value
+    parts = split_value(value)
+    if parts is None:
+        return value
+    caption, source = parts
+    name = _link_safe(file_name(source))
+    if image_format == "name":
+        return name
+    if not caption:
+        return f"[[ファイル:{name}|thumb]]"
+    return f"[[ファイル:{name}|thumb|{_link_safe(caption)}]]"
+
+
+def _link_safe(text: str) -> str:
+    """``[[...]]`` の中に置く文字がリンクを閉じないように直す。"""
+    return escape_text(text, pipes=True).replace("]", "&#93;")
 
 
 def _dropped_comment(dropped: list[tuple[str, str]]) -> str:

@@ -26,6 +26,7 @@ FUNCTION_RULES: dict[str, Level] = {
     "TRIVIA-SECTION": Level.WARNING,
     "TYPE-UNKNOWN": Level.ERROR,
     "INFOBOX-MISSING": Level.ERROR,
+    "INFOBOX-IMAGE": Level.ERROR,
     "INFOBOX-UNKNOWN-FIELD": Level.WARNING,
     "IMAGE-PATH": Level.ERROR,
     "IMAGE-TYPE": Level.ERROR,
