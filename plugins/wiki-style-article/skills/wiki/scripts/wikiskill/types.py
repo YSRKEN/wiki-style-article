@@ -30,13 +30,28 @@ Placement = Literal["top", "lead"]
 PLACEMENTS: tuple[Placement, ...] = ("top", "lead")
 """``placement`` に書ける値。"""
 
+ImageFormat = Literal["name", "file"]
+"""画像の項目をウィキテキストに書くときの書式。"""
+
+IMAGE_FORMATS: tuple[ImageFormat, ...] = ("name", "file")
+"""``image_fields`` に書ける値。``name`` はファイルの名前だけ（``Foo.svg``）、
+``file`` は ``[[ファイル:Foo.svg|thumb|説明]]`` の形で出す。"""
+
 DEFAULT_TYPES_PATH = Path(__file__).resolve().parents[2] / "assets" / "types.toml"
 """同梱の定義ファイル（``plugins/wiki-style-article/skills/wiki/assets/types.toml``）。"""
 
 _ID_PATTERN = re.compile(r"[a-z]+(?:-[a-z]+)*")
 _TOP_KEYS = ("type",)
 _TYPE_KEYS = ("id", "name", "parents", "no_infobox", "infobox")
-_PART_KEYS = ("template", "placement", "title_field", "required", "unverified", "fields")
+_PART_KEYS = (
+    "template",
+    "placement",
+    "title_field",
+    "required",
+    "unverified",
+    "image_fields",
+    "fields",
+)
 
 _Table = dict[str, object]
 
@@ -89,12 +104,15 @@ class InfoboxField:
         原稿に必ず書くか。書かれていなければ検査で指摘する。
     unverified : bool
         引数名を本家のテンプレートで確かめられていないか。
+    image : ImageFormat | None
+        画像の項目なら、ウィキテキストに書くときの書式。画像でなければ None。
     """
 
     label: str
     param: str
     required: bool
     unverified: bool
+    image: ImageFormat | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,7 +372,10 @@ def _read_part(raw: object, type_where: str, index: int) -> InfoboxPart:
         mapping[label] = value
     required = _label_list(table, "required", where, mapping)
     unverified = _label_list(table, "unverified", where, mapping)
+    images = _image_fields(table, where, mapping)
     title_field = _title_field(table, where, mapping, required)
+    if title_field is not None and title_field in images:
+        raise InfoboxError(f"{where}: title_field の {title_field!r} は画像の項目にできない")
     params: dict[str, str] = {}
     for label, param in mapping.items():
         if param in params:
@@ -368,6 +389,7 @@ def _read_part(raw: object, type_where: str, index: int) -> InfoboxPart:
             param=param,
             required=label in required,
             unverified=label in unverified,
+            image=images.get(label),
         )
         for label, param in mapping.items()
     )
@@ -377,6 +399,24 @@ def _read_part(raw: object, type_where: str, index: int) -> InfoboxPart:
         title_field=title_field,
         fields=fields,
     )
+
+
+def _image_fields(table: _Table, where: str, mapping: dict[str, str]) -> dict[str, ImageFormat]:
+    """``image_fields`` を読み、項目名と書式の対応を返す。無ければ空。"""
+    if "image_fields" not in table:
+        return {}
+    table_where = f"{where} の image_fields"
+    pairs = _table(table["image_fields"], table_where)
+    formats: dict[str, ImageFormat] = {}
+    for label, raw_format in pairs.items():
+        if label not in mapping:
+            raise InfoboxError(f"{table_where}: 項目 {label!r} が fields の並びにない")
+        if raw_format not in IMAGE_FORMATS:
+            raise TypeSchemaError(
+                f"{table_where}: 項目 {label!r} の書式は {' か '.join(IMAGE_FORMATS)} のどちらか"
+            )
+        formats[label] = raw_format
+    return formats
 
 
 def _title_field(

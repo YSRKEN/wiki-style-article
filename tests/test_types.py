@@ -190,10 +190,66 @@ def test_ファイルからも読める() -> None:
     assert len(read_registry_file(path)) == len(load_default_registry())
 
 
-def test_型の一覧文書にすべてのidが載っている() -> None:
+def read_type_tables() -> dict[str, tuple[str, list[str]]]:
+    """docs/types.md の一覧表を、節の名前とセルの並びで返す。"""
     document = (REPO_ROOT / "docs" / "types.md").read_text(encoding="utf-8")
-    missing = [t.id for t in load_default_registry() if f"`{t.id}`" not in document]
-    assert missing == []
+    rows: dict[str, tuple[str, list[str]]] = {}
+    section = ""
+    for line in document.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            section = stripped.lstrip("#").strip()
+            continue
+        if section not in {"基本型", "細かい種類"} or not stripped.startswith("|"):
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        if not cells[0].startswith("`"):
+            continue
+        rows[cells[0].strip("`")] = (section, cells)
+    return rows
+
+
+def split_cell(cell: str, separator: str) -> list[str]:
+    return [p.strip().strip("`") for p in cell.split(separator) if p.strip().strip("`")]
+
+
+def test_型の一覧文書の表が定義と一致する() -> None:
+    registry = load_default_registry()
+    rows = read_type_tables()
+    assert sorted(rows) == sorted(t.id for t in registry)
+
+    problems: list[str] = []
+    for article_type in registry:
+        type_id = article_type.id
+        section, cells = rows[type_id]
+        expected_columns = 4 if section == "基本型" else 5
+        if len(cells) != expected_columns:
+            problems.append(f"{type_id}: 列数 {len(cells)}（{expected_columns} のはず）")
+            continue
+        if section == "基本型":
+            parents_cell, template_cell, required_cell = "", cells[2], cells[3]
+        else:
+            parents_cell, template_cell, required_cell = cells[2], cells[3], cells[4]
+
+        parents = list(article_type.parents)
+        documented_parents = split_cell(parents_cell, "、")
+        if documented_parents != parents:
+            problems.append(f"{type_id}: 寄せ先が {documented_parents}（定義は {parents}）")
+
+        if template_cell.startswith("なし"):
+            documented_templates: list[str] = []
+        else:
+            documented_templates = split_cell(template_cell.split("（")[0], "＋")
+        templates = [part.template for part in article_type.infobox]
+        if documented_templates != templates:
+            problems.append(f"{type_id}: テンプレートが {documented_templates}（{templates}）")
+
+        documented_required = [] if required_cell in {"―", "-"} else split_cell(required_cell, "、")
+        required = [f.label for f in article_type.required_fields]
+        if documented_required != required:
+            problems.append(f"{type_id}: 必須の項目が {documented_required}（定義は {required}）")
+
+    assert problems == []
 
 
 # --- 読み取り結果の形 ------------------------------------------------------------
@@ -717,5 +773,86 @@ def test_記事名を既定値にする項目を必須にすると専用の例�
             required = ["作品名"]
             [type.infobox.fields]
             "作品名" = "作品名"
+            """
+        )
+
+
+def test_画像の項目と書式を指定できる() -> None:
+    registry = parse(
+        """
+        [[type]]
+        id = "election"
+        name = "選挙"
+        [[type.infobox]]
+        template = "Infobox Election"
+        [type.infobox.fields]
+        "候補者" = "candidate"
+        "地図" = "map_image"
+        "写真" = "image"
+        [type.infobox.image_fields]
+        "地図" = "name"
+        "写真" = "file"
+        """
+    )
+
+    images = {f.label: f.image for f in registry["election"].fields}
+    assert images == {"候補者": None, "地図": "name", "写真": "file"}
+
+
+def test_同梱の選挙の地図は素のファイル名で書く() -> None:
+    field = load_default_registry()["election"].find_field("地図")
+
+    assert field is not None
+    assert field.image == "name"
+
+
+def test_画像の書式がnameでもfileでもなければ専用の例外() -> None:
+    with pytest.raises(TypeSchemaError, match="書式"):
+        parse(
+            """
+            [[type]]
+            id = "election"
+            name = "選挙"
+            [[type.infobox]]
+            template = "Infobox Election"
+            [type.infobox.fields]
+            "地図" = "map_image"
+            [type.infobox.image_fields]
+            "地図" = "thumb"
+            """
+        )
+
+
+def test_画像の項目が並びに無いと専用の例外() -> None:
+    with pytest.raises(InfoboxError, match="地図"):
+        parse(
+            """
+            [[type]]
+            id = "election"
+            name = "選挙"
+            [[type.infobox]]
+            template = "Infobox Election"
+            [type.infobox.fields]
+            "候補者" = "candidate"
+            [type.infobox.image_fields]
+            "地図" = "name"
+            """
+        )
+
+
+def test_記事名を既定値にする項目を画像にすると専用の例外() -> None:
+    with pytest.raises(InfoboxError, match="作品名"):
+        parse(
+            """
+            [[type]]
+            id = "film"
+            name = "映画"
+            [[type.infobox]]
+            template = "Infobox Film"
+            title_field = "作品名"
+            [type.infobox.fields]
+            "作品名" = "作品名"
+            [type.infobox.image_fields]
+            "作品名" = "name"
             """
         )
