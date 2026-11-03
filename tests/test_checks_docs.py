@@ -27,6 +27,11 @@ FUNCTION_RULES: dict[str, Level] = {
     "TYPE-UNKNOWN": Level.ERROR,
     "INFOBOX-MISSING": Level.ERROR,
     "INFOBOX-UNKNOWN-FIELD": Level.WARNING,
+    "IMAGE-PATH": Level.ERROR,
+    "IMAGE-TYPE": Level.ERROR,
+    "IMAGE-MISSING": Level.ERROR,
+    "IMAGE-TOO-LARGE": Level.ERROR,
+    "IMAGE-CAPTION": Level.WARNING,
 }
 
 
