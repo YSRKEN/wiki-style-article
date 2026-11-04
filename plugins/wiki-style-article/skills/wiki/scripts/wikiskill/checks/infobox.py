@@ -7,6 +7,9 @@
 - 画像の項目でない項目の値が ``![キャプション](道)`` の形 → 警告（``INFOBOX-IMAGE-UNDECLARED``）
 - 画像の項目の画像にキャプションがない → 警告（``IMAGE-CAPTION``）
 - 画像の項目の画像が読めない（無い・種類違い・大きすぎる） → エラー（``IMAGE-*``）
+- ``[infobox]`` に ``_template`` がある（本家のテンプレートをそのまま使う）ときは、
+  項目名が本家の引数名なので定義と突き合わせない。値が ``![キャプション](道)`` の形なら
+  画像として扱い、キャプションと画像そのものだけを見る（``IMAGE-CAPTION``・``IMAGE-*``）
 
 最初の二つは定義との突き合わせなので誤検出が無い。三つ目は、定義の項目が本家のテンプレートの
 引数を全部は収録していない（番号つきの引数などを省いている）ため、正しい項目でも引っかかりうる。
@@ -44,7 +47,13 @@ def _check_image(
             item.line,
         )
         return
-    caption, source = parts
+    yield from _check_image_file(article, item, *parts)
+
+
+def _check_image_file(
+    article: Article, item: InfoboxField, caption: str, source: str
+) -> Iterator[Finding]:
+    """画像の値の形が合っているときの検査（キャプションの有無と、画像が読めるか）。"""
     if not caption:
         yield Finding(
             Level.WARNING,
@@ -56,6 +65,15 @@ def _check_image(
     issue = find_issue(source, article.base_dir)
     if issue is not None:
         yield Finding(Level.ERROR, issue[0], f"Infobox の「{item.name}」の{issue[1]}", item.line)
+
+
+def _check_generic(article: Article) -> Iterator[Finding]:
+    """本家のテンプレートをそのまま使うときの検査。項目名は引数名なので定義と突き合わせない。"""
+    for item in article.settings.infobox:
+        parts = split_value(item.value)
+        if parts is None:
+            continue
+        yield from _check_image_file(article, item, *parts)
 
 
 def check_infobox(article: Article, registry: TypeRegistry) -> Iterator[Finding]:
@@ -91,6 +109,9 @@ def check_infobox(article: Article, registry: TypeRegistry) -> Iterator[Finding]
         return
 
     written = article.settings.infobox
+    if article.settings.infobox_template:
+        yield from _check_generic(article)
+        return
     if article_type.has_infobox:
         filled = {item.name for item in written if item.value.strip()}
         line = written[0].line if written else _NO_LINE

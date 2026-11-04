@@ -79,6 +79,88 @@ def test_infobox_は書いた順を保つ() -> None:
     )
 
 
+def test__template_はInfoboxの項目にせずテンプレートの名前として読む() -> None:
+    settings = parse(
+        MINIMAL,
+        """
+        [infobox]
+        _template = "Infobox 人物"
+        "職業" = "小説家"
+        """,
+    )
+    assert settings.infobox_template == "Infobox 人物"
+    assert settings.infobox == (InfoboxField("職業", "小説家"),)
+
+
+def test__template_が無ければNone() -> None:
+    assert parse(MINIMAL, '[infobox]\n"作者" = "甲"').infobox_template is None
+
+
+def test__template_の前後の空白は落とす() -> None:
+    settings = parse(MINIMAL, '[infobox]\n_template = "  Infobox 人物  "')
+
+    assert settings.infobox_template == "Infobox 人物"
+
+
+def test__template_が文字列でなければ誤り() -> None:
+    with pytest.raises(SettingsError) as info:
+        parse(MINIMAL, "[infobox]\n_template = 1")
+
+    assert info.value.line == 5
+    assert "_template" in info.value.message
+
+
+def test__template_が空白だけなら誤り() -> None:
+    with pytest.raises(SettingsError) as info:
+        parse(MINIMAL, '[infobox]\n_template = "   "')
+
+    assert info.value.line == 5
+    assert "Infobox 人物" in info.value.message
+
+
+def test__template_に使えない文字があれば誤り() -> None:
+    with pytest.raises(SettingsError) as info:
+        parse(MINIMAL, '[infobox]\n_template = "Infobox 人物|x"')
+
+    assert info.value.line == 5
+    assert "使えない文字" in info.value.message
+
+
+def test__image_fields_は本家がファイル名だけを受け取る引数として読む() -> None:
+    settings = parse(
+        MINIMAL,
+        '[infobox]\n_template = "Infobox 人物"\n_image_fields = ["画像", "地図"]',
+    )
+
+    assert settings.infobox_images == ("画像", "地図")
+
+
+def test__image_fields_が無ければ空() -> None:
+    assert parse(MINIMAL, '[infobox]\n_template = "Infobox 人物"').infobox_images == ()
+
+
+def test__image_fields_は_template_と一緒でなければ誤り() -> None:
+    with pytest.raises(SettingsError) as info:
+        parse(MINIMAL, '[infobox]\n_image_fields = ["画像"]')
+
+    assert info.value.line == 5
+    assert "_template" in info.value.message
+
+
+def test__image_fields_が並びでなければ誤り() -> None:
+    with pytest.raises(SettingsError) as info:
+        parse(MINIMAL, '[infobox]\n_template = "Infobox 人物"\n_image_fields = "画像"')
+
+    assert "_image_fields" in info.value.message
+
+
+def test__image_fields_に使えない文字があれば誤り() -> None:
+    with pytest.raises(SettingsError) as info:
+        parse(MINIMAL, '[infobox]\n_template = "Infobox 人物"\n_image_fields = ["画|像"]')
+
+    assert "使えない引数名" in info.value.message
+
+
 def test_出典は種類ごとの項目を読み書いた順を保つ() -> None:
     settings = parse(
         MINIMAL,

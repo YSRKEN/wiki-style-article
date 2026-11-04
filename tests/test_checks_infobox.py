@@ -253,6 +253,47 @@ def test_定義にない項目名は宣言漏れの警告と重ねない() -> No
     assert [f.rule for f in findings] == ["INFOBOX-UNKNOWN-FIELD"]
 
 
+# --- 任意のテンプレート（_template） ----------------------------------------------
+
+
+def test_任意のテンプレートでは定義との突き合わせをしない() -> None:
+    # 似顔絵は定義に無い項目名だが、任意のテンプレートの項目名は本家の引数名なので警告しない。
+    findings = run("person", '_template = "Infobox 人物"\n"似顔絵" = "![顔](images/x.png)"')
+
+    assert findings == ()
+
+
+def test_任意のテンプレートでも画像の項目の道を検査する() -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![顔](/tmp/x.png)"'
+    findings = only(run("person", source), "IMAGE-PATH")
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert findings[0].line == 6
+    assert "相対" in findings[0].message
+
+
+def test_任意のテンプレートでも画像のキャプションが空なら警告() -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![](images/x.png)"'
+    findings = only(run("person", source), "IMAGE-CAPTION")
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 6
+    assert "似顔絵" in findings[0].message
+
+
+def test_任意のテンプレートでも画像の実物が無ければエラー(tmp_path: Path) -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![顔](images/x.png)"'
+    findings = only(
+        check_article(article_at(tmp_path, "person", source), REGISTRY), "IMAGE-MISSING"
+    )
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert "画像が無い: images/x.png" in findings[0].message
+
+
 # --- check_article の入口 ----------------------------------------------------
 
 
