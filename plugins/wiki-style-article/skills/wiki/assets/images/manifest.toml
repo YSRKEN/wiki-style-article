@@ -1,0 +1,475 @@
+# 同梱の画像の目録。
+#
+# 原稿からは ![キャプション](bundle:flags/jp.svg) のように書き、bundle: の後ろに key を置く。
+# HTML には data: の URI として埋め込み、ウィキテキストには file（本家 Commons の
+# ファイル名）を書く。license は PD か CC0 だけ（このフォルダの README.md を参照）。
+
+[[images]]
+key = "flags/ae.svg"
+path = "flags/ae.svg"
+file = "Flag of the United Arab Emirates.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_the_United_Arab_Emirates.svg"
+author = "Abdulla Mohammed Al Maainah"
+
+[[images]]
+key = "flags/ar.svg"
+path = "flags/ar.svg"
+file = "Flag of Argentina.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Argentina.svg"
+author = "Manuel Belgrano"
+
+[[images]]
+key = "flags/at.svg"
+path = "flags/at.svg"
+file = "Flag of Austria.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Austria.svg"
+author = "Bundesministerium für Landesverteidigung"
+
+[[images]]
+key = "flags/au.svg"
+path = "flags/au.svg"
+file = "Flag of Australia.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Australia.svg"
+author = "Original: Ivor Evans, Leslie John Hawkins, Egbert John Nuttall, Annie Dorrington and William Stevens Vector: Ian Fieggen"
+
+[[images]]
+key = "flags/bd.svg"
+path = "flags/bd.svg"
+file = "Flag of Bangladesh.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Bangladesh.svg"
+
+[[images]]
+key = "flags/be.svg"
+path = "flags/be.svg"
+file = "Flag of Belgium.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Belgium.svg"
+author = "Dbenbenn and others"
+
+[[images]]
+key = "flags/br.svg"
+path = "flags/br.svg"
+file = "Flag of Brazil.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Brazil.svg"
+author = "Raimundo Teixeira Mendes"
+
+[[images]]
+key = "flags/ca.svg"
+path = "flags/ca.svg"
+file = "Flag of Canada.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Canada.svg"
+author = "Created by George F. G. Stanley / E Pluribus Anthony / User:Mzajac"
+
+[[images]]
+key = "flags/ch.svg"
+path = "flags/ch.svg"
+file = "Flag of Switzerland.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Switzerland.svg"
+author = "Original: Unknown Vector: User:Marc Mongenet Credits: User:-xfi- User:Zscout370"
+
+[[images]]
+key = "flags/cl.svg"
+path = "flags/cl.svg"
+file = "Flag of Chile.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Chile.svg"
+
+[[images]]
+key = "flags/cn.svg"
+path = "flags/cn.svg"
+file = "Flag of the People's Republic of China.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_the_People%27s_Republic_of_China.svg"
+author = "Zeng Liansong"
+
+[[images]]
+key = "flags/co.svg"
+path = "flags/co.svg"
+file = "Flag of Colombia.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Colombia.svg"
+
+[[images]]
+key = "flags/cu.svg"
+path = "flags/cu.svg"
+file = "Flag of Cuba.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Cuba.svg"
+author = "Miguel Teurbe Tolón and Narciso López"
+
+[[images]]
+key = "flags/cz.svg"
+path = "flags/cz.svg"
+file = "Flag of the Czech Republic.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_the_Czech_Republic.svg"
+author = "Jaroslav Kursa"
+
+[[images]]
+key = "flags/de.svg"
+path = "flags/de.svg"
+file = "Flag of Germany.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Germany.svg"
+author = "User:SKopp, User:Madden, and other users"
+
+[[images]]
+key = "flags/dk.svg"
+path = "flags/dk.svg"
+file = "Flag of Denmark.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Denmark.svg"
+author = "Madden and others"
+
+[[images]]
+key = "flags/eg.svg"
+path = "flags/eg.svg"
+file = "Flag of Egypt.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Egypt.svg"
+
+[[images]]
+key = "flags/es.svg"
+path = "flags/es.svg"
+file = "Flag of Spain.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Spain.svg"
+author = "RelShot 263, Echando una mano; earlier version was Pedro A. Gracia Fajardo, escudo de Manual de Imagen Institucional de la Administración General del Estado"
+
+[[images]]
+key = "flags/eu.svg"
+path = "flags/eu.svg"
+file = "Flag of Europe.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Europe.svg"
+author = "User:Verdy p, User:-xfi-, User:Paddu, User:Nightstallion, User:Funakoshi, User:Jeltz, User:Dbenbenn, User:Zscout370"
+
+[[images]]
+key = "flags/fi.svg"
+path = "flags/fi.svg"
+file = "Flag of Finland.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Finland.svg"
+
+[[images]]
+key = "flags/fr.svg"
+path = "flags/fr.svg"
+file = "Flag of France.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_France.svg"
+author = "Original: Unknown Vector: SKopp"
+
+[[images]]
+key = "flags/gb.svg"
+path = "flags/gb.svg"
+file = "Flag of the United Kingdom (3-5).svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_the_United_Kingdom_(3-5).svg"
+author = "Original: Acts of Union 1800 Vector: Yaddah"
+
+[[images]]
+key = "flags/gr.svg"
+path = "flags/gr.svg"
+file = "Flag of Greece.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Greece.svg"
+
+[[images]]
+key = "flags/hu.svg"
+path = "flags/hu.svg"
+file = "Flag of Hungary.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Hungary.svg"
+author = "SKopp"
+
+[[images]]
+key = "flags/id.svg"
+path = "flags/id.svg"
+file = "Flag of Indonesia.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Indonesia.svg"
+author = "Jayakatwang"
+
+[[images]]
+key = "flags/ie.svg"
+path = "flags/ie.svg"
+file = "Flag of Ireland.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Ireland.svg"
+author = "Éire"
+
+[[images]]
+key = "flags/il.svg"
+path = "flags/il.svg"
+file = "Flag of Israel.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Israel.svg"
+author = "Israel Belkind and Fanny Abramovitch (original)"
+
+[[images]]
+key = "flags/in.svg"
+path = "flags/in.svg"
+file = "Flag of India.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_India.svg"
+author = "Government of India"
+
+[[images]]
+key = "flags/iq.svg"
+path = "flags/iq.svg"
+file = "Flag of Iraq.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Iraq.svg"
+
+[[images]]
+key = "flags/ir.svg"
+path = "flags/ir.svg"
+file = "Flag of Iran.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Iran.svg"
+author = "SVG: SiBr4、設計: Hamid Nadimi、制作: ISIRI"
+
+[[images]]
+key = "flags/is.svg"
+path = "flags/is.svg"
+file = "Flag of Iceland.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Iceland.svg"
+author = "Original: Matthías Þórðarson Vector: Árni Dagur and Magasjukur2"
+
+[[images]]
+key = "flags/it.svg"
+path = "flags/it.svg"
+file = "Flag of Italy.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Italy.svg"
+
+[[images]]
+key = "flags/jp.svg"
+path = "flags/jp.svg"
+file = "Flag of Japan.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Japan.svg"
+author = "Various"
+
+[[images]]
+key = "flags/ke.svg"
+path = "flags/ke.svg"
+file = "Flag of Kenya.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Kenya.svg"
+author = "User:Pumbaa80"
+
+[[images]]
+key = "flags/kp.svg"
+path = "flags/kp.svg"
+file = "Flag of North Korea.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_North_Korea.svg"
+author = "Original: Unknown author Vector: Zscout370"
+
+[[images]]
+key = "flags/kr.svg"
+path = "flags/kr.svg"
+file = "Flag of South Korea.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_South_Korea.svg"
+author = "Original: Government of the Republic of Korea Vector: Great Brightstar and others"
+
+[[images]]
+key = "flags/ma.svg"
+path = "flags/ma.svg"
+file = "Flag of Morocco.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Morocco.svg"
+author = "Denelson83, Zscout370"
+
+[[images]]
+key = "flags/mx.svg"
+path = "flags/mx.svg"
+file = "Flag of Mexico.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Mexico.svg"
+author = "Omar Alejandro Covarrubias Neri, 9 April 2006. Based on the 1968 arms by Francisco Eppens Helguera and Juan Manuel Gabino Villascán."
+
+[[images]]
+key = "flags/my.svg"
+path = "flags/my.svg"
+file = "Flag of Malaysia.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Malaysia.svg"
+author = "MapGrid (old version SKopp, Zscout370 and Ranking Update)"
+
+[[images]]
+key = "flags/ng.svg"
+path = "flags/ng.svg"
+file = "Flag of Nigeria.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Nigeria.svg"
+author = "Jon Harald Søby."
+
+[[images]]
+key = "flags/nl.svg"
+path = "flags/nl.svg"
+file = "Flag of the Netherlands.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_the_Netherlands.svg"
+author = "Zscout370"
+
+[[images]]
+key = "flags/no.svg"
+path = "flags/no.svg"
+file = "Flag of Norway.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Norway.svg"
+author = "Original: Fredrik Meltzer Vector: Gutten på Hemsen"
+
+[[images]]
+key = "flags/nz.svg"
+path = "flags/nz.svg"
+file = "Flag of New Zealand.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_New_Zealand.svg"
+author = "Original: Albert Hastings Markham Vector: Zscout370, Hugh Jass, s. File history"
+
+[[images]]
+key = "flags/pe.svg"
+path = "flags/pe.svg"
+file = "Flag of Peru.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Peru.svg"
+author = "David Benbennick"
+
+[[images]]
+key = "flags/ph.svg"
+path = "flags/ph.svg"
+file = "Flag of the Philippines.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_the_Philippines.svg"
+
+[[images]]
+key = "flags/pk.svg"
+path = "flags/pk.svg"
+file = "Flag of Pakistan.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Pakistan.svg"
+author = "User:Zscout370"
+
+[[images]]
+key = "flags/pl.svg"
+path = "flags/pl.svg"
+file = "Flag of Poland.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Poland.svg"
+
+[[images]]
+key = "flags/pt.svg"
+path = "flags/pt.svg"
+file = "Flag of Portugal.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Portugal.svg"
+author = "Original: Columbano Bordalo Pinheiro (1910; generic design) Vector: Vítor Luís Rodrigues; António Martins-Tuválkin (2004; this specific vector set: see sources)"
+
+[[images]]
+key = "flags/ro.svg"
+path = "flags/ro.svg"
+file = "Flag of Romania.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Romania.svg"
+author = "AdiJapan"
+
+[[images]]
+key = "flags/ru.svg"
+path = "flags/ru.svg"
+file = "Flag of Russia.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Russia.svg"
+author = "Peter the Great"
+
+[[images]]
+key = "flags/sa.svg"
+path = "flags/sa.svg"
+file = "Flag of Saudi Arabia.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Saudi_Arabia.svg"
+author = "The Shura Council"
+
+[[images]]
+key = "flags/se.svg"
+path = "flags/se.svg"
+file = "Flag of Sweden.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Sweden.svg"
+author = "Jon Harald Søby and others."
+
+[[images]]
+key = "flags/sg.svg"
+path = "flags/sg.svg"
+file = "Flag of Singapore.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Singapore.svg"
+author = "Original: Government of Singapore Vector: Zscout370"
+
+[[images]]
+key = "flags/th.svg"
+path = "flags/th.svg"
+file = "Flag of Thailand.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Thailand.svg"
+author = "Zscout370"
+
+[[images]]
+key = "flags/tr.svg"
+path = "flags/tr.svg"
+file = "Flag of Turkey.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Turkey.svg"
+author = "David Benbennick (original author)"
+
+[[images]]
+key = "flags/tw.svg"
+path = "flags/tw.svg"
+file = "Flag of the Republic of China.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_the_Republic_of_China.svg"
+author = "Sun Yat-sen"
+
+[[images]]
+key = "flags/ua.svg"
+path = "flags/ua.svg"
+file = "Flag of Ukraine.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Ukraine.svg"
+author = "Government of Ukraine"
+
+[[images]]
+key = "flags/us.svg"
+path = "flags/us.svg"
+file = "Flag of the United States.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_the_United_States.svg"
+author = "Uploaded by Dbenbenn; edited by users such as Zscout370, Jacobolus, Indolences, and Technion."
+
+[[images]]
+key = "flags/vn.svg"
+path = "flags/vn.svg"
+file = "Flag of Vietnam.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_Vietnam.svg"
+
+[[images]]
+key = "flags/za.svg"
+path = "flags/za.svg"
+file = "Flag of South Africa.svg"
+license = "PD"
+source = "https://commons.wikimedia.org/wiki/File:Flag_of_South_Africa.svg"
+author = "Flag design by Frederick Brownell, image by Wikimedia Commons users"
+

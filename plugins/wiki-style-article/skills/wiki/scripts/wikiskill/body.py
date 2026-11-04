@@ -6,7 +6,7 @@
 - 見出しの末尾の ``[!噂]`` は、その節と子の節を噂として扱う印。見出しの文字からは取り除く
 - 空行で段落を区切る。段落の中の改行は空白なしでつなぐ
 - 行頭の ``- `` で始まる行の連なりが箇条書き（入れ子なし）。字下げした行は前の項目の続き
-- 行に単独で置いた ``![キャプション](画像の道)`` は画像。道は原稿からの相対だけ
+- 行に単独で置いた ``![キャプション](画像の道)`` は画像。道は原稿からの相対か ``bundle:`` のキー
 - 最初の見出しより前の段落・箇条書きは導入部
 """
 
@@ -16,6 +16,7 @@ import re
 from bisect import bisect_right
 from collections.abc import Sequence
 
+from wikiskill import images
 from wikiskill.errors import MarkupError
 from wikiskill.inline import parse_inline
 from wikiskill.model import Block, BulletList, Figure, Inline, Paragraph, Section
@@ -189,7 +190,9 @@ class _BodyBuilder:
         source = image.group("source").strip(_INDENT)
         if not source:
             raise MarkupError("画像の道が空（![キャプション](画像の道) の形で書く）", number)
-        if _URL.match(source) or _ABSOLUTE.match(source):
+        if not source.startswith(images.BUNDLE_PREFIX) and (
+            _URL.match(source) or _ABSOLUTE.match(source)
+        ):
             raise MarkupError("画像は原稿からの相対の道で指す（URL や絶対の道は使えない）", number)
         return Figure(caption=caption, source=source, line=number)
 
