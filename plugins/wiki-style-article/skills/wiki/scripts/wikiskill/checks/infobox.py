@@ -4,6 +4,7 @@
 - 定義の必須の項目が Infobox にない → エラー（``INFOBOX-MISSING``）
 - 定義にない項目名が Infobox にある → 警告（``INFOBOX-UNKNOWN-FIELD``）
 - 画像の項目の値が ``![キャプション](道)`` の形でない → エラー（``INFOBOX-IMAGE``）
+- 画像の項目でない項目の値が ``![キャプション](道)`` の形 → 警告（``INFOBOX-IMAGE-UNDECLARED``）
 - 画像の項目の画像にキャプションがない → 警告（``IMAGE-CAPTION``）
 - 画像の項目の画像が読めない（無い・種類違い・大きすぎる） → エラー（``IMAGE-*``）
 
@@ -108,6 +109,15 @@ def check_infobox(article: Article, registry: TypeRegistry) -> Iterator[Finding]
         if defined is not None:
             if defined.image is not None:
                 yield from _check_image(article, item, defined.image)
+            elif split_value(item.value) is not None:
+                yield Finding(
+                    Level.WARNING,
+                    "INFOBOX-IMAGE-UNDECLARED",
+                    f"Infobox の「{item.name}」は画像の項目として宣言されていないのに"
+                    "![キャプション](道) の形になっている（値はそのままウィキテキストの引数に"
+                    "入る。画像なら型の定義の image_fields に宣言する）",
+                    item.line,
+                )
             continue
         reason = (
             "定義にない"

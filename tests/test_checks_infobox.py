@@ -227,8 +227,30 @@ def test_画像の実物が無ければエラー(tmp_path: Path) -> None:
     assert "画像が無い: images/map.png" in findings[0].message
 
 
-def test_画像でない項目の画像の記法は対象外() -> None:
-    assert only(run("vote", '"備考" = "![図](images/map.png)"'), "INFOBOX-IMAGE") == []
+def test_画像でない項目に画像の記法を書くと宣言漏れの警告() -> None:
+    findings = only(run("vote", '"備考" = "![図](images/map.png)"'), "INFOBOX-IMAGE-UNDECLARED")
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 5
+    assert "備考" in findings[0].message
+    assert "image_fields" in findings[0].message
+
+
+def test_画像でない項目に画像の記法があっても画像の検査はしない() -> None:
+    assert only(run("vote", '"備考" = "![図](/tmp/map.png)"'), "IMAGE-PATH") == []
+
+
+def test_画像の項目には宣言漏れの警告を出さない() -> None:
+    assert (
+        only(run("vote", '"地図" = "![選挙区](images/map.png)"'), "INFOBOX-IMAGE-UNDECLARED") == []
+    )
+
+
+def test_定義にない項目名は宣言漏れの警告と重ねない() -> None:
+    findings = run(
+        "person", '"生年月日" = "1900年"\n"職業" = "作家"\n"似顔絵" = "![顔](images/x.png)"'
+    )
+    assert [f.rule for f in findings] == ["INFOBOX-UNKNOWN-FIELD"]
 
 
 # --- check_article の入口 ----------------------------------------------------
