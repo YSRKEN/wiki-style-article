@@ -96,7 +96,7 @@ Infobox                            （値のある項目が一つもなければ
 | `[!言語\|言語タグ]` | 言語名の文字（`en` → `英語`）。知らないタグはタグのまま |
 | `[!節スタブ]`（行に単独で置く） | `<div class="section-stub">この節は書きかけです。</div>` |
 | `-` の箇条書き | `<ul><li>…</li></ul>` |
-| `![キャプション](画像の道)` | 右寄せの `<figure class="thumb"><img src="data:…"><figcaption>…</figcaption></figure>`。画像そのものを data: の URI として埋め込む（下の「一枚で開ける」） |
+| `![キャプション](画像の道)` | 右寄せの `<figure class="thumb"><img src="data:…"><figcaption>…</figcaption></figure>`。画像そのものを data: の URI として埋め込む（下の「一枚で開ける」）。道を `bundle:flags/jp.svg` にしても同じで、同梱の実ファイルが data: の URI になる |
 | `[infobox]` | 右寄せの表 `<table class="infobox">`（次節） |
 | `related` | 「関連項目」の `<ul>`。各項目は本家の記事へのリンク |
 | `external_links` | 「外部リンク」の `<ul>`。`http://`・`https://` 以外のアドレスはリンクにせず題だけ書く |

@@ -135,6 +135,7 @@ _template = "Infobox 人物"
 - 埋め込めるのは PNG・JPEG・GIF・WebP・SVG で、1 枚 2 MiB まで
 - キャプションは空でも読めるが、検査が `IMAGE-CAPTION` で警告する
 - 画像は段落・箇条書きと同じ「まとまり」として並ぶ。行の途中に書くと読み取りのエラーになる
+- 同梱の画像（国旗 60 件）は `![日の丸](bundle:flags/jp.svg)` と目録のキーで指せる。HTML は data: の URI、ウィキテキストは本家のファイル名（`Flag of Japan.svg`）になる。キーと許諾は `plugins/wiki-style-article/skills/wiki/assets/images/manifest.toml` に並ぶ
 - HTML には画像そのものを data: の URI として埋め込み、ウィキテキストにはファイルの名前だけを書く（次節以降の各文書）
 - Infobox の画像の項目も同じように書く（`[infobox]` の項目に `![キャプション](画像の道)`）。どの項目が画像かは型の定義が決める（設定欄の `[infobox]` を参照）。`_template` を書いたときは定義を使わないので、本家が画像を受け取る引数にこの記法を書く（設定欄の「任意のテンプレート」）。ファイル名だけを渡す引数は `_image_fields` に並べる
 - 地図や議席図の図は、`figure` のサブコマンドで SVG を作り、その道をこの書き方で置く（[コマンドの入口](cli.md#地図と議席図figure)）。選挙の州別の結果の地図は、同梱の `us-states` の形の地域コード（`TX`・`DC` など）で塗れる
