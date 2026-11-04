@@ -10,6 +10,7 @@
     python -m wikiskill wikipedia 記事名
     python -m wikiskill figure map データ.toml --out 図.svg [--shape 形]
     python -m wikiskill figure seats データ.toml --out 図.svg
+    python -m wikiskill templatedata [--fetch] [--from-types] [--template 名前] [--out パス]
 
 ``build`` は原稿の隣（``--out-dir`` で変えられる）に ``<原稿の名前>.html`` と
 ``<原稿の名前>.wikitext`` を書き出す。噂（``[!噂|…]``・``[!噂]`` の節）のある原稿では、
@@ -21,7 +22,9 @@
 :mod:`wikiskill.fetch`）。``pdf`` は PDF を置き場の下に保存し、``Read`` で読めるようにする。
 ``wikipedia`` は本家の記事の節の並びと出典の一覧を出す
 （:mod:`wikiskill.wikipedia_refs`）。``figure`` は地図や議席図の SVG を作る
-（:mod:`wikiskill.figures`）。``build`` は、印と冒頭の警告の枠に今の現地時刻の年月
+（:mod:`wikiskill.figures`）。``templatedata`` は、原稿の ``_template`` に効かせる
+TemplateData（本家テンプレートの引数定義）の同梱の中身を出し、``--fetch`` で取り直す
+（:mod:`wikiskill.templatedata`）。``build`` は、印と冒頭の警告の枠に今の現地時刻の年月
 （``2026年11月``）を添える。
 
 出力は 1 行に 1 件で、検査の指摘（``12 行目 [警告] RULE: …``）、件数のまとめ、
@@ -57,6 +60,17 @@ from wikiskill.html_check import check_html
 from wikiskill.html_inline import HtmlError
 from wikiskill.html_writer import write_html, write_html_both
 from wikiskill.reader import read_article_file
+from wikiskill.templatedata import (
+    DEFAULT_TEMPLATEDATA_PATH,
+    TemplateData,
+    TemplateDataError,
+    TemplateDataRegistry,
+    fetch_template_data,
+    load_default_templatedata,
+    normalize_template_name,
+    template_names_from_types,
+    write_templatedata_file,
+)
 from wikiskill.types import ArticleType, load_default_registry
 from wikiskill.variants import has_rumor, normal_view, rumor_view
 from wikiskill.wikitext import WIKITEXT_STYLES, WikitextError, WikitextStyle, write_wikitext
@@ -97,6 +111,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
     if args.command == "figure":
         return _figure(args.kind, Path(args.data), out=Path(args.out), shape=args.shape)
+    if args.command == "templatedata":
+        return _templatedata(
+            fetch=args.fetch,
+            from_types=args.from_types,
+            templates=tuple(args.template),
+            out=Path(args.out) if args.out else None,
+        )
     source = Path(args.source)
     if not source.is_file():
         print(f"原稿が見つからない: {source}", file=sys.stderr)
@@ -226,6 +247,27 @@ def _parser() -> argparse.ArgumentParser:
     figure.add_argument("data", help="図のデータ（TOML）")
     figure.add_argument("--out", required=True, help="書き出す SVG の道")
     figure.add_argument("--shape", help="地図の形（同梱の名前か SVG の道）")
+
+    data = commands.add_parser(
+        "templatedata",
+        help="同梱の TemplateData（本家テンプレートの引数定義）を出す。--fetch で取り直す",
+    )
+    data.add_argument(
+        "--fetch", action="store_true", help="本家の API から取り直して、同梱の TOML を書き換える"
+    )
+    data.add_argument(
+        "--from-types",
+        action="store_true",
+        help="types.toml が参照するテンプレートだけを対象にする",
+    )
+    data.add_argument(
+        "--template",
+        action="append",
+        default=[],
+        metavar="名前",
+        help="対象に足すテンプレート名（例 Infobox 人物。複数回書ける）",
+    )
+    data.add_argument("--out", help="書き出す TOML。省くと同梱の assets/templatedata.toml")
     return parser
 
 
@@ -396,6 +438,104 @@ def _figure(kind: str, data: Path, *, out: Path, shape: str | None) -> int:
         return 1
     print(f"書き出した: {out}")
     return 0
+
+
+def _templatedata(
+    *, fetch: bool, from_types: bool, templates: tuple[str, ...], out: Path | None
+) -> int:
+    """同梱の TemplateData を出す。`--fetch` なら本家から取り直して書き出す。"""
+    try:
+        bundled = load_default_templatedata()
+    except TemplateDataError as error:
+        print(f"[エラー] TEMPLATEDATA: {error}", file=sys.stderr)
+        return 1
+    if not fetch:
+        return _list_templatedata(bundled, from_types=from_types, templates=templates)
+    wanted: dict[str, None] = {}
+    if from_types:
+        for name in template_names_from_types(load_default_registry()):
+            wanted.setdefault(name, None)
+    else:
+        for template in bundled:
+            wanted.setdefault(template.name, None)
+        for name in template_names_from_types(load_default_registry()):
+            wanted.setdefault(name, None)
+    for name in templates:
+        wanted.setdefault(name, None)
+    if not wanted:
+        print("対象のテンプレートが無い（--from-types か --template で指定する）", file=sys.stderr)
+        return 2
+    target = out or DEFAULT_TEMPLATEDATA_PATH
+    try:
+        fetched = fetch_template_data(wanted, pacer=Pacer(_state_dir()))
+        registry = TemplateDataRegistry(templates=fetched)
+        write_templatedata_file(registry, target, fetched=_today())
+    except TemplateDataError as error:
+        print(f"[エラー] TEMPLATEDATA: {error}", file=sys.stderr)
+        return 1
+    except OSError as error:
+        print(f"[エラー] WRITE: {error}", file=sys.stderr)
+        return 1
+    absent = [name for name in wanted if name not in registry]
+    print(f"テンプレート {len(registry)} 件、引数 {_param_count(registry)} 件。")
+    if absent:
+        print(f"TemplateData が無くて載らなかった {len(absent)} 件:")
+        for name in absent:
+            print(f"- {name}")
+    print(f"書き出した: {target}")
+    return 0
+
+
+def _list_templatedata(
+    registry: TemplateDataRegistry, *, from_types: bool, templates: tuple[str, ...]
+) -> int:
+    """同梱の TemplateData の件数とテンプレート名を出す。"""
+    if from_types:
+        return _list_from_types(registry)
+    if templates:
+        wanted = {normalize_template_name(name) for name in templates}
+        shown = [template for template in registry if template.name in wanted]
+        for name in sorted(wanted - {template.name for template in shown}):
+            print(f"同梱に無い: {name}", file=sys.stderr)
+        return _print_templates(shown)
+    return _print_templates(list(registry))
+
+
+def _list_from_types(registry: TemplateDataRegistry) -> int:
+    """types.toml が参照するテンプレートのうち、同梱にあるものを出す。"""
+    wanted = template_names_from_types(load_default_registry())
+    present = {template.name for template in registry}
+    shown = [template for template in registry if template.name in set(wanted)]
+    absent = [name for name in wanted if name not in present]
+    print(f"型の定義が参照するテンプレート {len(wanted)} 件。")
+    code = _print_templates(shown)
+    if absent:
+        print(f"TemplateData が無く、同梱に載せられない {len(absent)} 件:")
+        for name in absent:
+            print(f"- {name}")
+    return code
+
+
+def _print_templates(templates: list[TemplateData]) -> int:
+    """テンプレートの件数と名前を出す。該当が無ければ 2 を返す。"""
+    if not templates:
+        print("該当するテンプレートが無い（templatedata --fetch で取り直す）", file=sys.stderr)
+        return 2
+    total = sum(len(template.params) for template in templates)
+    print(f"テンプレート {len(templates)} 件、引数 {total} 件。")
+    for template in templates:
+        print(f"- {template.name}（{len(template.params)} 引数）")
+    return 0
+
+
+def _param_count(registry: TemplateDataRegistry) -> int:
+    """登録簿の引数の総数を返す。"""
+    return sum(len(template.params) for template in registry)
+
+
+def _today() -> str:
+    """取得日を `2026-11-05` の形で返す（現地時刻）。"""
+    return datetime.now().astimezone().strftime("%Y-%m-%d")
 
 
 def _type(type_id: str | None) -> int:

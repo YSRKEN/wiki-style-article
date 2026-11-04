@@ -8,8 +8,11 @@
 - 画像の項目の画像にキャプションがない → 警告（``IMAGE-CAPTION``）
 - 画像の項目の画像が読めない（無い・種類違い・大きすぎる） → エラー（``IMAGE-*``）
 - ``[infobox]`` に ``_template`` がある（本家のテンプレートをそのまま使う）ときは、
-  項目名が本家の引数名なので定義と突き合わせない。値が ``![キャプション](道)`` の形なら
-  画像として扱い、キャプションと画像そのものだけを見る（``IMAGE-CAPTION``・``IMAGE-*``）
+  項目名が本家の引数名（か、その別名・ラベル）なので定義と突き合わせない。代わりに同梱の
+  TemplateData（``assets/templatedata.toml``）があれば、解決できない項目名
+  （``INFOBOX-UNKNOWN-FIELD``）と、必須の引数の欠け（``INFOBOX-MISSING``）を見る。
+  同梱に無いテンプレートは素通しする。値が ``![キャプション](道)`` の形なら画像として扱い、
+  キャプションと画像そのものだけを見る（``IMAGE-CAPTION``・``IMAGE-*``）
 
 最初の二つは定義との突き合わせなので誤検出が無い。三つ目は、定義の項目が本家のテンプレートの
 引数を全部は収録していない（番号つきの引数などを省いている）ため、正しい項目でも引っかかりうる。
@@ -23,6 +26,7 @@ from collections.abc import Iterator
 from wikiskill.checks.finding import Finding, Level
 from wikiskill.images import find_issue, split_value
 from wikiskill.model import Article, InfoboxField
+from wikiskill.templatedata import TemplateData, TemplateDataRegistry, load_default_templatedata
 from wikiskill.types import ImageFormat, TypeRegistry
 
 _NO_LINE = 1
@@ -67,16 +71,46 @@ def _check_image_file(
         yield Finding(Level.ERROR, issue[0], f"Infobox の「{item.name}」の{issue[1]}", item.line)
 
 
-def _check_generic(article: Article) -> Iterator[Finding]:
-    """本家のテンプレートをそのまま使うときの検査。項目名は引数名なので定義と突き合わせない。"""
-    for item in article.settings.infobox:
+def _check_generic(article: Article, data: TemplateData | None) -> Iterator[Finding]:
+    """本家のテンプレートをそのまま使うときの検査。
+
+    項目名は本家の引数名か、その別名・ラベル。``data``（``_template`` の TemplateData）が
+    あれば、解決できない項目名（``INFOBOX-UNKNOWN-FIELD``）と、必須の引数の欠け
+    （``INFOBOX-MISSING``、型付きの Infobox と同じ重み）を見る。``data`` が無い（同梱に
+    載っていない）テンプレートは、型の定義と同じく素通しする。引数が 0 件のテンプレートも、
+    「引数なし」として未知扱いしない。
+    """
+    written = article.settings.infobox
+    for item in written:
         parts = split_value(item.value)
-        if parts is None:
-            continue
-        yield from _check_image_file(article, item, *parts)
+        if parts is not None:
+            yield from _check_image_file(article, item, *parts)
+    if data is None or not data.params:
+        return
+    filled = {item.name for item in written if item.value.strip()}
+    line = written[0].line if written else _NO_LINE
+    for param in data.missing_required(filled):
+        yield Finding(
+            Level.ERROR,
+            "INFOBOX-MISSING",
+            f"{data.name} の Infobox に必須の項目「{param.heading}」がない（[infobox] に書く）",
+            line,
+        )
+    for item in written:
+        if data.resolve(item.name) is None:
+            yield Finding(
+                Level.WARNING,
+                "INFOBOX-UNKNOWN-FIELD",
+                f"Infobox の項目「{item.name}」は本家のテンプレート「{data.name}」の引数に"
+                "ないので、ウィキテキストに書き出せない（引数名かラベルに直すか、本文に"
+                "移すか、消す）",
+                item.line,
+            )
 
 
-def check_infobox(article: Article, registry: TypeRegistry) -> Iterator[Finding]:
+def check_infobox(
+    article: Article, registry: TypeRegistry, *, templatedata: TemplateDataRegistry | None = None
+) -> Iterator[Finding]:
     """原稿の類型と Infobox を、類型の定義と突き合わせて検査する。
 
     Parameters
@@ -85,6 +119,8 @@ def check_infobox(article: Article, registry: TypeRegistry) -> Iterator[Finding]
         検査する記事。
     registry : TypeRegistry
         突き合わせる類型の定義。
+    templatedata : TemplateDataRegistry or None
+        ``_template`` の引数の定義。省くと同梱の ``assets/templatedata.toml`` を使う。
 
     Yields
     ------
@@ -110,7 +146,8 @@ def check_infobox(article: Article, registry: TypeRegistry) -> Iterator[Finding]
 
     written = article.settings.infobox
     if article.settings.infobox_template:
-        yield from _check_generic(article)
+        data_registry = load_default_templatedata() if templatedata is None else templatedata
+        yield from _check_generic(article, data_registry.find(article.settings.infobox_template))
         return
     if article_type.has_infobox:
         filled = {item.name for item in written if item.value.strip()}

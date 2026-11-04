@@ -14,6 +14,7 @@ sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh check 原稿.md
 - `pdf`: PDF を決めた置き場の下に保存する（下記）。担当が `Read` で読むために使う
 - `wikipedia`: 本家の記事の節の並びと出典の一覧を出す（下記）。調べる工程の最初に書き手が使う
 - `figure`: 地図や議席図の SVG を作る（下記）。原稿に載せる図を、外から画像を取らずに作る
+- `templatedata`: 同梱の TemplateData（本家テンプレートの引数定義）の一覧を出す。`--fetch` で本家から取り直す（下記）
 
 `build` には次の指定を付けられる。
 
@@ -221,6 +222,42 @@ color = "#2c5aa0"
 - 合計は `seats` の和で、図の下に「合計 N 議席」と凡例を出す。凡例は `[[party]]` の順で、`seats` が 0 の党は出さない
 - `seats` は 0 以上の整数。名前が空・重複、色が `#rrggbb` でない、合計が 0 のときはエラー
 - 行の数と 1 行あたりの議席の数は合計から自動で決める（100 議席なら 8 行）。指定はできない
+
+## TemplateData（templatedata）
+
+`templatedata` は、`_template` で呼ぶ本家のテンプレートに効かせる TemplateData（引数定義）を、同梱の `plugins/wiki-style-article/skills/wiki/assets/templatedata.toml` から出す。何が効くかと同梱の範囲は [記事の類型](types.md) の「任意のテンプレートと TemplateData」。
+
+```text
+テンプレート 86 件、引数 3093 件。
+- ActorActress（64 引数）
+- Battlebox（17 引数）
+…
+- 駅情報（126 引数）
+```
+
+| 指定 | 意味 |
+| --- | --- |
+| （なし） | 同梱の件数とテンプレート名の一覧を出す |
+| `--from-types` | `types.toml` が参照するテンプレートだけを出す。TemplateData が無くて載せられない名前も出す |
+| `--template 名前` | そのテンプレートだけを出す（複数回書ける。`--fetch` では対象に足す） |
+| `--fetch` | 本家の MediaWiki API（`action=templatedata`）から取り直し、同梱の TOML を書き換える |
+| `--out パス` | `--fetch` の書き出し先。省くと同梱の TOML |
+
+- `--fetch` はネットワークに出る。`build` と `check` は同梱だけで動くので、ふだんは取り直さない
+- `--fetch` の既定の対象は、同梱の名前と `types.toml` の参照先。`--from-types` を付けると `types.toml` の参照先だけ、`--template` を付けるとその名前を足す
+- 取り直しは 1 回 40 件ずつ、間を 1〜3 秒あけて叩く。429 は待って取り直す。全件だと数分かかる
+- 同梱に無い名前を `--template` で指定すると、標準エラーに「同梱に無い: 名前」を出す。当たる名前が 1 件も無ければ終了コード 2
+- 取り直しの出力:
+
+```text
+テンプレート 86 件、引数 3093 件。
+TemplateData が無くて載らなかった 2 件:
+- Infobox 城
+- 基礎情報 国
+書き出した: …/assets/templatedata.toml
+```
+
+- TOML が読めない・書き出せないときは「[エラー] TEMPLATEDATA: …」か「[エラー] WRITE: …」で終了コード 1
 
 ## 終了コード
 
