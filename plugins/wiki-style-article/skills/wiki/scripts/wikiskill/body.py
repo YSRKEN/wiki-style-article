@@ -7,6 +7,7 @@
 - 空行で段落を区切る。段落の中の改行は空白なしでつなぐ
 - 行頭の ``- `` で始まる行の連なりが箇条書き（入れ子なし）。字下げした行は前の項目の続き
 - 行に単独で置いた ``![キャプション](画像の道)`` は画像。道は原稿からの相対か ``bundle:`` のキー
+- 行に単独で置いた ``[!節スタブ]`` は節スタブ（その位置に告知を出す）
 - 最初の見出しより前の段落・箇条書きは導入部
 """
 
@@ -19,7 +20,15 @@ from collections.abc import Sequence
 from wikiskill import images
 from wikiskill.errors import MarkupError
 from wikiskill.inline import parse_inline
-from wikiskill.model import Block, BulletList, Figure, Inline, Paragraph, Section
+from wikiskill.model import (
+    Block,
+    BulletList,
+    Figure,
+    Inline,
+    Paragraph,
+    Section,
+    SectionStub,
+)
 
 _HEADING = re.compile(r"(#+)(?:[ \t]+(.*))?")
 _BULLET = re.compile(r"- (.*)")
@@ -31,6 +40,9 @@ _ABSOLUTE = re.compile(r"^(?:[/\\]|[A-Za-z]:)")
 
 _INDENT = " 	"
 """行頭・行末から取り除く空白。全角空白は取り除かず、字下げの誤りとして検査（FULLWIDTH-SPACE）に回す。"""
+
+_SECTION_STUB = "[!節スタブ]"
+"""節スタブの記法。行に単独で置く。"""
 
 _RUMOR_MARK = "[!噂]"
 """見出しの末尾に付けて、節ごと噂にする印。"""
@@ -165,6 +177,11 @@ class _BodyBuilder:
             raise MarkupError(
                 "画像は行に単独で置く（![キャプション](画像の道) の形で書く）", number
             )
+
+        if line.strip(_INDENT) == _SECTION_STUB:
+            self._flush()
+            self._container().append(SectionStub(line=number))
+            return
 
         if _NESTED_BULLET.match(line):
             raise MarkupError("箇条書きの入れ子は使えない（- は行頭から書く）", number)
