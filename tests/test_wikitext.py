@@ -1,11 +1,12 @@
 import re
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
 
 from wikiskill import wikitext
 from wikiskill.reader import read_article, read_article_file
-from wikiskill.types import load_default_registry
+from wikiskill.types import load_default_registry, parse_registry
 from wikiskill.variants import normal_view, rumor_view
 from wikiskill.wikitext import (
     NestedNoteError,
@@ -17,6 +18,25 @@ from wikiskill.wikitext import (
 )
 
 REGISTRY = load_default_registry()
+CASTLE = parse_registry(
+    dedent(
+        """\
+        [[type]]
+        id = "castle"
+        name = "城"
+
+        [[type.infobox]]
+        template = "Infobox 城"
+
+        [type.infobox.fields]
+        "画像" = "img"
+        "城主" = "lord"
+
+        [type.infobox.image_fields]
+        "画像" = "file"
+        """
+    )
+)
 FIXTURES = Path(__file__).parent / "fixtures"
 SAMPLE = FIXTURES / "sample_article.md"
 SAMPLE_WIKIPEDIA = FIXTURES / "sample_article.wikipedia.wikitext"
@@ -555,6 +575,99 @@ def test_定義にない項目名を調べられる() -> None:
     assert unknown_infobox_labels(article, REGISTRY["concept"]) == ("名前", "連載期間", "趣味")
 
 
+def test_Infoboxの画像の項目は書式nameならファイル名だけを書く() -> None:
+    front = (
+        '[infobox]\n"選挙名" = "2004年アメリカ合衆国大統領選挙"\n'
+        '"地図" = "![選挙区の地図](images/map/electoral.png)"\n'
+    )
+    out = _render(_src("本文。\n", front, type_id="election"))
+
+    assert out == (
+        "{{Infobox Election\n"
+        "| 選挙名 = 2004年アメリカ合衆国大統領選挙\n"
+        "| map_image = electoral.png\n"
+        "}}\n"
+        "本文。\n"
+    )
+
+
+def test_Infoboxの画像の項目は書式fileならファイルの記法で書く() -> None:
+    front = '[infobox]\n"画像" = "![天守](images/shiro.png)"\n'
+    article = read_article(_src("本文。\n", front, type_id="castle"))
+
+    out = write_wikitext(article, CASTLE["castle"])
+
+    assert out == "{{Infobox 城\n| img = [[ファイル:shiro.png|thumb|天守]]\n}}\n本文。\n"
+
+
+def test_書式fileでキャプションが空ならthumbだけ付ける() -> None:
+    front = '[infobox]\n"画像" = "![](images/shiro.png)"\n'
+    article = read_article(_src("本文。\n", front, type_id="castle"))
+
+    out = write_wikitext(article, CASTLE["castle"])
+
+    assert "| img = [[ファイル:shiro.png|thumb]]\n" in out
+
+
+def test_画像の項目でも形の違う値は手を加えず書く() -> None:
+    front = '[infobox]\n"画像" = "天守の写真"\n'
+    article = read_article(_src("本文。\n", front, type_id="castle"))
+
+    out = write_wikitext(article, CASTLE["castle"])
+
+    assert "| img = 天守の写真\n" in out
+
+
+# --- Infobox（本家のテンプレートをそのまま使う） -------------------------------
+
+
+def test__template_があれば項目名をそのまま引数名にして書いた順に並べる() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"職業" = "[[小説家]]"\n"趣味" = "散歩"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert out == "{{Infobox 人物\n| 職業 = [[小説家]]\n| 趣味 = 散歩\n}}\n本文。\n"
+
+
+def test__template_でも値の画像はファイルの記法にする() -> None:
+    front = '[infobox]\n_template = "Infobox 城"\n"img" = "![天守](images/shiro.png)"\n'
+    out = _render(_src("本文。\n", front, type_id="castle"))
+
+    assert out == "{{Infobox 城\n| img = [[ファイル:shiro.png|thumb|天守]]\n}}\n本文。\n"
+
+
+def test__image_fields_に並べた引数はファイル名だけを渡す() -> None:
+    front = (
+        '[infobox]\n_template = "Infobox 人物"\n_image_fields = ["画像"]\n'
+        '"画像" = "![甲野乙女](images/顔.png)"\n'
+    )
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert out == "{{Infobox 人物\n| 画像 = 顔.png\n}}\n本文。\n"
+
+
+def test__template_そのものは引数にしない() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"職業" = "作家"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert out == "{{Infobox 人物\n| 職業 = 作家\n}}\n本文。\n"
+    assert "_template" not in out
+
+
+def test__template_のときは定義にない項目名も引数にする() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"趣味" = "散歩"\n'
+    article = read_article(_src("本文。\n", front, type_id="person-living"))
+
+    assert unknown_infobox_labels(article, REGISTRY["person-living"]) == ()
+    assert "| 趣味 = 散歩\n" in write_wikitext(article, REGISTRY["person-living"])
+
+
+def test__template_があっても素の記法を指定すれば表で書く() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"職業" = "作家"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"), "plain")
+
+    assert out.startswith('{| class="infobox"')
+
+
 # --- Infobox（素の記法） --------------------------------------------------------
 
 
@@ -573,6 +686,16 @@ def test_素の記法のInfoboxは表で日本語の項目名のまま書く() -
         "|}\n"
         "本文。\n"
     )
+
+
+def test_素の記法でも画像の項目は定義の書式で書く() -> None:
+    front = (
+        '[infobox]\n"選挙名" = "2004年アメリカ合衆国大統領選挙"\n'
+        '"地図" = "![選挙区の地図](images/electoral.png)"\n'
+    )
+    out = _render(_src("本文。\n", front, type_id="election"), "plain")
+
+    assert "| 地図\n| electoral.png\n" in out
 
 
 def test_素の記法のInfoboxは複数部品の型でも一つの表にする() -> None:

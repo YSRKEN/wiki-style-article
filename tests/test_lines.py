@@ -6,7 +6,7 @@
 from pathlib import Path
 
 from wikiskill.body import parse_body
-from wikiskill.model import Bold, BulletList, InfoboxField, Paragraph, Section, Text
+from wikiskill.model import Bold, BulletList, Figure, InfoboxField, Paragraph, Section, Text
 from wikiskill.reader import read_article, read_article_file
 
 SAMPLE = Path(__file__).parent / "fixtures" / "sample_article.md"
@@ -52,14 +52,17 @@ def test_見本の本文の行番号() -> None:
     assert isinstance(lead.content[0], Bold)
 
     overview, stalls, chronology = article.sections
-    assert (overview.line, stalls.line, chronology.line) == (51, 56, 73)
+    assert (overview.line, stalls.line, chronology.line) == (51, 58, 75)
     assert overview.blocks[0].line == 53
+    figure = overview.blocks[1]
+    assert isinstance(figure, Figure)
+    assert figure.line == 56
     menu = stalls.children[0].children[0]
-    assert menu.line == 63
+    assert menu.line == 65
     assert isinstance(menu.blocks[0], BulletList)
-    assert menu.blocks[0].item_lines == (65, 66, 67)
+    assert menu.blocks[0].item_lines == (67, 68, 69)
     assert isinstance(chronology.blocks[0], BulletList)
-    assert chronology.blocks[0].item_lines == (75, 76)
+    assert chronology.blocks[0].item_lines == (77, 78)
 
 
 def test_見本の設定欄の行番号() -> None:

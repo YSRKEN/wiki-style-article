@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal, TypeAlias
 
 RefKind = Literal["web", "book", "news"]
@@ -163,7 +164,20 @@ class BulletList:
     item_lines: tuple[int, ...] = field(default=(), compare=False)
 
 
-Block: TypeAlias = Paragraph | BulletList
+@dataclass(frozen=True)
+class Figure:
+    """画像。`source` は原稿からの相対の道、`caption` は図の説明。
+
+    画像そのものは HTML を書き出すときに読み、`data:` の URI として埋め込む。
+    ウィキテキストにはファイルの名前だけを書く。`line` は `![...](...)` を置いた行。
+    """
+
+    caption: str
+    source: str
+    line: int = field(default=0, compare=False)
+
+
+Block: TypeAlias = Paragraph | BulletList | Figure
 """節や導入部の直下に置けるまとまり。"""
 
 
@@ -248,6 +262,10 @@ class Settings:
     ``infobox``・``references``・``notes`` は原稿に書いた順を保つ。
     ``notices`` は、印から決まる枠に足して貼る警告の枠（``観点`` など）。書いた順を保つ。
     ``notice_rule`` は、印から決まる枠の出し方（:data:`NOTICE_RULES`）。
+    ``infobox_template`` は ``[infobox]`` の ``_template``（本家のテンプレートをそのまま使う
+    ときの名前。項目名はそのまま本家の引数名として扱う）。
+    ``infobox_images`` は ``[infobox]`` の ``_image_fields``（そのうち、本家がファイル名だけを
+    受け取る引数の名前）。``_template`` を使うときにだけ意味を持つ。
     """
 
     title: str
@@ -262,6 +280,8 @@ class Settings:
     external_links: tuple[ExternalLink, ...] = ()
     notices: tuple[NoticeKind, ...] = ()
     notice_rule: NoticeRule = "多いときだけ"
+    infobox_template: str | None = None
+    infobox_images: tuple[str, ...] = ()
 
 
 # --- 記事 ------------------------------------------------------------------
@@ -277,3 +297,5 @@ class Article:
     settings: Settings
     lead: tuple[Block, ...]
     sections: tuple[Section, ...]
+    # 原稿ファイルの置き場。画像の道を解決するのに使う（文字列から読んだときは None）。
+    base_dir: Path | None = field(default=None, compare=False, repr=False)

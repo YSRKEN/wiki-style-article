@@ -27,6 +27,7 @@ def sample(tmp_path: Path) -> Path:
     """見本の原稿を一時フォルダへ写したもの（書き出しが見本の隣に出るため）。"""
     path = tmp_path / "星屑ラーメン.md"
     shutil.copyfile(SAMPLE, path)
+    shutil.copyfile(FIXTURES / "sample_figure.png", tmp_path / "sample_figure.png")
     return path
 
 

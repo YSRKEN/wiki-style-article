@@ -19,6 +19,7 @@ from wikiskill.model import (
     Block,
     Bold,
     BulletList,
+    Figure,
     FixRange,
     Inline,
     NoteMark,
@@ -84,6 +85,7 @@ def normal_view(article: Article) -> Article:
         ),
         lead=_blocks(article.lead, _strip),
         sections=_normal_sections(article.sections),
+        base_dir=article.base_dir,
     )
     used_refs, used_notes = _used_footnotes(article)
     kept_refs, kept_notes = _used_footnotes(stripped)
@@ -127,6 +129,7 @@ def rumor_view(article: Article) -> Article:
         ),
         lead=_blocks(article.lead, _unwrap),
         sections=_rumor_sections(article.sections),
+        base_dir=article.base_dir,
     )
 
 
@@ -178,6 +181,9 @@ def _blocks(blocks: tuple[Block, ...], change: _InlineMap) -> tuple[Block, ...]:
             content = change(block.content)
             if not _is_blank(content):
                 out.append(replace(block, content=content))
+            continue
+        if isinstance(block, Figure):
+            out.append(block)
             continue
         lines = block.item_lines or (block.line,) * len(block.items)
         kept = [
@@ -258,7 +264,7 @@ def _block_groups(blocks: tuple[Block, ...]) -> Iterator[tuple[Inline, ...]]:
     for block in blocks:
         if isinstance(block, Paragraph):
             yield block.content
-        else:
+        elif isinstance(block, BulletList):
             yield from block.items
 
 
