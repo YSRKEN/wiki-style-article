@@ -102,6 +102,7 @@ allowed-tools: WebSearch WebFetch Read Write Edit Bash(sh *wiki.sh* *)
 - 一つの段落では一つの論点だけを扱う。解説は散文で書き、箇条書きは年表・作品の一覧など、並べること自体が目的の所だけにする
 - 物語のあらすじは結末まで書く。ネタバレを伏せない（類型のファイルの作法に従う）。利用者がネタバレの問いで「結末を書かない」を選んだときだけ、`references/questions.md` の「ネタバレ」に従う
 - 画像を載せるときは、本文の行に `![キャプション](画像の道)` と単独で書く（道は原稿のフォルダからの相対、PNG・JPEG・GIF・WebP・SVG を 1 枚 2 MiB まで。書き方は `references/source-format.md` の「画像」）。書き出しは、HTML が data: URI の 1 枚、ウィキテキストが `[[ファイル:…]]` になる。Infobox の画像の項目（選挙の「地図」など）も同じ書き方で、書式は型の定義が決める（`name` はファイル名だけ、`file` は `[[ファイル:…|thumb|キャプション]]`）
+- 選挙の州別の結果の地図・議会の議席の図は、外から画像を取らずに作れる。データを TOML で書き、`sh <スキルのフォルダ>/scripts/wiki.sh figure map <データ>.toml --out <図>.svg` で SVG を出し、その道を画像と同じ書き方で本文か Infobox の項目に置く。種類は `map`（地域を色で塗る。同梱の `us-states` は `TX`・`DC` などの 2 文字のコードで塗れる）と `seats`（議席を半円に並べる）。書き方は `references/source-format.md` の「図を作る」
 
 ### 7. 検査して書き出す
 
