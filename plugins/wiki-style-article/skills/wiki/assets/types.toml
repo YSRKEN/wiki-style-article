@@ -11,6 +11,7 @@
 #     required                  原稿に必ず書く項目の項目名
 #     unverified                引数名を本家で確かめられていない項目の項目名
 #   [type.infobox.fields]       "日本語の項目名" = "テンプレートの引数名"。書いた順が表示の順
+#   [type.infobox.image_fields] "日本語の項目名" = "name" か "file"。画像の項目の書式（下の「根拠と方針」を見る）
 #
 # 根拠と方針
 #   - テンプレートと引数名は、2026-11-02 に ja.wikipedia.org の Template: の本文（MediaWiki API）で
@@ -22,6 +23,9 @@
 #   - 日本語の項目名は型の中で一意。部品をまたいでも重ならないようにする。
 #   - 番号つきの引数（clubs1・combatant1 など、行を増やすもの）は含めない。
 #   - 型の並びは題材の近いものを続けて置く。基本型の直後に、その寄せ先の細かい種類を置く（人物・出来事・場所など）。
+#   - 画像の項目の書式は、本家のテンプレートが [[File:]] で包むかどうかで決める。包むものは "name"（引数は
+#     素のファイル名）、包まずに素通しするものは "file"（呼び出し側が完全な記法を渡す）。2026-11-04 に
+#     Infobox のテンプレートの本文と実記事で照合した。同じテンプレートでも項目ごとに流儀が違うので、項目単位で書く。
 
 
 # ===================================================================================
@@ -55,6 +59,9 @@ required = ["名前", "生年月日", "職業"]
 "配偶者" = "配偶者"
 "公式サイト" = "公式サイト"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "person-deceased"
 name = "人物（故人）"
@@ -85,6 +92,9 @@ required = ["名前", "生年月日", "没年月日", "職業"]
 "公式サイト" = "公式サイト"
 
 # --- 人物の細かい種類（存命・故人のどちらにも寄せる）-----------------------------
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "voice-actor"
@@ -122,6 +132,9 @@ required = ["名前"]
 "活動" = "活動"
 "受賞" = "受賞"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "singer"
 name = "歌手"
@@ -150,6 +163,9 @@ required = ["名前", "ジャンル"]
 "配偶者" = "配偶者"
 "共同作業者" = "共同作業者"
 "公式サイト" = "公式サイト"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "baseball-player"
@@ -184,6 +200,9 @@ required = ["選手名", "生年月日", "守備位置"]
 "経歴" = "経歴"
 "代表チーム" = "代表チーム"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "soccer-player"
 name = "サッカー選手"
@@ -211,6 +230,9 @@ required = ["名前", "生年月日", "ポジション"]
 "背番号" = "背番号"
 "所属チーム名" = "所属チーム名"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "pro-wrestler"
 name = "プロレスラー"
@@ -237,6 +259,9 @@ required = ["名前"]
 "トレーナー" = "トレーナー"
 "デビュー" = "デビュー"
 "引退" = "引退"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "actor"
@@ -275,6 +300,9 @@ required = ["芸名"]
 "主な作品" = "主な作品"
 "受賞" = "受賞"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "author"
 name = "作家"
@@ -306,6 +334,9 @@ required = ["名前", "職業"]
 "影響を受けた人物" = "influences"
 "影響を与えた人物" = "influenced"
 "公式サイト" = "website"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "manga-artist"
@@ -339,6 +370,9 @@ required = ["名前"]
 # 作品
 # ===================================================================================
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "manga"
 name = "漫画"
@@ -354,6 +388,9 @@ title_field = "タイトル"
 "画像サイズ" = "サイズ"
 "画像の説明" = "説明"
 "ジャンル" = "ジャンル"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type.infobox]]
 template = "Infobox animanga/Manga"
@@ -393,6 +430,9 @@ title_field = "タイトル"
 "画像サイズ" = "サイズ"
 "画像の説明" = "説明"
 "ジャンル" = "ジャンル"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type.infobox]]
 template = "Infobox animanga/TVAnime"
@@ -451,6 +491,9 @@ required = ["ジャンル", "対応機種", "開発元"]
 "発売日" = "Date"
 "ゲームエンジン" = "Engine"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "film"
 name = "映画"
@@ -489,6 +532,9 @@ required = ["監督", "公開", "製作国"]
 "前作" = "前作"
 "次作" = "次作"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "novel-drama"
 name = "小説・ドラマ"
@@ -519,6 +565,9 @@ required = ["作者", "国"]
 "次作" = "次作"
 "訳者" = "訳者"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "light-novel"
 name = "ライトノベル"
@@ -534,6 +583,9 @@ title_field = "タイトル"
 "画像サイズ" = "サイズ"
 "画像の説明" = "説明"
 "ジャンル" = "ジャンル"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type.infobox]]
 template = "Infobox animanga/Novel"
@@ -591,6 +643,9 @@ required = ["ジャンル", "放送局", "放送期間"]
 "放送枠" = "放送枠"
 "放送回数" = "放送回数"
 
+[type.infobox.image_fields]
+"画像" = "file"
+
 [[type]]
 id = "music-work"
 name = "音楽作品"
@@ -621,6 +676,9 @@ required = ["アーティスト", "リリース"]
 "チャート順位" = "Chart position"
 "前作" = "Last single"
 "次作" = "Next single"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "album"
@@ -655,6 +713,9 @@ required = ["アーティスト", "種別", "リリース"]
 # 出来事
 # ===================================================================================
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "event"
 name = "出来事"
@@ -688,6 +749,9 @@ required = ["場所", "日付"]
 "影響" = "影響"
 "管轄" = "管轄"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "aviation-accident"
 name = "航空事故"
@@ -718,6 +782,9 @@ required = ["日付", "場所", "機種"]
 "出発地" = "origin"
 "目的地" = "destination"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "battle"
 name = "戦闘"
@@ -738,6 +805,9 @@ required = ["日付", "場所", "結果"]
 "場所" = "place"
 "座標" = "coordinates"
 "結果" = "result"
+
+[type.infobox.image_fields]
+"画像" = "file"
 
 [[type]]
 id = "court-case"
@@ -810,6 +880,9 @@ required = ["都道府県"]
 "遺構" = "remains"
 "指定文化財" = "cultural asset"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "river"
 name = "河川"
@@ -834,6 +907,9 @@ required = ["水源", "河口"]
 "水源" = "水源"
 "河口" = "河口"
 "流域" = "流域"
+
+[type.infobox.image_fields]
+"画像" = "file"
 
 [[type]]
 id = "mountain"
@@ -999,6 +1075,10 @@ required = ["種類", "業種"]
 "主要子会社" = "主要子会社"
 "外部リンク" = "外部リンク"
 
+[type.infobox.image_fields]
+"ロゴ" = "name"
+"画像" = "name"
+
 [[type]]
 id = "band"
 name = "バンド"
@@ -1023,6 +1103,9 @@ required = ["ジャンル", "メンバー"]
 "公式サイト" = "公式サイト"
 "メンバー" = "メンバー"
 "旧メンバー" = "旧メンバー"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "comedy-duo"
@@ -1056,6 +1139,9 @@ required = ["メンバー", "結成年"]
 "公式サイト" = "公式サイト"
 "受賞歴" = "受賞歴"
 
+[type.infobox.image_fields]
+"画像" = "file"
+
 [[type]]
 id = "soccer-club"
 name = "サッカークラブ"
@@ -1082,6 +1168,9 @@ required = ["リーグ", "ホームタウン"]
 "代表" = "代表"
 "監督" = "監督"
 "公式サイト" = "HP"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "government-agency"
@@ -1111,6 +1200,9 @@ required = ["国名"]
 "前身" = "前身"
 "後身" = "後身"
 "ウェブサイト" = "ウェブサイト"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "academic-body"
@@ -1147,6 +1239,10 @@ required = ["団体種類", "設立"]
 # 製品
 # ===================================================================================
 
+[type.infobox.image_fields]
+"ロゴ" = "name"
+"画像" = "name"
+
 [[type]]
 id = "product"
 name = "製品"
@@ -1171,6 +1267,10 @@ required = ["種類", "会社名"]
 "生産状況" = "生産状況"
 "販売元" = "販売元"
 "ウェブサイト" = "ウェブサイト"
+
+[type.infobox.image_fields]
+"ロゴ" = "name"
+"画像" = "name"
 
 [[type]]
 id = "food-drink"
@@ -1199,6 +1299,10 @@ required = ["販売会社", "販売開始年"]
 "主要会社" = "主要会社"
 "関係する人物" = "関係する人物"
 "外部リンク" = "外部リンク"
+
+[type.infobox.image_fields]
+"ロゴ" = "name"
+"画像" = "name"
 
 [[type]]
 id = "railcar"
@@ -1237,6 +1341,9 @@ required = ["運用者", "製造年"]
 "制御方式" = "制御方式"
 "制動装置" = "制動装置"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "aircraft"
 name = "航空機"
@@ -1263,6 +1370,9 @@ required = ["用途", "製造者"]
 "退役年月日" = "退役年月日"
 "運用状況" = "運用状況"
 "ユニットコスト" = "ユニットコスト"
+
+[type.infobox.image_fields]
+"画像" = "name"
 
 [[type]]
 id = "automobile"
@@ -1300,6 +1410,9 @@ required = ["販売期間", "ボディタイプ"]
 "先代" = "先代"
 "後継" = "後継"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "software"
 name = "ソフトウェア"
@@ -1326,6 +1439,9 @@ required = ["開発元", "種別"]
 "種別" = "種別"
 "ライセンス" = "ライセンス"
 "公式サイト" = "公式サイト"
+
+[type.infobox.image_fields]
+"ロゴ" = "name"
 
 [[type]]
 id = "web-service"
@@ -1358,6 +1474,9 @@ required = ["運営者", "タイプ"]
 # ===================================================================================
 # 概念・ネットミーム（Infobox を持たない）
 # ===================================================================================
+
+[type.infobox.image_fields]
+"ロゴ" = "name"
 
 [[type]]
 id = "concept"
@@ -1409,6 +1528,9 @@ required = ["性別", "生年月日", "父", "母", "競走成績"]
 "総賞金" = "金"
 "主な勝ち鞍" = "鞍"
 
+[type.infobox.image_fields]
+"画像" = "file"
+
 [[type]]
 id = "country-municipality"
 name = "国・自治体"
@@ -1444,6 +1566,11 @@ required = ["日本語国名", "公式国名", "首都"]
 "ccTLD" = "ccTLD"
 "国際電話番号" = "国際電話番号"
 
+[type.infobox.image_fields]
+"国旗画像" = "name"
+"国章画像" = "name"
+"位置画像" = "name"
+
 [[type]]
 id = "japan-city"
 name = "日本の市"
@@ -1471,6 +1598,10 @@ required = ["都道府県", "所在地"]
 "所在地" = "所在地"
 "外部リンク" = "外部リンク"
 "位置画像" = "位置画像"
+
+[type.infobox.image_fields]
+"画像" = "name"
+"位置画像" = "file"
 
 [[type]]
 id = "law"
@@ -1526,6 +1657,10 @@ required = ["学名", "科"]
 "シノニム" = "シノニム"
 "生息図" = "生息図"
 
+[type.infobox.image_fields]
+"画像" = "file"
+"生息図" = "name"
+
 [[type]]
 id = "festival"
 name = "祭礼・宗教行事"
@@ -1554,6 +1689,9 @@ required = ["開催時期", "会場"]
 "最寄駅" = "最寄駅"
 "URL" = "URL"
 
+[type.infobox.image_fields]
+"画像" = "name"
+
 [[type]]
 id = "foreign-festival"
 name = "外国の祭り・祝日"
@@ -1576,3 +1714,6 @@ required = ["日付"]
 "日付" = "date"
 "行事" = "celebrations"
 "関連" = "relatedto"
+
+[type.infobox.image_fields]
+"画像" = "name"
