@@ -24,21 +24,28 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
+from wikiskill import coordinates
+from wikiskill.images import file_name
 from wikiskill.model import (
     FIX_RANGE_LABELS,
     Article,
     Block,
     Bold,
+    Figure,
     FixMark,
     FixRange,
     Inline,
+    InterlanguageLink,
     InternalLink,
+    LanguageName,
+    Navbox,
     NoticeKind,
     Original,
     Paragraph,
     RefMark,
     RumorRange,
     Section,
+    SectionStub,
     Settings,
     Text,
 )
@@ -136,12 +143,16 @@ def write_wikitext(
 
     infobox = build_infobox(settings, article_type, plain=plain)
     notices = _notice_block(article_notices(article), plain, mark_date)
-    head = "\n".join(part for part in (notices, infobox.top, infobox.lead) if part)
+    head = "\n".join(
+        part for part in (_coord_line(settings, plain), notices, infobox.top, infobox.lead) if part
+    )
     chunks = [
         "\n\n".join(body.chunks),
         _footnote_section(body, plain),
         _related_section(settings),
         _external_links_section(settings),
+        _navbox_sections(settings, plain),
+        _stub_line(settings, plain),
         _category_block(settings),
     ]
     text = "\n\n".join(chunk for chunk in chunks if chunk)
@@ -241,7 +252,16 @@ class _BodyWriter:
     def _block(self, block: Block) -> str:
         if isinstance(block, Paragraph):
             return guard_line_start(self.inline(block.content))
+        if isinstance(block, Figure):
+            return self._figure(block)
+        if isinstance(block, SectionStub):
+            return _section_stub(self._plain)
         return "\n".join("* " + guard_line_start(self.inline(item)) for item in block.items)
+
+    def _figure(self, figure: Figure) -> str:
+        """画像を、本家のファイルの記法にする。画像そのものは本家に上げるので、名前だけを書く。"""
+        caption = escape_text(figure.caption, pipes=True)
+        return f"[[ファイル:{file_name(figure.source)}|thumb|{caption}]]"
 
     # -- 文中の部品
 
@@ -258,6 +278,16 @@ class _BodyWriter:
             if item.label is None:
                 return f"[[{item.target}]]"
             return f"[[{item.target}|{escape_text(item.label, pipes=self._nested)}]]"
+        if isinstance(item, InterlanguageLink):
+            if self._plain:
+                return escape_text(item.label, pipes=self._nested)
+            label = escape_text(item.label, pipes=True)
+            target = escape_text(item.target, pipes=True)
+            return f"{{{{仮リンク|{label}|{item.lang}|{target}}}}}"
+        if isinstance(item, LanguageName):
+            if self._plain:
+                return escape_text(item.lang, pipes=self._nested)
+            return f"{{{{ISO639言語名|{item.lang}}}}}"
         if isinstance(item, FixMark):
             if self._plain:
                 return f"[{item.kind}]"
@@ -420,6 +450,64 @@ def _external_links_section(settings: Settings) -> str:
         return ""
     links = (f"* {external_link(link.url, link.title)}" for link in settings.external_links)
     return "\n".join(["== 外部リンク ==", *links])
+
+
+def _coord_line(settings: Settings, plain: bool) -> str:
+    """冒頭の座標。設定欄に ``[coord]`` が無ければ空文字列。
+
+    本家の形では ``{{Coord|35.68|139.76|type:city|display=title}}``。素の記法では
+    度分秒の一行にする。
+    """
+    coord = settings.coord
+    if coord is None:
+        return ""
+    if plain:
+        return f"座標: {coordinates.text(coord)}"
+    args = [coordinates.decimal(coord.lat), coordinates.decimal(coord.lon)]
+    if coord.type:
+        args.append(f"type:{coord.type}")
+    args.append(f"display={coord.display}")
+    return "{{Coord|" + "|".join(args) + "}}"
+
+
+def _navbox_sections(settings: Settings, plain: bool) -> str:
+    """末尾の Navbox。書いた順に並べる。一つも無ければ空文字列。"""
+    return "\n\n".join(_navbox(navbox, plain) for navbox in settings.navboxes)
+
+
+def _navbox(navbox: Navbox, plain: bool) -> str:
+    """Navbox 一つ。本家の形では ``{{Navbox|name=…|title=…|list1=…}}``。"""
+    if plain:
+        lines = [f"'''{navbox.title}'''"]
+        lines += [f"* {item}" for item in navbox.items]
+        return "\n".join(lines)
+    args: list[str] = []
+    if navbox.name:
+        args.append(f"name={escape_text(navbox.name, pipes=True)}")
+    args.append(f"title={escape_text(navbox.title, pipes=True)}")
+    if navbox.state:
+        args.append(f"state={escape_text(navbox.state, pipes=True)}")
+    args += [
+        f"list{index}={escape_text(item, pipes=True)}"
+        for index, item in enumerate(navbox.items, start=1)
+    ]
+    return "{{Navbox|" + "|".join(args) + "}}"
+
+
+def _stub_line(settings: Settings, plain: bool) -> str:
+    """末尾の記事スタブ。設定欄に ``stub`` が無ければ空文字列。"""
+    if not settings.stub:
+        return ""
+    if plain:
+        return "''この記事は書きかけです。''"
+    return f"{{{{{settings.stub}}}}}"
+
+
+def _section_stub(plain: bool) -> str:
+    """節スタブ ``[!節スタブ]``。本家の形では ``{{節スタブ}}``。"""
+    if plain:
+        return "''この節は書きかけです。''"
+    return "{{節スタブ}}"
 
 
 def _category_block(settings: Settings) -> str:

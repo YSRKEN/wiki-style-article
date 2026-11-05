@@ -17,23 +17,32 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import quote
 
+from wikiskill import languages
 from wikiskill.html_escape import escape, wiki_href
+from wikiskill.images import ImageError, data_uri
 from wikiskill.model import (
     FIX_RANGE_LABELS,
     Article,
     Block,
     Bold,
+    BulletList,
+    Figure,
     FixMark,
     FixRange,
     Inline,
+    InterlanguageLink,
     InternalLink,
+    LanguageName,
     NoteMark,
     Original,
     Paragraph,
     RefMark,
     RumorRange,
     Section,
+    SectionStub,
     Text,
 )
 
@@ -123,7 +132,7 @@ def number_footnotes(article: Article) -> Numbering:
         for block in blocks:
             if isinstance(block, Paragraph):
                 visit(block.content, None)
-            else:
+            elif isinstance(block, BulletList):
                 for item in block.items:
                     visit(item, None)
 
@@ -167,6 +176,29 @@ def internal_link(link: InternalLink) -> str:
     return f'<a href="{href}" title="{title}">{escape(link.display)}</a>'
 
 
+def interlanguage_link(link: InterlanguageLink) -> str:
+    """仮リンクを、赤字の内部リンクと本家の記事への外部リンクにする。"""
+    href, title = wiki_href(link.label), escape(link.label)
+    page = quote(link.target.strip().replace(" ", "_"), safe="_/():")
+    url = escape(f"https://{link.lang}.wikipedia.org/wiki/{page}")
+    return (
+        f'<a href="{href}" title="{title}" class="new">{escape(link.label)}</a>'
+        '<span class="interlanguage-note">（'
+        f'<a href="{url}" class="external" lang="{escape(link.lang)}">'
+        f"{escape(languages.name(link.lang))}</a>）</span>"
+    )
+
+
+def language_name(lang: str) -> str:
+    """言語タグを、日本語の言語名にする。"""
+    return escape(languages.name(lang))
+
+
+def section_stub_html() -> str:
+    """節スタブの告知。``[!節スタブ]`` を置いた位置に出す。"""
+    return '<div class="section-stub">この節は書きかけです。</div>'
+
+
 def fix_mark(label: str) -> str:
     """点の印、または範囲の印の後ろに付ける上付きの文字。"""
     return f'<sup class="fix-mark">[{escape(label)}]</sup>'
@@ -201,6 +233,10 @@ class InlineWriter:
             return f"<b>{self.inline(item.children)}</b>"
         if isinstance(item, InternalLink):
             return internal_link(item)
+        if isinstance(item, InterlanguageLink):
+            return interlanguage_link(item)
+        if isinstance(item, LanguageName):
+            return language_name(item.lang)
         if isinstance(item, FixMark):
             return fix_mark(item.kind)
         if isinstance(item, FixRange):
@@ -251,12 +287,55 @@ def letters(count: int) -> list[str]:
     return out
 
 
-def blocks_html(writer: InlineWriter, blocks: Sequence[Block]) -> list[str]:
-    """段落と箇条書きを、まとまりごとの HTML にする。"""
+def figure_html(figure: Figure, base_dir: Path | None) -> str:
+    """画像を、本文に埋め込む figure の HTML にする。画像の中身は data: の URI として入れる。"""
+    try:
+        uri = data_uri(figure.source, base_dir)
+    except ImageError as error:
+        raise HtmlError(f"{figure.line} 行目の画像を埋め込めない: {error}") from error
+    caption = escape(figure.caption)
+    return (
+        '<figure class="thumb">'
+        f'<img src="{uri}" alt="{caption}">'
+        f"<figcaption>{caption}</figcaption></figure>"
+    )
+
+
+def blocks_html(
+    writer: InlineWriter,
+    blocks: Sequence[Block],
+    *,
+    base_dir: Path | None = None,
+) -> list[str]:
+    """段落・箇条書き・画像を、まとまりごとの HTML にする。
+
+    Parameters
+    ----------
+    writer : InlineWriter
+        文中の部品を書く人。
+    blocks : Sequence[Block]
+        まとまりの並び。
+    base_dir : Path | None
+        原稿の置き場。画像の道を解くのに使う。
+
+    Returns
+    -------
+    list[str]
+        まとまりごとの HTML。
+
+    Raises
+    ------
+    HtmlError
+        画像を埋め込めないとき。
+    """
     out: list[str] = []
     for block in blocks:
         if isinstance(block, Paragraph):
             out.append(f"<p>{writer.inline(block.content)}</p>")
+        elif isinstance(block, Figure):
+            out.append(figure_html(block, base_dir))
+        elif isinstance(block, SectionStub):
+            out.append(section_stub_html())
         else:
             items = "\n".join(f"<li>{writer.inline(item)}</li>" for item in block.items)
             out.append(f"<ul>\n{items}\n</ul>")

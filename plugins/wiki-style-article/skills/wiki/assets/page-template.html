@@ -55,6 +55,14 @@ ul,ol{margin:0;padding:0}
 .infobox th{text-align:left;white-space:nowrap;padding:1px .7em 1px 2px;font-weight:bold}
 .infobox td{padding:1px}
 
+/* 画像 */
+.art figure.thumb{
+  float:right;clear:right;max-width:min(320px,100%);margin:.5em 0 .8em 1.4em;padding:3px;
+  border:1px solid #c8ccd1;background:#f8f9fa;font-size:94%;line-height:1.5;box-sizing:border-box;
+}
+.thumb img{display:block;max-width:100%;height:auto;margin:0 auto}
+.thumb figcaption{padding:.2em .3em 0;color:#202122}
+
 /* 冒頭の警告の枠と、文中の印（本家の枠の色と寸法の値に合わせて書き起こした） */
 .ambox{margin:0 0 .5em;padding:.25em .5em;border:1px solid #a2a9b1;border-left:10px solid #f28500;background:#fbfbfb;font-size:90%;line-height:1.5}
 @media (min-width:720px){.ambox{margin-left:10%;margin-right:10%}}
@@ -150,7 +158,18 @@ ul,ol{margin:0;padding:0}
   .firstHeading{flex:1 1 70%}
   .toolbar .tabs.r li:not(:last-child){display:none}
   .art table.infobox{float:none;width:100%;margin:.5em 0;display:table}
+  .art figure.thumb{float:none;max-width:100%;margin:.5em 0}
 }
+.art a.new{color:#d33}
+.art a.new:visited{color:#a33}
+.art .interlanguage-note{font-size:.875em;color:#54595d}
+.art .coordinates{font-size:.875em;color:#54595d;margin:0 0 .6em}
+.art .coordinates a{color:#36c}
+.art .section-stub,.art .stub{border-left:10px solid #fc3;background:#fef6e7;padding:.4em .8em;margin:.6em 0;font-size:.875em}
+.art table.navbox{width:100%;margin:1em 0;border:1px solid #a2a9b1;background:#f8f9fa;border-collapse:collapse;font-size:.875em}
+.art table.navbox caption{font-weight:bold;padding:.35em;background:#ccf;border-bottom:1px solid #a2a9b1}
+.art table.navbox td{padding:.4em .6em}
+.art table.navbox ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.2em 1.2em}
 {{VARIANT_STYLE}}
 </style>
 </head>

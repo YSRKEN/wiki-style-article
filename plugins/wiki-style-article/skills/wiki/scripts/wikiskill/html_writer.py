@@ -18,6 +18,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from wikiskill import coordinates
 from wikiskill.html_cite import cite_html
 from wikiskill.html_escape import WIKI_BASE, escape, external_href
 from wikiskill.html_infobox import build_infobox_html
@@ -45,7 +46,7 @@ from wikiskill.html_switch import (
     switch_html,
     variant_attrs,
 )
-from wikiskill.model import Article, InternalLink, NoticeKind, Section
+from wikiskill.model import Article, Coordinate, InternalLink, NoticeKind, Section, Settings
 from wikiskill.notices import article_notices
 from wikiskill.types import ArticleType
 from wikiskill.variants import has_rumor, normal_view, rumor_view
@@ -55,6 +56,7 @@ __all__ = [
     "HtmlError",
     "NestedFootnoteError",
     "UnknownFootnoteError",
+    "coord_html",
     "load_template",
     "notice_box_html",
     "write_html",
@@ -318,6 +320,38 @@ def _fill(template: str, values: Mapping[str, str]) -> str:
     return "\n".join(lines)
 
 
+def coord_html(coord: Coordinate, page: str | None = None) -> str:
+    """記事の座標を、地図への外部リンク付きの一行にする（``座標: 北緯…``）。
+
+    ``page`` は記事名で、本家と同じく GeoHack の ``pagename`` に渡す。
+    """
+    text = escape(coordinates.text(coord))
+    label = "座標: "
+    url = external_href(coordinates.geohack_url(coord, page))
+    if url is None:
+        return f'<div class="coordinates">{label}{text}</div>'
+    return f'<div class="coordinates">{label}<a href="{url}" class="external">{text}</a></div>'
+
+
+def navboxes_html(settings: Settings) -> str:
+    """ナビゲーションボックスの表を、設定欄の順に。"""
+    out: list[str] = []
+    for navbox in settings.navboxes:
+        items = "".join(f"<li>{escape(item)}</li>" for item in navbox.items)
+        out.append(
+            f'<table class="navbox"><caption>{escape(navbox.title)}</caption>'
+            f"<tbody><tr><td><ul>{items}</ul></td></tr></tbody></table>"
+        )
+    return "\n".join(out)
+
+
+def stub_html(settings: Settings) -> str:
+    """記事の書きかけの告知（設定欄の ``stub``）。"""
+    if settings.stub is None:
+        return ""
+    return '<div class="stub">この記事は書きかけです。</div>'
+
+
 # --- ページの各部分 ---------------------------------------------------------------
 
 
@@ -359,10 +393,17 @@ class _Page:
         sections = self.sections()
         footnotes = self.footnotes()
         related = self.related()
-        external_links = self.external_links()
+        tail = [
+            self.external_links(),
+            navboxes_html(article.settings),
+            stub_html(article.settings),
+        ]
+        external_links = "\n".join(part for part in tail if part)
         values = {
             "NOTICES": notice_box_html(article_notices(article), mark_date),
-            "INFOBOX": build_infobox_html(article.settings, article_type),
+            "INFOBOX": build_infobox_html(
+                article.settings, article_type, base_dir=article.base_dir
+            ),
             "LEAD": lead,
             "SECTIONS": sections,
             "FOOTNOTES": footnotes,
@@ -413,8 +454,12 @@ class _Page:
     # -- 本文
 
     def lead(self) -> str:
-        """導入部（見出しなし）。"""
-        return "\n".join(blocks_html(self._writer, self._article.lead))
+        """導入部（見出しなし）。座標があれば、その一行を先頭に置く。"""
+        coord = self._article.settings.coord
+        title = self._article.settings.title
+        out: list[str] = [] if coord is None else [coord_html(coord, title)]
+        out += blocks_html(self._writer, self._article.lead, base_dir=self._article.base_dir)
+        return "\n".join(out)
 
     def sections(self) -> str:
         """原稿の節を、見出しと本文の順に。"""
@@ -425,7 +470,7 @@ class _Page:
 
     def _section(self, section: Section) -> list[str]:
         out = [self._heading(section.level, section.title)]
-        out += blocks_html(self._writer, section.blocks)
+        out += blocks_html(self._writer, section.blocks, base_dir=self._article.base_dir)
         for child in section.children:
             out += self._section(child)
         return out

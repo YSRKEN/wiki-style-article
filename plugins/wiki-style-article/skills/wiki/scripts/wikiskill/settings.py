@@ -12,6 +12,11 @@
   （真偽値）は弱い出典であることを表す
 - ``[notes.キー]``: 注釈。``text`` が必須で、本文と同じ文中の記法を使える
 - ``[[external_links]]``: 外部リンク。``title`` と ``url`` が必須
+- ``[coord]``: 座標。``lat``・``lon`` が必須（十進の度）。任意の ``type``（``city`` など）と
+  ``display``（``title``・``inline``・``dms``・``inline,title``。省くと ``title``）
+- ``[[navbox]]``: 記事末の表。``title`` が必須。任意の ``name``・``state`` と、並べる項目の
+  ``items``（文字列の配列）
+- ``stub``: 記事スタブの告知に使う本家のテンプレート名（``スタブ`` など）
 
 書いていない項目や、印が指すキーが設定欄にあるかは、ここでは見ない（後の検査の仕事）。
 """
@@ -28,8 +33,10 @@ from wikiskill.model import (
     NOTICE_KINDS,
     NOTICE_RULES,
     REF_KINDS,
+    Coordinate,
     ExternalLink,
     InfoboxField,
+    Navbox,
     Note,
     NoticeKind,
     NoticeRule,
@@ -40,6 +47,9 @@ from wikiskill.model import (
 _Table = dict[str, object]
 
 _TYPE_PATTERN = re.compile(r"[a-z]+(?:-[a-z]+)*")
+_TEMPLATE_KEY = "_template"
+_IMAGE_FIELDS_KEY = "_image_fields"
+_FORBIDDEN_TEMPLATE_CHARS = frozenset("{}|[]\n")
 _TOP_KEYS = (
     "title",
     "reading",
@@ -53,6 +63,9 @@ _TOP_KEYS = (
     "external_links",
     "notices",
     "notice_rule",
+    "coord",
+    "navbox",
+    "stub",
 )
 _REF_OPTIONAL_KEYS = (
     "url",
@@ -65,6 +78,8 @@ _REF_OPTIONAL_KEYS = (
     "pages",
     "note",
 )
+
+_COORD_DISPLAYS = ("title", "inline", "dms", "inline,title")
 
 _NOTICES_BY_NAME: dict[str, NoticeKind] = {kind: kind for kind in NOTICE_KINDS}
 
@@ -178,12 +193,17 @@ class _SettingsReader:
             defaultsort=self._str(data, "defaultsort", None),
             categories=self._str_list(data, "categories"),
             infobox=self._infobox(data),
+            infobox_template=self._infobox_template(data),
+            infobox_images=self._infobox_images(data),
             references=self._references(data),
             notes=self._notes(data),
             related=self._str_list(data, "related"),
             external_links=self._external_links(data),
             notices=self._notices(data),
             notice_rule=self._notice_rule(data),
+            coord=self._coord(data),
+            navboxes=self._navboxes(data),
+            stub=self._stub(data),
         )
 
     # --- 読み込みと、エラーの作り方 -------------------------------------------
@@ -304,6 +324,8 @@ class _SettingsReader:
     def _infobox(self, data: _Table) -> tuple[InfoboxField, ...]:
         fields: list[InfoboxField] = []
         for name, value in self._table(data, "infobox").items():
+            if name in (_TEMPLATE_KEY, _IMAGE_FIELDS_KEY):
+                continue
             if not isinstance(value, str):
                 raise self._error(
                     f"[infobox] の {name} は文字列で書く（数値も引用符で囲む）",
@@ -312,6 +334,59 @@ class _SettingsReader:
                 )
             fields.append(InfoboxField(name, value, self._locator.find("infobox", name)))
         return tuple(fields)
+
+    def _infobox_template(self, data: _Table) -> str | None:
+        """``[infobox]`` の ``_template``（本家のテンプレートの名前）を読む。"""
+        table = self._table(data, "infobox")
+        if _TEMPLATE_KEY not in table:
+            return None
+        value = table[_TEMPLATE_KEY]
+        if not isinstance(value, str) or not value.strip():
+            raise self._error(
+                '[infobox] の _template はテンプレートの名前を文字列で書く（例: "Infobox 人物"）',
+                "infobox",
+                _TEMPLATE_KEY,
+            )
+        name = value.strip()
+        if _FORBIDDEN_TEMPLATE_CHARS & set(name):
+            raise self._error(
+                "[infobox] の _template に使えない文字がある（{ } | [ ] と改行は書けない）",
+                "infobox",
+                _TEMPLATE_KEY,
+            )
+        return name
+
+    def _infobox_images(self, data: _Table) -> tuple[str, ...]:
+        """``[infobox]`` の ``_image_fields``（本家がファイル名だけを受け取る引数）を読む。"""
+        table = self._table(data, "infobox")
+        if _IMAGE_FIELDS_KEY not in table:
+            return ()
+        if _TEMPLATE_KEY not in table:
+            raise self._error(
+                "[infobox] の _image_fields は _template と一緒に書く（型の定義は image_fields）",
+                "infobox",
+                _IMAGE_FIELDS_KEY,
+            )
+        value = table[_IMAGE_FIELDS_KEY]
+        if not isinstance(value, list) or not all(
+            isinstance(name, str) for name in cast("list[object]", value)
+        ):
+            raise self._error(
+                '[infobox] の _image_fields は引数名を並べて書く（例: ["画像", "地図"]）',
+                "infobox",
+                _IMAGE_FIELDS_KEY,
+            )
+        names: list[str] = []
+        for raw in cast("list[str]", value):
+            name = raw.strip()
+            if not name or _FORBIDDEN_TEMPLATE_CHARS & set(name):
+                raise self._error(
+                    "[infobox] の _image_fields に使えない引数名がある（空か { } | [ ] 改行）",
+                    "infobox",
+                    _IMAGE_FIELDS_KEY,
+                )
+            names.append(name)
+        return tuple(names)
 
     def _references(self, data: _Table) -> tuple[Reference, ...]:
         refs = self._table(data, "refs")
@@ -423,3 +498,84 @@ class _SettingsReader:
                 )
             )
         return tuple(result)
+
+    def _coord(self, data: _Table) -> Coordinate | None:
+        if "coord" not in data:
+            return None
+        table = self._table(data, "coord")
+        self._reject_unknown(table, ("lat", "lon", "type", "display"), "coord")
+        lat = self._number(table, "lat", "coord", -90.0, 90.0)
+        lon = self._number(table, "lon", "coord", -180.0, 180.0)
+        display = self._str(table, "display", "coord") or "title"
+        if display not in _COORD_DISPLAYS:
+            choices = "・".join(_COORD_DISPLAYS)
+            raise self._error(
+                f"[coord] の display は {choices} のどれか（{display!r} は使えない）",
+                "coord",
+                "display",
+            )
+        return Coordinate(
+            lat=lat,
+            lon=lon,
+            type=self._str(table, "type", "coord"),
+            display=display,
+            line=self._locator.find("coord", None),
+        )
+
+    def _number(self, table: _Table, key: str, section: str, low: float, high: float) -> float:
+        label = self._label(section, key)
+        if key not in table:
+            raise self._error(f"{label} がない", section, None)
+        value = table[key]
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            raise self._error(f"{label} は数値で書く（-12.5 のような十進の数）", section, key)
+        number = float(value)
+        if not low <= number <= high:
+            raise self._error(f"{label} は {low:g} から {high:g} の間で書く", section, key)
+        return number
+
+    def _navboxes(self, data: _Table) -> tuple[Navbox, ...]:
+        if "navbox" not in data:
+            return ()
+        value = data["navbox"]
+        if not isinstance(value, list):
+            raise self._error("navbox は [[navbox]] の形で書く", None, "navbox")
+        result: list[Navbox] = []
+        for index, item in enumerate(cast("list[object]", value)):
+            if not isinstance(item, dict):
+                raise self._error("navbox は [[navbox]] の形で書く", "navbox", None, index)
+            table = cast("_Table", item)
+            self._reject_unknown(table, ("title", "name", "state", "items"), "navbox", index)
+            result.append(
+                Navbox(
+                    title=self._str(table, "title", "navbox", required=True, index=index) or "",
+                    name=self._str(table, "name", "navbox", index=index),
+                    state=self._str(table, "state", "navbox", index=index),
+                    items=self._strings(table, "items", "navbox", index),
+                    line=self._locator.find("navbox", None, index),
+                )
+            )
+        return tuple(result)
+
+    def _strings(self, table: _Table, key: str, section: str, index: int) -> tuple[str, ...]:
+        if key not in table:
+            return ()
+        value = table[key]
+        if not isinstance(value, list) or not all(
+            isinstance(item, str) for item in cast("list[object]", value)
+        ):
+            raise self._error(f"[{section}] の {key} は文字列の配列で書く", section, key, index)
+        return tuple(cast("list[str]", value))
+
+    def _stub(self, data: _Table) -> str | None:
+        name = self._str(data, "stub", None)
+        if name is None:
+            return None
+        template = name.strip()
+        if not template:
+            raise self._error("stub が空", None, "stub")
+        if _FORBIDDEN_TEMPLATE_CHARS & set(template):
+            raise self._error(
+                "stub に使えない文字がある（{ } | [ ] と改行は書けない）", None, "stub"
+            )
+        return template

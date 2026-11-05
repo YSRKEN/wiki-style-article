@@ -1,5 +1,6 @@
 """Infobox を類型の定義と突き合わせる規則の試験。"""
 
+from pathlib import Path
 from textwrap import dedent
 
 import pytest
@@ -46,6 +47,17 @@ REGISTRY = parse_registry(
         id = "note"
         name = "覚え書き"
         no_infobox = true
+
+        [[type]]
+        id = "vote"
+        name = "投票"
+        [[type.infobox]]
+        template = "Infobox 投票"
+        [type.infobox.fields]
+        "地図" = "map_image"
+        "備考" = "note"
+        [type.infobox.image_fields]
+        "地図" = "name"
         """
     )
 )
@@ -61,6 +73,17 @@ def article(type_id: str, infobox: str = "") -> Article:
 
 def run(type_id: str, infobox: str = "", registry: TypeRegistry = REGISTRY) -> tuple[Finding, ...]:
     return check_article(article(type_id, infobox), registry)
+
+
+def article_at(tmp_path: Path, type_id: str, infobox: str) -> Article:
+    """原稿をファイルに書いて読む。画像の実物を探す基準のフォルダが入る。"""
+    table = f"[infobox]\n{infobox.strip(chr(10))}\n" if infobox else ""
+    path = tmp_path / "原稿.md"
+    path.write_text(
+        f'+++\ntitle = "試験"\ntype = "{type_id}"\n{table}+++\n\n試験の本文。\n',
+        encoding="utf-8",
+    )
+    return read_article_file(path)
 
 
 # --- TYPE-UNKNOWN ------------------------------------------------------------
@@ -157,6 +180,124 @@ def test_Infoboxを持たない型にInfoboxを書くと警告() -> None:
 
 def test_Infoboxを持たない型でInfoboxが無ければ何も出ない() -> None:
     assert run("note") == ()
+
+
+# --- 画像の項目（INFOBOX-IMAGE・IMAGE-CAPTION・IMAGE-*）----------------------
+
+
+def test_画像の項目が画像の形でなければエラー() -> None:
+    findings = only(run("vote", '"地図" = "地図はこちら"'), "INFOBOX-IMAGE")
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert findings[0].line == 5
+    assert "地図" in findings[0].message
+    assert "![キャプション](道)" in findings[0].message
+
+
+def test_画像の項目が形通りなら基準のフォルダが無ければ画像そのものは見ない() -> None:
+    assert run("vote", '"地図" = "![選挙区](images/map.png)"') == ()
+
+
+def test_画像のキャプションが空なら警告() -> None:
+    findings = only(run("vote", '"地図" = "![](images/map.png)"'), "IMAGE-CAPTION")
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 5
+    assert "地図" in findings[0].message
+
+
+def test_画像の道が絶対ならエラー() -> None:
+    findings = only(run("vote", '"地図" = "![選挙区](/tmp/map.png)"'), "IMAGE-PATH")
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert "相対" in findings[0].message
+
+
+def test_画像の種類が違えばエラー() -> None:
+    findings = only(run("vote", '"地図" = "![選挙区](images/map.txt)"'), "IMAGE-TYPE")
+    assert len(findings) == 1
+    assert "種類ではない" in findings[0].message
+
+
+def test_画像の実物が無ければエラー(tmp_path: Path) -> None:
+    source = '"地図" = "![選挙区](images/map.png)"'
+    findings = only(check_article(article_at(tmp_path, "vote", source), REGISTRY), "IMAGE-MISSING")
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert "画像が無い: images/map.png" in findings[0].message
+
+
+def test_画像でない項目に画像の記法を書くと宣言漏れの警告() -> None:
+    findings = only(run("vote", '"備考" = "![図](images/map.png)"'), "INFOBOX-IMAGE-UNDECLARED")
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 5
+    assert "備考" in findings[0].message
+    assert "image_fields" in findings[0].message
+
+
+def test_画像でない項目に画像の記法があっても画像の検査はしない() -> None:
+    assert only(run("vote", '"備考" = "![図](/tmp/map.png)"'), "IMAGE-PATH") == []
+
+
+def test_画像の項目には宣言漏れの警告を出さない() -> None:
+    assert (
+        only(run("vote", '"地図" = "![選挙区](images/map.png)"'), "INFOBOX-IMAGE-UNDECLARED") == []
+    )
+
+
+def test_定義にない項目名は宣言漏れの警告と重ねない() -> None:
+    findings = run(
+        "person", '"生年月日" = "1900年"\n"職業" = "作家"\n"似顔絵" = "![顔](images/x.png)"'
+    )
+    assert [f.rule for f in findings] == ["INFOBOX-UNKNOWN-FIELD"]
+
+
+# --- 任意のテンプレート（_template） ----------------------------------------------
+
+
+def test_任意のテンプレートでも同梱の定義に無い項目名は警告() -> None:
+    # 似顔絵は本家 Infobox 人物 の引数にもラベルにも無いので、ウィキテキストに書き出せない。
+    findings = only(
+        run("person", '_template = "Infobox 人物"\n"似顔絵" = "![顔](images/x.png)"'),
+        "INFOBOX-UNKNOWN-FIELD",
+    )
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 6
+    assert "似顔絵" in findings[0].message
+
+
+def test_任意のテンプレートでも画像の項目の道を検査する() -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![顔](/tmp/x.png)"'
+    findings = only(run("person", source), "IMAGE-PATH")
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert findings[0].line == 6
+    assert "相対" in findings[0].message
+
+
+def test_任意のテンプレートでも画像のキャプションが空なら警告() -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![](images/x.png)"'
+    findings = only(run("person", source), "IMAGE-CAPTION")
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 6
+    assert "似顔絵" in findings[0].message
+
+
+def test_任意のテンプレートでも画像の実物が無ければエラー(tmp_path: Path) -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![顔](images/x.png)"'
+    findings = only(
+        check_article(article_at(tmp_path, "person", source), REGISTRY), "IMAGE-MISSING"
+    )
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert "画像が無い: images/x.png" in findings[0].message
 
 
 # --- check_article の入口 ----------------------------------------------------

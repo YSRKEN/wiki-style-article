@@ -1,6 +1,6 @@
 {
   "name": "wiki-style-article",
-  "version": "0.6.0",
+  "version": "0.16.0",
   "description": "題材を幅広く調べ、日本語版 Wikipedia の記事の型と作法で書いた記事を、HTML とウィキテキストで作る /wiki スキル。非公式の道具で、ウィキメディア財団とは関係がない。",
   "author": {
     "name": "YSRKEN",

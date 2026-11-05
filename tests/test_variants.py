@@ -2,6 +2,7 @@ from helpers import make_article
 from wikiskill.checks import check_article
 from wikiskill.model import (
     Article,
+    Block,
     Bold,
     BulletList,
     FixMark,
@@ -40,11 +41,11 @@ def _all_inline(article: Article) -> list[object]:
             if isinstance(part, Bold | FixRange | RumorRange):
                 visit(part.children)
 
-    def blocks(items: tuple[Paragraph | BulletList, ...]) -> None:
+    def blocks(items: tuple[Block, ...]) -> None:
         for block in items:
             if isinstance(block, Paragraph):
                 visit(block.content)
-            else:
+            elif isinstance(block, BulletList):
                 for item in block.items:
                     visit(item)
 
