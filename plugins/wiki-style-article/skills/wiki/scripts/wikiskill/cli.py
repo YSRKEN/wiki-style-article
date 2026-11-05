@@ -10,6 +10,7 @@
     python -m wikiskill wikipedia 記事名
     python -m wikiskill figure map データ.toml --out 図.svg [--shape 形]
     python -m wikiskill figure seats データ.toml --out 図.svg
+    python -m wikiskill figure bars データ.toml --out 図.svg（line・pie・pyramid も同じ）
     python -m wikiskill templatedata [--fetch] [--from-types] [--template 名前] [--out パス]
 
 ``build`` は原稿の隣（``--out-dir`` で変えられる）に ``<原稿の名前>.html`` と
@@ -21,7 +22,7 @@
 ``fetch`` は Web のページを取り、題と本文の文字を出す（調べものの担当が使う。
 :mod:`wikiskill.fetch`）。``pdf`` は PDF を置き場の下に保存し、``Read`` で読めるようにする。
 ``wikipedia`` は本家の記事の節の並びと出典の一覧を出す
-（:mod:`wikiskill.wikipedia_refs`）。``figure`` は地図や議席図の SVG を作る
+（:mod:`wikiskill.wikipedia_refs`）。``figure`` は地図・議席図・グラフの SVG を作る
 （:mod:`wikiskill.figures`）。``templatedata`` は、原稿の ``_template`` に効かせる
 TemplateData（本家テンプレートの引数定義）の同梱の中身を出し、``--fetch`` で取り直す
 （:mod:`wikiskill.templatedata`）。``build`` は、印と冒頭の警告の枠に今の現地時刻の年月
@@ -54,7 +55,7 @@ from wikiskill import wikipedia_refs
 from wikiskill.checks import Finding, Level, check_article_variants
 from wikiskill.errors import SourceError
 from wikiskill.fetch import FetchError, Pacer, download_pdf, fetch_page
-from wikiskill.figures import render_figure
+from wikiskill.figures import KINDS, render_figure
 from wikiskill.figures.errors import FigureError
 from wikiskill.html_check import check_html
 from wikiskill.html_inline import HtmlError
@@ -242,8 +243,10 @@ def _parser() -> argparse.ArgumentParser:
     wiki = commands.add_parser("wikipedia", help="本家の記事の節の並びと出典の一覧を出す")
     wiki.add_argument("title", help="本家の記事名（例 カップヌードル）")
 
-    figure = commands.add_parser("figure", help="地図や議席図の SVG を作る")
-    figure.add_argument("kind", choices=("map", "seats"), help="図の種類（map か seats）")
+    figure = commands.add_parser("figure", help="地図・議席図・グラフの SVG を作る")
+    figure.add_argument(
+        "kind", choices=KINDS, help="図の種類（map・seats・bars・line・pie・pyramid）"
+    )
     figure.add_argument("data", help="図のデータ（TOML）")
     figure.add_argument("--out", required=True, help="書き出す SVG の道")
     figure.add_argument("--shape", help="地図の形（同梱の名前か SVG の道）")
