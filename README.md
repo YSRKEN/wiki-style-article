@@ -33,7 +33,7 @@ claude plugin install wiki-style-article@wiki-style-article
 
 ### Codex
 
-`plugins/wiki-style-article/skills/` の下の `wiki/`・`wiki-with-rumor/`・`wiki-both/` の 3 つのフォルダを、使うリポジトリの `.agents/skills/` にコピーします（`wiki-with-rumor` と `wiki-both` は隣の `wiki` のファイルを使うので、並べて置きます）。自分の全体で使うなら `~/.agents/skills/` に置きます（Codex の文書による）。呼ぶときは `$wiki`・`$wiki-with-rumor`・`$wiki-both`、または `/skills` です。
+`plugins/wiki-style-article/skills/` の下の `wiki/`・`wiki-with-rumor/`・`wiki-both/`・`uncyclopedia/` の 4 つのフォルダを、使うリポジトリの `.agents/skills/` にコピーします（`wiki-with-rumor`・`wiki-both`・`uncyclopedia` は隣の `wiki` のファイルを使うので、並べて置きます）。自分の全体で使うなら `~/.agents/skills/` に置きます（Codex の文書による）。呼ぶときは `$wiki`・`$wiki-with-rumor`・`$wiki-both`・`$uncyclopedia`、または `/skills` です。
 
 Codex には調べものの担当の定義を同梱していないので、設定の `[agents]` で既定のモデルを決めていなければ、担当は呼んだ会話と同じモデルで動きます。Codex の Web の検索は既定で索引から返す方式（`web_search = "cached"`）です。最新のページを取りたいときは、設定の `web_search` を `"live"` にします。
 
@@ -77,6 +77,20 @@ Codex には調べものの担当の定義を同梱していないので、設�
 
 - HTML は 1 枚です。開いたときは通常の記事で、記事名の下のボタンで噂込みの記事に切り替わります
 - ウィキテキストは `しぐれうい.wikitext`（通常）と `しぐれうい.噂込み.wikitext`（噂込み）の 2 本です
+
+### 冗談の記事を書く
+
+```text
+/wiki-style-article:uncyclopedia 三時のおやつ
+```
+
+百科事典の記事の形（導入部・Infobox・節・脚注・カテゴリ）を借りて、事実ではなく冗談として書きます。調べものはせず、書いた内容は事実として扱いません。
+
+- 冒頭に「この記事はフィクションです」の帯が出ます。消さない前提です
+- 見た目は本家ともアンサイクロペディアとも別で、紙色と朱色の独自の組みです。名前は実在のサイト名を借りた呼び名なので、本物の運営とは関係ない旨をページの末尾に書きます
+- ウィキテキストは作りません（本家へ投稿するためのものではないため）
+- 存命の個人・現存の団体について、犯罪・不正・醜聞を事実として書くことはしません
+- `[[記事名]]` は、本家へのリンクではなく赤リンク（まだ無い記事）として描かれます
 
 ## 注意
 
