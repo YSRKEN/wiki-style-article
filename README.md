@@ -109,6 +109,8 @@ Codex には調べものの担当の定義を同梱していないので、設�
 
 - コード（スクリプト・SKILL.md・雛形・担当の定義・試験・docs）: [MIT License](LICENSE)
 - `plugins/wiki-style-article/skills/wiki/references/` の文書: [CC BY-SA 4.0](plugins/wiki-style-article/skills/wiki/references/LICENSE.md)。日本語版ウィキペディアの方針・ガイドラインのページを読み、自分の言葉で要約して書いたものです
+- `plugins/wiki-style-article/skills/wiki/assets/templatedata.toml`: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.ja)。日本語版ウィキペディアの各テンプレートの TemplateData（テンプレートのページか、その `/doc` の下位ページに書かれている）から取ったもので、説明文と表示名は、日本語版ウィキペディアの文としてサイトの許諾（CC BY-SA 4.0）に従って扱います（出典はファイルの冒頭）
+- `plugins/wiki-style-article/skills/wiki/assets/images/flags/` の国旗: パブリックドメイン。Wikimedia Commons のファイルをそのまま置いています（出典と作者は同じフォルダの `../manifest.toml`）
 
 ## 開発
 

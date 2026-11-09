@@ -92,13 +92,19 @@ Infobox                            （値のある項目が一つもなければ
 | `[^n:キー]`（注釈の印） | `<sup id="cite_ref-note-N-K" class="reference"><a href="#cite_note-note-N">[注 N]</a></sup>` |
 | `[!要出典]`・`[!信頼性要検証]`（点の印） | `<sup class="fix-mark">[要出典]</sup>`・`<sup class="fix-mark">[信頼性要検証]</sup>` |
 | `[!要出典範囲\|範囲の文]`（範囲の印） | `<span class="fix-range">範囲の文</span><sup class="fix-mark">[要出典]</sup>`。独自研究範囲の印の文字は本家と同じ `[独自研究?]` |
+| `[!仮リンク\|言語タグ\|本家の記事名]`（表示つきも可） | `<a href="https://ja.wikipedia.org/wiki/表示" title="表示" class="new">表示</a><span class="interlanguage-note">（<a href="https://en.wikipedia.org/wiki/本家の記事名" class="external" lang="en">英語</a>）</span>`。赤字の内部リンクと、日本語の言語名の外部リンク |
+| `[!言語\|言語タグ]` | 言語名の文字（`en` → `英語`）。知らないタグはタグのまま |
+| `[!節スタブ]`（行に単独で置く） | `<div class="section-stub">この節は書きかけです。</div>` |
 | `-` の箇条書き | `<ul><li>…</li></ul>` |
-| `![キャプション](画像の道)` | 右寄せの `<figure class="thumb"><img src="data:…"><figcaption>…</figcaption></figure>`。画像そのものを data: の URI として埋め込む（下の「一枚で開ける」） |
+| `![キャプション](画像の道)` | 右寄せの `<figure class="thumb"><img src="data:…"><figcaption>…</figcaption></figure>`。画像そのものを data: の URI として埋め込む（下の「一枚で開ける」）。道を `bundle:flags/jp.svg` にしても同じで、同梱の実ファイルが data: の URI になる |
 | `[infobox]` | 右寄せの表 `<table class="infobox">`（次節） |
 | `related` | 「関連項目」の `<ul>`。各項目は本家の記事へのリンク |
 | `external_links` | 「外部リンク」の `<ul>`。`http://`・`https://` 以外のアドレスはリンクにせず題だけ書く |
 | `categories` | カテゴリ欄。各項目は `https://ja.wikipedia.org/wiki/Category:名前` へのリンク |
 | `defaultsort` | 書き出さない（並べ替えは HTML では使わない） |
+| `[coord]`（設定欄） | 導入部の先頭に `<div class="coordinates">座標: <a href="https://geohack.toolforge.org/geohack.php?…" class="external">北緯35度40分52秒 東経139度46分02秒</a></div>`。リンクは GeoHack |
+| `[[navbox]]`（設定欄） | 外部リンクの欄の後ろに `<table class="navbox"><caption>題</caption>…` を書いた順に |
+| `stub`（設定欄） | カテゴリ欄の前に `<div class="stub">この記事は書きかけです。</div>` |
 
 `<` `>` `&` `"` と `{` `}` は、本文・見出し・属性・出典・最終更新の日時のすべてで文字参照に直す（`{` `}` を直すのは、本文の `{{…}}` が雛形の差し込み口と取り違えられないようにするため）。
 
@@ -131,6 +137,15 @@ Infobox                            （値のある項目が一つもなければ
 - 見た目は雛形の CSS で持つ。本家の枠の値に合わせて、枠線 `1px solid #a2a9b1`、左の縁 `10px solid #f28500`、背景 `#fbfbfb`、文は 90%、内側の余白 `.25em .5em`、幅 720px 以上で左右の外側の余白 10%。範囲の印の範囲は点線の下線（`border-bottom:1px dashed`）
 - 印の `<sup>` はリンクにしない。文字が `[要出典]` のように数字でないので、`HTML-FOOTNOTE-PLAIN` には引っかからない
 
+### 座標・ナビゲーションの箱・スタブ
+
+- 座標は導入部の先頭（見出しの無い最初の文より前・Infobox より後）に置く。文字は本家と同じ `座標: 北緯35度40分52秒 東経139度46分02秒`（秒は整数二桁に丸める）。南緯・西経は `南緯`・`西経` と書き、度分秒は絶対値で出す
+- 座標のリンクは GeoHack への外部リンク（`https://geohack.toolforge.org/geohack.php?language=ja&params=緯度_N_経度_E_type:種類&pagename=記事名`）。南緯は `S`、西経は `W` で、記事名はパーセントエンコードする。`type` を書かなければ `params` は緯度・経度だけ
+- ナビゲーションの箱は「外部リンク」の箇条の後ろ、カテゴリ欄の前に、原稿に書いた順で並べる。表は `<table class="navbox"><caption>題</caption><tbody><tr><td><ul><li>項目</li>…</ul></td></tr></tbody></table>`。見出しの行き先（`name`）と、畳むかどうか（`state`）は HTML では使わない
+- スタブはカテゴリ欄の前に `<div class="stub">この記事は書きかけです。</div>` を一つだけ置く。原稿の `stub` の値（本家のテンプレート名）は HTML では使わず、ウィキテキストにだけ出す
+- 仮リンクは、赤字の内部リンク（`class="new"`。本家の赤リンクと同じ見た目）と、その後ろの `（英語）` の外部リンクにする。言語名は本家と同じく日本語（`en` → `英語`）で、知らないタグはそのまま出す
+- 節スタブは、`[!節スタブ]` を書いた位置に `<div class="section-stub">この節は書きかけです。</div>` を出す。段落の中には書けない（行に単独で置く）
+- 見た目は雛形の CSS で持つ（`.coordinates`・`.navbox`・`.stub`・`.section-stub`・`.new`・`.interlanguage-note`）。色や線は本家の値を写さず、こちらの配色に合わせた
 ### 出典の書式
 
 ウィキテキストの素の記法（[wikitext.md](wikitext.md) の「出典の地の文」）と同じ。形は「著者「[題名のリンク]」媒体、発行者、日付、ページ、ISBN、閲覧日。備考」。

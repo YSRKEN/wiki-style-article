@@ -18,7 +18,9 @@ from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 
+from wikiskill import languages
 from wikiskill.html_escape import escape, wiki_href
 from wikiskill.images import ImageError, data_uri
 from wikiskill.model import (
@@ -31,13 +33,16 @@ from wikiskill.model import (
     FixMark,
     FixRange,
     Inline,
+    InterlanguageLink,
     InternalLink,
+    LanguageName,
     NoteMark,
     Original,
     Paragraph,
     RefMark,
     RumorRange,
     Section,
+    SectionStub,
     Text,
 )
 
@@ -171,6 +176,29 @@ def internal_link(link: InternalLink) -> str:
     return f'<a href="{href}" title="{title}">{escape(link.display)}</a>'
 
 
+def interlanguage_link(link: InterlanguageLink) -> str:
+    """仮リンクを、赤字の内部リンクと本家の記事への外部リンクにする。"""
+    href, title = wiki_href(link.label), escape(link.label)
+    page = quote(link.target.strip().replace(" ", "_"), safe="_/():")
+    url = escape(f"https://{link.lang}.wikipedia.org/wiki/{page}")
+    return (
+        f'<a href="{href}" title="{title}" class="new">{escape(link.label)}</a>'
+        '<span class="interlanguage-note">（'
+        f'<a href="{url}" class="external" lang="{escape(link.lang)}">'
+        f"{escape(languages.name(link.lang))}</a>）</span>"
+    )
+
+
+def language_name(lang: str) -> str:
+    """言語タグを、日本語の言語名にする。"""
+    return escape(languages.name(lang))
+
+
+def section_stub_html() -> str:
+    """節スタブの告知。``[!節スタブ]`` を置いた位置に出す。"""
+    return '<div class="section-stub">この節は書きかけです。</div>'
+
+
 def fix_mark(label: str) -> str:
     """点の印、または範囲の印の後ろに付ける上付きの文字。"""
     return f'<sup class="fix-mark">[{escape(label)}]</sup>'
@@ -205,6 +233,10 @@ class InlineWriter:
             return f"<b>{self.inline(item.children)}</b>"
         if isinstance(item, InternalLink):
             return internal_link(item)
+        if isinstance(item, InterlanguageLink):
+            return interlanguage_link(item)
+        if isinstance(item, LanguageName):
+            return language_name(item.lang)
         if isinstance(item, FixMark):
             return fix_mark(item.kind)
         if isinstance(item, FixRange):
@@ -302,6 +334,8 @@ def blocks_html(
             out.append(f"<p>{writer.inline(block.content)}</p>")
         elif isinstance(block, Figure):
             out.append(figure_html(block, base_dir))
+        elif isinstance(block, SectionStub):
+            out.append(section_stub_html())
         else:
             items = "\n".join(f"<li>{writer.inline(item)}</li>" for item in block.items)
             out.append(f"<ul>\n{items}\n</ul>")

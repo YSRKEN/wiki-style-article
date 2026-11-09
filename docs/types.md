@@ -160,6 +160,69 @@ registry.kinds_of("organization")  # 組織に寄せている細かい種類
 
 別のファイルは `read_registry_file(path)`、文字列は `parse_registry(text)` で読む。結果はすべて変更できないデータ（`TypeRegistry`・`ArticleType`・`InfoboxPart`・`InfoboxField`）。
 
+## 任意のテンプレートと TemplateData
+
+型の定義に無いテンプレートは、原稿の `[infobox]` に `_template = "Infobox 人物"` と書いて呼べる（[原稿の書き方](source-format.md)）。このとき項目名は本家の引数名としてそのまま書き出され、型の定義による必須の検査も受けない。そこで、本家の TemplateData（テンプレートの引数定義）を同梱し、この呼び方に効かせている。データは `plugins/wiki-style-article/skills/wiki/assets/templatedata.toml`、読み込みは `plugins/wiki-style-article/skills/wiki/scripts/wikiskill/templatedata.py`。
+
+```toml
+[infobox]
+_template = "Infobox 人物"
+"氏名" = "甲野 乙女"
+"画像" = "![顔](images/顔.png)"
+```
+
+### 効くこと
+
+| 何を | どうする |
+| --- | --- |
+| 引数名とラベルの両受け | 原稿の項目名は、引数名・別名（`aliases`）・ラベル（`label`）のどれでもよい。ウィキテキストには必ず引数名で書き出す。上の `氏名` の別名は `名前`・`name` なので、`"name" = …` と書いても `| 氏名 = …` になる |
+| 未知の項目名 | 引数名・別名・ラベルのどれにも当たらない項目名は `INFOBOX-UNKNOWN-FIELD`（警告） |
+| 必須の引数 | TemplateData が `required = true` とする引数が原稿に無ければ `INFOBOX-MISSING`（エラー）。型の定義の必須と同じ ID・同じ重み |
+| 画像の項目 | `type = "wiki-file-name"` の引数は、本家が `[[File:]]` で包んで受け取る。`_image_fields` を書いていないときは、その引数を自動で `"name"` の書式（素のファイル名）として扱う |
+
+- 同じ項目名が複数の引数に当たるとき（引数名の完全一致が無く、別名とラベルが別の引数を指すとき）は、どちらか決めずに原稿の項目名のまま書き出す。引数名の完全一致が一つあれば、それを優先する
+- `_image_fields` を書いたときは、自動の判定よりそちらが優先する。自動の判定は、原稿の項目名を引数名に直した後で行うので、引数名でもラベルでも効く
+- HTML の見出しは、引数に決まったらそのラベル（無ければ引数名）、決まらなければ原稿の項目名にする
+
+### 同梱の範囲
+
+- 2026-11-05 に MediaWiki API（`action=templatedata`）から取った 86 件。内訳は、`types.toml` が参照するテンプレートのうち TemplateData があるもの 31 件と、`Category:基礎情報テンプレート` の直下と直下のサブカテゴリにあるもの 61 件（重なり 6 件）
+- 本家に TemplateData が無いテンプレート（`基礎情報 国`・`生物分類表`・`Infobox お笑いコンビ` など、`types.toml` の参照先で 20 件）は載せていない。載せられないものは検査しない（従来どおり素通し）
+- 同梱に無いテンプレートも検査しない。引数が 0 件の TemplateData（`Infobox Officeholder`）は「引数なし」として扱い、未知の項目名とは言わない
+- 引数ごとに持つのは、引数名・別名・ラベル・必須か・画像か・説明。引数の説明文は落としてある（解決に使わないため）
+- 86 件と少ないのは、「TemplateData を持つものだけ載せる」方針のため。本家の Infobox は数千あるが、TemplateData を持つのはその一部
+
+### 使い方
+
+```python
+from wikiskill.templatedata import load_default_templatedata
+
+registry = load_default_templatedata()  # 同梱の templatedata.toml（無ければ空の登録簿）
+data = registry.find("Infobox 人物")  # 無ければ None（呼び出し側は素通しにする）
+param = data.resolve("名前")  # 引数（TemplateParam）。決められなければ None
+param.name  # "氏名"（ウィキテキストに出す引数名）
+param.heading  # 表示に使う名前（ラベル、無ければ引数名）
+```
+
+`registry.find` は `Template:`・`テンプレート:` の接頭辞と `_` を落として名前をそろえる。TOML は `parse_templatedata(text)`、ファイルは `read_templatedata_file(path)` でも読める。結果は変更できないデータ（`TemplateDataRegistry`・`TemplateData`・`TemplateParam`）。
+
+### 取り直し
+
+```bash
+sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh templatedata
+sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh templatedata --from-types
+sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh templatedata --fetch
+sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh templatedata --fetch --template "Infobox 城"
+```
+
+- 引数なし: 同梱の件数とテンプレート名の一覧。`--template` を付けると、その名前だけを出す（同梱に無ければ標準エラーに出す）
+- `--from-types`: `types.toml` が参照するテンプレートのうち、同梱にあるものと、TemplateData が無くて載せられないもの
+- `--fetch`: 本家から取り直して同梱の TOML を書き換える。対象は同梱の名前と `types.toml` の参照先（`--from-types` を付けると `types.toml` の参照先だけ）。`--template` で足せる。`--out` で別の道に書ける
+- `--fetch` はネットワークに出る。`build` と `check` は同梱だけで動くので、ふだんは取り直さない
+- 取り直しは 1 回 40 件ずつ、間を 1〜3 秒あけて叩く。429 は待って取り直す。全件だと数分かかる
+- TOML は `[[template]]` の並びで、`name`・`description`・`params` を持つ。`params` の各要素は `name`・`label`・`required`・`image`・`aliases`・`description`。並びはテンプレートが名前順、引数が API の宣言順なので、同じ中身なら同じファイルになる
+- 読めない TOML とテンプレート名の重複は `TemplateDataError` の仲間の例外（`TemplateDataSchemaError`・`DuplicateTemplateError`）で止まる
+
 ## 根拠と方針
 
 - テンプレート名と引数名は、2026-11-02 に ja.wikipedia.org の `Template:` の本文（MediaWiki API）を取り、定義の引数がすべて本文の引数として現れることを機械で照合した。そのため確かめられなかった引数はない（`unverified` は将来の追加用の印で、いま使っている型はない）。確かめたのは、引数の名前が存在することで、その値の書式の細部までではない。2026-11-03 に足した `election`・`mountain`・`island`・`lake`・`peninsula`・`road`・`railway-station` は、日本語の引数を最小限だけ渡して MediaWiki API の `action=parse` で描画し、項目が出ることを確かめた。描画を確かめていない引数は定義に入れていない。

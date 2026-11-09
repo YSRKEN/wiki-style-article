@@ -43,7 +43,7 @@ from wikiskill.errors import SourceError  # noqa: E402
 from wikiskill.html_check import check_html  # noqa: E402
 from wikiskill.html_inline import number_footnotes  # noqa: E402
 from wikiskill.html_writer import write_html  # noqa: E402
-from wikiskill.model import Article, Block, Figure, Paragraph, Text  # noqa: E402
+from wikiskill.model import Article, Block, BulletList, Paragraph, Text  # noqa: E402
 from wikiskill.reader import read_article_file  # noqa: E402
 from wikiskill.types import ArticleType, InfoboxField, InfoboxPart  # noqa: E402
 
@@ -255,11 +255,10 @@ def render(article: Article, *, updated: str, template: str) -> str:
 def _plain(blocks: tuple[Block, ...]) -> str:
     out: list[str] = []
     for block in blocks:
-        if isinstance(block, Figure):
-            continue
         if isinstance(block, Paragraph):
             out.append("".join(item.text for item in block.content if isinstance(item, Text)))
-        else:
+        elif isinstance(block, BulletList):
+            # 画像や節スタブのような、文を持たないブロックは読み飛ばす。
             for item in block.items:
                 out.append("".join(part.text for part in item if isinstance(part, Text)))
     return " ".join(out)

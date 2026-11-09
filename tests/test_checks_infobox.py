@@ -256,11 +256,17 @@ def test_定義にない項目名は宣言漏れの警告と重ねない() -> No
 # --- 任意のテンプレート（_template） ----------------------------------------------
 
 
-def test_任意のテンプレートでは定義との突き合わせをしない() -> None:
-    # 似顔絵は定義に無い項目名だが、任意のテンプレートの項目名は本家の引数名なので警告しない。
-    findings = run("person", '_template = "Infobox 人物"\n"似顔絵" = "![顔](images/x.png)"')
+def test_任意のテンプレートでも同梱の定義に無い項目名は警告() -> None:
+    # 似顔絵は本家 Infobox 人物 の引数にもラベルにも無いので、ウィキテキストに書き出せない。
+    findings = only(
+        run("person", '_template = "Infobox 人物"\n"似顔絵" = "![顔](images/x.png)"'),
+        "INFOBOX-UNKNOWN-FIELD",
+    )
 
-    assert findings == ()
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 6
+    assert "似顔絵" in findings[0].message
 
 
 def test_任意のテンプレートでも画像の項目の道を検査する() -> None:

@@ -116,27 +116,73 @@ class Original:
 
 
 @dataclass(frozen=True)
-class Bold:
-    """太字 ``'''…'''``。中に内部リンク・脚注の印・点の印を入れられる。"""
+class InterlanguageLink:
+    """仮リンク ``[!仮リンク|言語タグ|本家の記事名|表示]``。
 
-    children: tuple[Text | RefMark | NoteMark | InternalLink | FixMark, ...]
+    ``target`` は本家（``lang`` の言語版）の記事名、``label`` はこの記事での表示。
+    HTML では赤字の内部リンクと、本家の記事への外部リンクを並べて出す。
+    """
+
+    lang: str
+    target: str
+    label: str
+
+
+@dataclass(frozen=True)
+class LanguageName:
+    """言語名 ``[!言語|言語タグ]``。
+
+    HTML では日本語の言語名に、ウィキテキストでは ``{{ISO639言語名|言語タグ}}`` になる。
+    """
+
+    lang: str
+
+
+@dataclass(frozen=True)
+class Bold:
+    """太字 ``'''…'''``。中に内部リンク・仮リンク・言語名・脚注の印・点の印を入れられる。"""
+
+    children: tuple[
+        Text | RefMark | NoteMark | InternalLink | InterlanguageLink | LanguageName | FixMark, ...
+    ]
 
 
 @dataclass(frozen=True)
 class RumorRange:
     """噂の範囲 ``[!噂|範囲の文]``。通常の記事では取り除き、噂込みの記事では中身にほどく。
 
-    範囲の文には、文字・内部リンク・太字・出典の印・注釈の印・点の印・範囲の印を入れられる
-    ・原文（噂の範囲の入れ子は入れない）。二つの版への分け方は :mod:`wikiskill.variants`。
+    範囲の文には、文字・内部リンク・仮リンク・言語名・太字・出典の印・注釈の印・点の印・
+    範囲の印を入れられる・原文（噂の範囲の入れ子は入れない）。二つの版への分け方は
+    :mod:`wikiskill.variants`。
     """
 
     children: tuple[
-        Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold | Original, ...
+        Text
+        | RefMark
+        | NoteMark
+        | InternalLink
+        | InterlanguageLink
+        | LanguageName
+        | FixMark
+        | FixRange
+        | Bold
+        | Original,
+        ...,
     ]
 
 
 Inline: TypeAlias = (
-    Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold | RumorRange | Original
+    Text
+    | RefMark
+    | NoteMark
+    | InternalLink
+    | InterlanguageLink
+    | LanguageName
+    | FixMark
+    | FixRange
+    | Bold
+    | RumorRange
+    | Original
 )
 """文中の部品のいずれか。"""
 
@@ -177,7 +223,14 @@ class Figure:
     line: int = field(default=0, compare=False)
 
 
-Block: TypeAlias = Paragraph | BulletList | Figure
+@dataclass(frozen=True)
+class SectionStub:
+    """節スタブ ``[!節スタブ]``。行に単独で置く（段落の中には書けない）。"""
+
+    line: int = field(default=0, compare=False)
+
+
+Block: TypeAlias = Paragraph | BulletList | Figure | SectionStub
 """節や導入部の直下に置けるまとまり。"""
 
 
@@ -256,6 +309,36 @@ class ExternalLink:
 
 
 @dataclass(frozen=True)
+class Coordinate:
+    """座標 ``[coord]``。
+
+    ``lat``・``lon`` は十進の度、``type`` は本家の ``{{Coord}}`` の type（``city`` など）、
+    ``display`` は表示の仕方（``title`` なら記事名の横に出す）。
+    """
+
+    lat: float
+    lon: float
+    type: str | None = None
+    display: str = "title"
+    line: int = field(default=0, compare=False)
+
+
+@dataclass(frozen=True)
+class Navbox:
+    """Navbox ``[[navbox]]``。
+
+    ``name`` は本家でのテンプレート名、``state`` は畳み方（``collapsed`` など）、
+    ``items`` は並べる項目（順に list1, list2, … に入る）。
+    """
+
+    title: str
+    name: str | None = None
+    state: str | None = None
+    items: tuple[str, ...] = ()
+    line: int = field(default=0, compare=False)
+
+
+@dataclass(frozen=True)
 class Settings:
     """冒頭の TOML の設定欄の中身。
 
@@ -266,6 +349,8 @@ class Settings:
     ときの名前。項目名はそのまま本家の引数名として扱う）。
     ``infobox_images`` は ``[infobox]`` の ``_image_fields``（そのうち、本家がファイル名だけを
     受け取る引数の名前）。``_template`` を使うときにだけ意味を持つ。
+    ``coord`` は ``[coord]`` の座標、``navboxes`` は ``[[navbox]]`` の並び、
+    ``stub`` は ``[stub]`` で貼る記事スタブの本家のテンプレート名。
     """
 
     title: str
@@ -282,6 +367,9 @@ class Settings:
     notice_rule: NoticeRule = "多いときだけ"
     infobox_template: str | None = None
     infobox_images: tuple[str, ...] = ()
+    coord: Coordinate | None = None
+    navboxes: tuple[Navbox, ...] = ()
+    stub: str | None = None
 
 
 # --- 記事 ------------------------------------------------------------------
