@@ -7,12 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
 
-from wikiskill.figures.assets import ASSETS_DIR
 from wikiskill.figures.data import boolean, read_toml, reject_unknown, string
 from wikiskill.figures.errors import FigureError
 from wikiskill.figures.svg import escape, hex_color, legend, number
 
-DEFAULT_SHAPE: Final = "us-states"
 DEFAULT_FILL: Final = "#d9d9d9"
 DEFAULT_BACKGROUND: Final = "#ffffff"
 DEFAULT_LEGEND: Final = True
@@ -80,7 +78,7 @@ def render_map(data_path: Path, *, shape: str | None = None) -> str:
     data_path : Path
         地図のデータ（TOML）の道。
     shape : str | None
-        同梱の形の名前か、SVG の道。省くとデータの shape。
+        塗る元の SVG の道。省くとデータの shape。相対の道はデータのフォルダから解決する。
 
     Returns
     -------
@@ -138,7 +136,7 @@ def _load_data(path: Path) -> MapData:
         raw, frozenset({"title", "shape", "background", "legend", "colors", "regions"}), where
     )
     title = string(raw, "title", "", where)
-    shape = string(raw, "shape", DEFAULT_SHAPE, where)
+    shape = string(raw, "shape", "", where)
     background_raw = string(raw, "background", DEFAULT_BACKGROUND, where)
     background = (
         None
@@ -194,16 +192,14 @@ def _read_regions(raw: dict[str, object], where: str) -> dict[str, str]:
 
 def _resolve_shape(name: str, base_dir: Path) -> Path:
     if not name.strip():
-        raise FigureError("地図の形の名前が空")
-    for candidate in (ASSETS_DIR / name, ASSETS_DIR / f"{name}.svg"):
-        if candidate.is_file():
-            return candidate
+        raise FigureError(
+            "地図の形（shape）が無い。塗る元の SVG の道を、データの shape か --shape で渡す"
+        )
     path = Path(name)
     if not path.is_absolute():
         path = base_dir / path
     if not path.is_file():
-        bundled = ", ".join(sorted(item.stem for item in ASSETS_DIR.glob("*.svg")))
-        raise FigureError(f"地図の形が見つからない: {name}（同梱の形: {bundled or 'なし'}）")
+        raise FigureError(f"地図の形が見つからない: {name}")
     return path
 
 

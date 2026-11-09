@@ -225,7 +225,7 @@ def _parser() -> argparse.ArgumentParser:
     figure.add_argument("kind", choices=("map", "seats"), help="図の種類（map か seats）")
     figure.add_argument("data", help="図のデータ（TOML）")
     figure.add_argument("--out", required=True, help="書き出す SVG の道")
-    figure.add_argument("--shape", help="地図の形（同梱の名前か SVG の道）")
+    figure.add_argument("--shape", help="地図の形（塗る元の SVG の道）")
     return parser
 
 
