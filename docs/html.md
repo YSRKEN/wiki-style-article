@@ -93,6 +93,7 @@ Infobox                            （値のある項目が一つもなければ
 | `[!要出典]`・`[!信頼性要検証]`（点の印） | `<sup class="fix-mark">[要出典]</sup>`・`<sup class="fix-mark">[信頼性要検証]</sup>` |
 | `[!要出典範囲\|範囲の文]`（範囲の印） | `<span class="fix-range">範囲の文</span><sup class="fix-mark">[要出典]</sup>`。独自研究範囲の印の文字は本家と同じ `[独自研究?]` |
 | `-` の箇条書き | `<ul><li>…</li></ul>` |
+| `![キャプション](画像の道)` | 右寄せの `<figure class="thumb"><img src="data:…"><figcaption>…</figcaption></figure>`。画像そのものを data: の URI として埋め込む（下の「一枚で開ける」） |
 | `[infobox]` | 右寄せの表 `<table class="infobox">`（次節） |
 | `related` | 「関連項目」の `<ul>`。各項目は本家の記事へのリンク |
 | `external_links` | 「外部リンク」の `<ul>`。`http://`・`https://` 以外のアドレスはリンクにせず題だけ書く |

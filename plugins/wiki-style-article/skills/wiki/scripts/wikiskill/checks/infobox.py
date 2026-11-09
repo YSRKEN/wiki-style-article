@@ -3,6 +3,9 @@
 - 原稿の ``type`` が定義にない型 → エラー（``TYPE-UNKNOWN``）
 - 定義の必須の項目が Infobox にない → エラー（``INFOBOX-MISSING``）
 - 定義にない項目名が Infobox にある → 警告（``INFOBOX-UNKNOWN-FIELD``）
+- 画像の項目の値が ``![キャプション](道)`` の形でない → エラー（``INFOBOX-IMAGE``）
+- 画像の項目の画像にキャプションがない → 警告（``IMAGE-CAPTION``）
+- 画像の項目の画像が読めない（無い・種類違い・大きすぎる） → エラー（``IMAGE-*``）
 
 最初の二つは定義との突き合わせなので誤検出が無い。三つ目は、定義の項目が本家のテンプレートの
 引数を全部は収録していない（番号つきの引数などを省いている）ため、正しい項目でも引っかかりうる。
@@ -14,11 +17,44 @@ from __future__ import annotations
 from collections.abc import Iterator
 
 from wikiskill.checks.finding import Finding, Level
-from wikiskill.model import Article
-from wikiskill.types import TypeRegistry
+from wikiskill.images import find_issue, split_value
+from wikiskill.model import Article, InfoboxField
+from wikiskill.types import ImageFormat, TypeRegistry
 
 _NO_LINE = 1
 """読み取り結果が行を持たない指摘（``type`` や ``[infobox]`` の見出し）に使う、冒頭の行。"""
+
+
+def _check_image(
+    article: Article, item: InfoboxField, image_format: ImageFormat
+) -> Iterator[Finding]:
+    """画像の項目の値を検査する。
+
+    形が違えば ``INFOBOX-IMAGE`` だけを返し、画像そのものは調べない。
+    形が合っていればキャプションの有無（``IMAGE-CAPTION``）と、画像が読めるか（``IMAGE-*``）を見る。
+    """
+    parts = split_value(item.value)
+    if parts is None:
+        yield Finding(
+            Level.ERROR,
+            "INFOBOX-IMAGE",
+            f"Infobox の「{item.name}」は画像の項目（書式 {image_format}）なので、"
+            "![キャプション](道) の形で書く（道は原稿からの相対）",
+            item.line,
+        )
+        return
+    caption, source = parts
+    if not caption:
+        yield Finding(
+            Level.WARNING,
+            "IMAGE-CAPTION",
+            f"Infobox の「{item.name}」の画像にキャプションがない"
+            "（![キャプション](道) のキャプションを書く）",
+            item.line,
+        )
+    issue = find_issue(source, article.base_dir)
+    if issue is not None:
+        yield Finding(Level.ERROR, issue[0], f"Infobox の「{item.name}」の{issue[1]}", item.line)
 
 
 def check_infobox(article: Article, registry: TypeRegistry) -> Iterator[Finding]:
@@ -68,7 +104,10 @@ def check_infobox(article: Article, registry: TypeRegistry) -> Iterator[Finding]
                 )
 
     for item in written:
-        if article_type.has_infobox and article_type.find_field(item.name) is not None:
+        defined = article_type.find_field(item.name) if article_type.has_infobox else None
+        if defined is not None:
+            if defined.image is not None:
+                yield from _check_image(article, item, defined.image)
             continue
         reason = (
             "定義にない"

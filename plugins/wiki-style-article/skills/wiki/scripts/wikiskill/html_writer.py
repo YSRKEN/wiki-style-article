@@ -362,7 +362,9 @@ class _Page:
         external_links = self.external_links()
         values = {
             "NOTICES": notice_box_html(article_notices(article), mark_date),
-            "INFOBOX": build_infobox_html(article.settings, article_type),
+            "INFOBOX": build_infobox_html(
+                article.settings, article_type, base_dir=article.base_dir
+            ),
             "LEAD": lead,
             "SECTIONS": sections,
             "FOOTNOTES": footnotes,
@@ -414,7 +416,9 @@ class _Page:
 
     def lead(self) -> str:
         """導入部（見出しなし）。"""
-        return "\n".join(blocks_html(self._writer, self._article.lead))
+        return "\n".join(
+            blocks_html(self._writer, self._article.lead, base_dir=self._article.base_dir)
+        )
 
     def sections(self) -> str:
         """原稿の節を、見出しと本文の順に。"""
@@ -425,7 +429,7 @@ class _Page:
 
     def _section(self, section: Section) -> list[str]:
         out = [self._heading(section.level, section.title)]
-        out += blocks_html(self._writer, section.blocks)
+        out += blocks_html(self._writer, section.blocks, base_dir=self._article.base_dir)
         for child in section.children:
             out += self._section(child)
         return out

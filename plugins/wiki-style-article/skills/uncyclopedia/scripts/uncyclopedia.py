@@ -43,7 +43,7 @@ from wikiskill.errors import SourceError  # noqa: E402
 from wikiskill.html_check import check_html  # noqa: E402
 from wikiskill.html_inline import number_footnotes  # noqa: E402
 from wikiskill.html_writer import write_html  # noqa: E402
-from wikiskill.model import Article, Block, Paragraph, Text  # noqa: E402
+from wikiskill.model import Article, Block, Figure, Paragraph, Text  # noqa: E402
 from wikiskill.reader import read_article_file  # noqa: E402
 from wikiskill.types import ArticleType, InfoboxField, InfoboxPart  # noqa: E402
 
@@ -255,6 +255,8 @@ def render(article: Article, *, updated: str, template: str) -> str:
 def _plain(blocks: tuple[Block, ...]) -> str:
     out: list[str] = []
     for block in blocks:
+        if isinstance(block, Figure):
+            continue
         if isinstance(block, Paragraph):
             out.append("".join(item.text for item in block.content if isinstance(item, Text)))
         else:
