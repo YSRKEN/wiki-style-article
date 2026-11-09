@@ -3,6 +3,9 @@
 - 行の並びは類型の定義の順。項目名は日本語のまま表の見出しセルに出す
 - 定義にない項目は、定義の項目の後ろに原稿に書いた順で並べる（捨てない）
 - Infobox を持たない類型では出さない。値のある項目が一つもなければ出さない
+- ``[infobox]`` に ``_template`` があれば、本家のテンプレートをそのまま使う書き方として、
+  定義に関係なく書かれた項目をすべて並べる（見出しは項目名のまま）。値が
+  ``![キャプション](道)`` なら画像として埋め込む
 - 定義の ``title_field`` の項目は行にせず、表の見出し（caption）にする。原稿に書かれていなければ
   記事名が見出しになる（ウィキテキストの書き出しが記事名で埋めるのと同じ）
 - 値の空白だけの項目は「書かれていない」ものとして扱う
@@ -49,6 +52,8 @@ def build_infobox_html(
     str
         ``<table class="infobox">``。出さないときは空文字列。
     """
+    if settings.infobox_template:
+        return _generic(settings, base_dir)
     if not article_type.has_infobox:
         return ""
     written = {f.name: f for f in settings.infobox if f.value.strip()}
@@ -69,6 +74,22 @@ def build_infobox_html(
     return f'<table class="infobox">\n<caption>{caption}</caption>{body}\n</table>'
 
 
+def _generic(settings: Settings, base_dir: Path | None) -> str:
+    """本家のテンプレートをそのまま使うときの表。項目名をそのまま見出しにする。"""
+    written = [f for f in settings.infobox if f.value.strip()]
+    if not written:
+        return ""
+    rows = "\n".join(_generic_row(item, base_dir) for item in written)
+    return f'<table class="infobox">\n<caption>{escape(settings.title)}</caption>\n{rows}\n</table>'
+
+
+def _generic_row(item: InfoboxField, base_dir: Path | None) -> str:
+    cell = _image_value(item, base_dir)
+    if cell is None:
+        cell = _value(item.value)
+    return f'<tr><th scope="row">{escape(item.name)}</th><td>{cell}</td></tr>'
+
+
 def _row(item: InfoboxField, article_type: ArticleType, base_dir: Path | None) -> str:
     cell = _image(item, article_type, base_dir)
     if cell is None:
@@ -81,6 +102,11 @@ def _image(item: InfoboxField, article_type: ArticleType, base_dir: Path | None)
     field = article_type.find_field(item.name)
     if field is None or field.image is None:
         return None
+    return _image_value(item, base_dir)
+
+
+def _image_value(item: InfoboxField, base_dir: Path | None) -> str | None:
+    """値が ``![キャプション](道)`` なら画像の HTML を返す。違う形のときは None。"""
     parts = split_value(item.value)
     if parts is None:
         return None

@@ -262,6 +262,10 @@ class Settings:
     ``infobox``・``references``・``notes`` は原稿に書いた順を保つ。
     ``notices`` は、印から決まる枠に足して貼る警告の枠（``観点`` など）。書いた順を保つ。
     ``notice_rule`` は、印から決まる枠の出し方（:data:`NOTICE_RULES`）。
+    ``infobox_template`` は ``[infobox]`` の ``_template``（本家のテンプレートをそのまま使う
+    ときの名前。項目名はそのまま本家の引数名として扱う）。
+    ``infobox_images`` は ``[infobox]`` の ``_image_fields``（そのうち、本家がファイル名だけを
+    受け取る引数の名前）。``_template`` を使うときにだけ意味を持つ。
     """
 
     title: str
@@ -276,6 +280,8 @@ class Settings:
     external_links: tuple[ExternalLink, ...] = ()
     notices: tuple[NoticeKind, ...] = ()
     notice_rule: NoticeRule = "多いときだけ"
+    infobox_template: str | None = None
+    infobox_images: tuple[str, ...] = ()
 
 
 # --- 記事 ------------------------------------------------------------------

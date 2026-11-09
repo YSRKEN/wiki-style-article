@@ -618,6 +618,56 @@ def test_画像の項目でも形の違う値は手を加えず書く() -> None:
     assert "| img = 天守の写真\n" in out
 
 
+# --- Infobox（本家のテンプレートをそのまま使う） -------------------------------
+
+
+def test__template_があれば項目名をそのまま引数名にして書いた順に並べる() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"職業" = "[[小説家]]"\n"趣味" = "散歩"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert out == "{{Infobox 人物\n| 職業 = [[小説家]]\n| 趣味 = 散歩\n}}\n本文。\n"
+
+
+def test__template_でも値の画像はファイルの記法にする() -> None:
+    front = '[infobox]\n_template = "Infobox 城"\n"img" = "![天守](images/shiro.png)"\n'
+    out = _render(_src("本文。\n", front, type_id="castle"))
+
+    assert out == "{{Infobox 城\n| img = [[ファイル:shiro.png|thumb|天守]]\n}}\n本文。\n"
+
+
+def test__image_fields_に並べた引数はファイル名だけを渡す() -> None:
+    front = (
+        '[infobox]\n_template = "Infobox 人物"\n_image_fields = ["画像"]\n'
+        '"画像" = "![甲野乙女](images/顔.png)"\n'
+    )
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert out == "{{Infobox 人物\n| 画像 = 顔.png\n}}\n本文。\n"
+
+
+def test__template_そのものは引数にしない() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"職業" = "作家"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert out == "{{Infobox 人物\n| 職業 = 作家\n}}\n本文。\n"
+    assert "_template" not in out
+
+
+def test__template_のときは定義にない項目名も引数にする() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"趣味" = "散歩"\n'
+    article = read_article(_src("本文。\n", front, type_id="person-living"))
+
+    assert unknown_infobox_labels(article, REGISTRY["person-living"]) == ()
+    assert "| 趣味 = 散歩\n" in write_wikitext(article, REGISTRY["person-living"])
+
+
+def test__template_があっても素の記法を指定すれば表で書く() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"職業" = "作家"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"), "plain")
+
+    assert out.startswith('{| class="infobox"')
+
+
 # --- Infobox（素の記法） --------------------------------------------------------
 
 

@@ -8,6 +8,8 @@
     python -m wikiskill fetch URL [--max-chars 字数] [--offset 字数] [--archive-year 年]
     python -m wikiskill pdf URL --out-dir 置き場 [--archive-year 年]
     python -m wikiskill wikipedia 記事名
+    python -m wikiskill figure map データ.toml --out 図.svg [--shape 形]
+    python -m wikiskill figure seats データ.toml --out 図.svg
 
 ``build`` は原稿の隣（``--out-dir`` で変えられる）に ``<原稿の名前>.html`` と
 ``<原稿の名前>.wikitext`` を書き出す。噂（``[!噂|…]``・``[!噂]`` の節）のある原稿では、
@@ -18,7 +20,8 @@
 ``fetch`` は Web のページを取り、題と本文の文字を出す（調べものの担当が使う。
 :mod:`wikiskill.fetch`）。``pdf`` は PDF を置き場の下に保存し、``Read`` で読めるようにする。
 ``wikipedia`` は本家の記事の節の並びと出典の一覧を出す
-（:mod:`wikiskill.wikipedia_refs`）。``build`` は、印と冒頭の警告の枠に今の現地時刻の年月
+（:mod:`wikiskill.wikipedia_refs`）。``figure`` は地図や議席図の SVG を作る
+（:mod:`wikiskill.figures`）。``build`` は、印と冒頭の警告の枠に今の現地時刻の年月
 （``2026年11月``）を添える。
 
 出力は 1 行に 1 件で、検査の指摘（``12 行目 [警告] RULE: …``）、件数のまとめ、
@@ -48,6 +51,8 @@ from wikiskill import wikipedia_refs
 from wikiskill.checks import Finding, Level, check_article_variants
 from wikiskill.errors import SourceError
 from wikiskill.fetch import FetchError, Pacer, download_pdf, fetch_page
+from wikiskill.figures import render_figure
+from wikiskill.figures.errors import FigureError
 from wikiskill.html_check import check_html
 from wikiskill.html_inline import HtmlError
 from wikiskill.html_writer import write_html, write_html_both
@@ -90,6 +95,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _fetch(
             args.url, max_chars=args.max_chars, offset=args.offset, archive_year=args.archive_year
         )
+    if args.command == "figure":
+        return _figure(args.kind, Path(args.data), out=Path(args.out), shape=args.shape)
     source = Path(args.source)
     if not source.is_file():
         print(f"原稿が見つからない: {source}", file=sys.stderr)
@@ -213,6 +220,12 @@ def _parser() -> argparse.ArgumentParser:
 
     wiki = commands.add_parser("wikipedia", help="本家の記事の節の並びと出典の一覧を出す")
     wiki.add_argument("title", help="本家の記事名（例 カップヌードル）")
+
+    figure = commands.add_parser("figure", help="地図や議席図の SVG を作る")
+    figure.add_argument("kind", choices=("map", "seats"), help="図の種類（map か seats）")
+    figure.add_argument("data", help="図のデータ（TOML）")
+    figure.add_argument("--out", required=True, help="書き出す SVG の道")
+    figure.add_argument("--shape", help="地図の形（同梱の名前か SVG の道）")
     return parser
 
 
@@ -365,6 +378,23 @@ def _build(
         # Windows でも改行を LF のまま書く（本家のウィキテキストも LF）。
         path.write_text(text, encoding="utf-8", newline="\n")
         print(f"書き出した: {path}")
+    return 0
+
+
+def _figure(kind: str, data: Path, *, out: Path, shape: str | None) -> int:
+    """図のデータを読み、SVG を書き出す。"""
+    try:
+        svg = render_figure(kind, data, shape=shape)
+    except FigureError as error:
+        print(f"[エラー] FIGURE: {error}", file=sys.stderr)
+        return 1
+    out.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        out.write_text(svg, encoding="utf-8", newline="\n")
+    except OSError as error:
+        print(f"[エラー] WRITE: {error}", file=sys.stderr)
+        return 1
+    print(f"書き出した: {out}")
     return 0
 
 

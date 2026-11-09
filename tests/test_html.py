@@ -309,6 +309,59 @@ def test_Infoboxは導入部の前に置く() -> None:
     assert out.index('class="infobox"') < out.index("<p>導入部。</p>")
 
 
+# --- 任意のテンプレート（_template） ----------------------------------------------
+
+
+def test_任意のテンプレートでは項目を書いた順にそのまま行にする() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"趣味" = "読書"\n"職業" = "小説家"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    labels = re.findall(r'<th scope="row">([^<]*)</th>', out)
+    assert labels == ["趣味", "職業"]
+
+
+def test_任意のテンプレートでは定義に無い項目名も行にする() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"趣味" = "読書"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert '<th scope="row">趣味</th><td>読書</td>' in out
+
+
+def test_任意のテンプレートでは記事名を表題にして項目名の行を残す() -> None:
+    # 漫画の title_field は「タイトル」。任意のテンプレートでは見出しにせず、行として残す。
+    front = '[infobox]\n_template = "Infobox animanga/Header"\n"タイトル" = "別の題"\n'
+    out = _render(_src("本文。\n", front, type_id="manga"))
+
+    part = _article_part(out)
+    assert "<caption>テスト記事</caption>" in part
+    assert '<th scope="row">タイトル</th><td>別の題</td>' in part
+
+
+def test_任意のテンプレートの値も内部リンクと逃がしを使える() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"職業" = "[[甲|こう]] & <丙>"\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert (
+        '<td><a href="https://ja.wikipedia.org/wiki/%E7%94%B2" title="甲">こう</a>'
+        " &amp; &lt;丙&gt;</td>"
+    ) in out
+
+
+def test_任意のテンプレートでも値のある項目がなければ出さない() -> None:
+    front = '[infobox]\n_template = "Infobox 人物"\n"職業" = "  "\n'
+    out = _render(_src("本文。\n", front, type_id="person-living"))
+
+    assert 'class="infobox"' not in out
+
+
+def test_任意のテンプレートはInfoboxを持たない型でも出せる() -> None:
+    front = '[infobox]\n_template = "Infobox 何か"\n"種類" = "値"\n'
+    out = _render(_src("本文。\n", front, type_id="concept"))
+
+    assert "<caption>テスト記事</caption>" in out
+    assert '<th scope="row">種類</th><td>値</td>' in out
+
+
 # --- 脚注 -------------------------------------------------------------------------
 
 
