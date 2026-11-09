@@ -414,6 +414,10 @@ def format_templatedata(registry: TemplateDataRegistry, *, fetched: str | None =
         "# 原稿の [infobox] に _template を書いたとき、項目名を本家の引数名に解決し、",
         "# 未知の項目名と必須の引数の欠けを検査するために使う。",
         "# 生成: wikiskill templatedata --fetch（wikiskill.templatedata の fetch_template_data）",
+        "# 出典: 日本語版ウィキペディアのテンプレートの TemplateData（そのページか /doc に",
+        "# 書かれている）。説明文（description）と表示名（label）は日本語版ウィキペディアの文で、",
+        "# サイトの許諾 CC BY-SA 4.0（https://creativecommons.org/licenses/by-sa/4.0/）に従って扱う。",
+        "# このファイルはリポジトリの MIT License の対象外で、CC BY-SA 4.0 で配る。",
     ]
     if fetched is not None:
         lines.append(f"# 取得日: {fetched}")

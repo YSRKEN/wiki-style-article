@@ -12,11 +12,13 @@ from wikiskill.html_infobox import build_infobox_html
 from wikiskill.model import Article
 from wikiskill.reader import read_article
 from wikiskill.templatedata import (
+    DEFAULT_TEMPLATEDATA_PATH,
     DuplicateTemplateError,
     TemplateData,
     TemplateDataRegistry,
     TemplateDataSchemaError,
     TemplateParam,
+    format_templatedata,
     normalize_template_name,
     parse_templatedata,
     read_templatedata_file,
@@ -59,6 +61,34 @@ def _findings(front: str, registry: TemplateDataRegistry | None = REGISTRY) -> t
 
 
 # --- TOML の往復 -------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("fetched", [None, "2026-11-05"])
+def test_冒頭に出典と許諾を指定の順でそのまま書く(fetched: str | None) -> None:
+    lines = format_templatedata(REGISTRY, fetched=fetched).splitlines()
+
+    assert lines[:8] == [
+        "# ja.wikipedia の TemplateData（テンプレートの引数定義）。",
+        "# 原稿の [infobox] に _template を書いたとき、項目名を本家の引数名に解決し、",
+        "# 未知の項目名と必須の引数の欠けを検査するために使う。",
+        "# 生成: wikiskill templatedata --fetch（wikiskill.templatedata の fetch_template_data）",
+        "# 出典: 日本語版ウィキペディアのテンプレートの TemplateData（そのページか /doc に",
+        "# 書かれている）。説明文（description）と表示名（label）は日本語版ウィキペディアの文で、",
+        "# サイトの許諾 CC BY-SA 4.0（https://creativecommons.org/licenses/by-sa/4.0/）に従って扱う。",
+        "# このファイルはリポジトリの MIT License の対象外で、CC BY-SA 4.0 で配る。",
+    ]
+    assert lines[8 : lines.index("[[template]]")] == (
+        [f"# 取得日: {fetched}", ""] if fetched is not None else [""]
+    )
+
+
+def test_同梱の冒頭は取得日を保って生成結果と一致する() -> None:
+    text = DEFAULT_TEMPLATEDATA_PATH.read_text(encoding="utf-8")
+    registry = read_templatedata_file(DEFAULT_TEMPLATEDATA_PATH)
+    generated = format_templatedata(registry, fetched="2026-11-05")
+
+    assert text.split("[[template]]", 1)[0] == generated.split("[[template]]", 1)[0]
+    assert parse_templatedata(text) == parse_templatedata(text[text.index("[[template]]") :])
 
 
 def test_書き出したTOMLを読み直すと同じ定義になる(tmp_path: Path) -> None:
