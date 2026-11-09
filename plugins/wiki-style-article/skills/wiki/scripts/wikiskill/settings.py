@@ -40,6 +40,9 @@ from wikiskill.model import (
 _Table = dict[str, object]
 
 _TYPE_PATTERN = re.compile(r"[a-z]+(?:-[a-z]+)*")
+_TEMPLATE_KEY = "_template"
+_IMAGE_FIELDS_KEY = "_image_fields"
+_FORBIDDEN_TEMPLATE_CHARS = frozenset("{}|[]\n")
 _TOP_KEYS = (
     "title",
     "reading",
@@ -178,6 +181,8 @@ class _SettingsReader:
             defaultsort=self._str(data, "defaultsort", None),
             categories=self._str_list(data, "categories"),
             infobox=self._infobox(data),
+            infobox_template=self._infobox_template(data),
+            infobox_images=self._infobox_images(data),
             references=self._references(data),
             notes=self._notes(data),
             related=self._str_list(data, "related"),
@@ -304,6 +309,8 @@ class _SettingsReader:
     def _infobox(self, data: _Table) -> tuple[InfoboxField, ...]:
         fields: list[InfoboxField] = []
         for name, value in self._table(data, "infobox").items():
+            if name in (_TEMPLATE_KEY, _IMAGE_FIELDS_KEY):
+                continue
             if not isinstance(value, str):
                 raise self._error(
                     f"[infobox] の {name} は文字列で書く（数値も引用符で囲む）",
@@ -312,6 +319,59 @@ class _SettingsReader:
                 )
             fields.append(InfoboxField(name, value, self._locator.find("infobox", name)))
         return tuple(fields)
+
+    def _infobox_template(self, data: _Table) -> str | None:
+        """``[infobox]`` の ``_template``（本家のテンプレートの名前）を読む。"""
+        table = self._table(data, "infobox")
+        if _TEMPLATE_KEY not in table:
+            return None
+        value = table[_TEMPLATE_KEY]
+        if not isinstance(value, str) or not value.strip():
+            raise self._error(
+                '[infobox] の _template はテンプレートの名前を文字列で書く（例: "Infobox 人物"）',
+                "infobox",
+                _TEMPLATE_KEY,
+            )
+        name = value.strip()
+        if _FORBIDDEN_TEMPLATE_CHARS & set(name):
+            raise self._error(
+                "[infobox] の _template に使えない文字がある（{ } | [ ] と改行は書けない）",
+                "infobox",
+                _TEMPLATE_KEY,
+            )
+        return name
+
+    def _infobox_images(self, data: _Table) -> tuple[str, ...]:
+        """``[infobox]`` の ``_image_fields``（本家がファイル名だけを受け取る引数）を読む。"""
+        table = self._table(data, "infobox")
+        if _IMAGE_FIELDS_KEY not in table:
+            return ()
+        if _TEMPLATE_KEY not in table:
+            raise self._error(
+                "[infobox] の _image_fields は _template と一緒に書く（型の定義は image_fields）",
+                "infobox",
+                _IMAGE_FIELDS_KEY,
+            )
+        value = table[_IMAGE_FIELDS_KEY]
+        if not isinstance(value, list) or not all(
+            isinstance(name, str) for name in cast("list[object]", value)
+        ):
+            raise self._error(
+                '[infobox] の _image_fields は引数名を並べて書く（例: ["画像", "地図"]）',
+                "infobox",
+                _IMAGE_FIELDS_KEY,
+            )
+        names: list[str] = []
+        for raw in cast("list[str]", value):
+            name = raw.strip()
+            if not name or _FORBIDDEN_TEMPLATE_CHARS & set(name):
+                raise self._error(
+                    "[infobox] の _image_fields に使えない引数名がある（空か { } | [ ] 改行）",
+                    "infobox",
+                    _IMAGE_FIELDS_KEY,
+                )
+            names.append(name)
+        return tuple(names)
 
     def _references(self, data: _Table) -> tuple[Reference, ...]:
         refs = self._table(data, "refs")

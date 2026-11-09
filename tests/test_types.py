@@ -806,6 +806,25 @@ def test_同梱の選挙の地図は素のファイル名で書く() -> None:
     assert field.image == "name"
 
 
+def test_同梱の山や道路などの型も画像の項目を持つ() -> None:
+    registry = load_default_registry()
+    expected = {
+        "mountain": {"画像": "name"},
+        "island": {"画像": "name"},
+        "lake": {"画像": "name", "地図": "name"},
+        "peninsula": {"画像": "file"},
+        "road": {"地図": "file"},
+        "railway-station": {"画像": "name", "地図": "file"},
+        "law": {"画像": "file"},
+    }
+
+    for type_id, images in expected.items():
+        article_type = registry[type_id]
+        actual = {f.label: f.image for f in article_type.fields if f.image is not None}
+
+        assert actual == images, type_id
+
+
 def test_画像の書式がnameでもfileでもなければ専用の例外() -> None:
     with pytest.raises(TypeSchemaError, match="書式"):
         parse(

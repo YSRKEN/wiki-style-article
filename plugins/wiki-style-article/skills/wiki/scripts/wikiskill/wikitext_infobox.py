@@ -3,6 +3,8 @@
 - 本家の形: 類型の定義に従って、日本語の項目名をテンプレートの引数名に写し、
   Infobox テンプレートを重ねる
 - 素の記法: テンプレートを使わず、日本語の項目名のまま ``{| class="infobox"`` の表にする
+- 本家のテンプレートをそのまま使う: ``[infobox]`` に ``_template`` があれば、残りの項目名を
+  本家の引数名として ``{{テンプレート名|引数 = 値}}`` にする（``plain`` のときは表のまま）
 
 値が空の項目は「書かれていない」ものとして扱う。Infobox テンプレートに書き出せない項目
 （類型の定義にない項目名、Infobox を持たない類型の項目）は捨てずに HTML コメントで残す。
@@ -55,6 +57,9 @@ def unknown_labels(settings: Settings, article_type: ArticleType) -> tuple[str, 
 
     Infobox を持たない類型では、書かれた項目名がすべて対象になる。
     """
+    if settings.infobox_template:
+        # 本家のテンプレートをそのまま使うときは、項目名がすべて引数名なので捨てる項目はない。
+        return ()
     known = {f.label for f in article_type.fields}
     return tuple(f.name for f in written_items(settings) if f.name not in known)
 
@@ -83,7 +88,31 @@ def build_infobox(
         return InfoboxText()
     if plain:
         return _plain(settings, article_type, items)
+    if settings.infobox_template:
+        return _generic(settings.infobox_template, items, settings.infobox_images)
     return _wikipedia(settings, article_type, items)
+
+
+# --- 本家のテンプレートをそのまま使う -------------------------------------------------
+
+
+def _generic(
+    name: str, items: tuple[InfoboxField, ...], image_names: tuple[str, ...] = ()
+) -> InfoboxText:
+    """項目名を本家の引数名として、テンプレートをそのまま組む。
+
+    値は既定で ``file`` の書式として扱う。``![キャプション](道)`` は
+    ``[[ファイル:名前|thumb|キャプション]]`` になり、素のファイル名やそのほかの値はそのまま渡る。
+    ``image_names``（``[infobox]`` の ``_image_fields``）に並べた引数は ``name`` の書式にして、
+    ファイル名だけを渡す（本家が ``File:`` を包む引数）。
+    """
+    lines = [f"{{{{{name}"]
+    for item in items:
+        image_format: ImageFormat | None = "name" if item.name in image_names else "file"
+        value = _render_value(image_format, item.value.strip())
+        lines.append(f"| {item.name} = {escape_template_value(value)}")
+    lines.append("}}")
+    return InfoboxText(top="\n".join(lines))
 
 
 # --- 本家の形 ---------------------------------------------------------------------

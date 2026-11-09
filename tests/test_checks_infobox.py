@@ -227,8 +227,71 @@ def test_画像の実物が無ければエラー(tmp_path: Path) -> None:
     assert "画像が無い: images/map.png" in findings[0].message
 
 
-def test_画像でない項目の画像の記法は対象外() -> None:
-    assert only(run("vote", '"備考" = "![図](images/map.png)"'), "INFOBOX-IMAGE") == []
+def test_画像でない項目に画像の記法を書くと宣言漏れの警告() -> None:
+    findings = only(run("vote", '"備考" = "![図](images/map.png)"'), "INFOBOX-IMAGE-UNDECLARED")
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 5
+    assert "備考" in findings[0].message
+    assert "image_fields" in findings[0].message
+
+
+def test_画像でない項目に画像の記法があっても画像の検査はしない() -> None:
+    assert only(run("vote", '"備考" = "![図](/tmp/map.png)"'), "IMAGE-PATH") == []
+
+
+def test_画像の項目には宣言漏れの警告を出さない() -> None:
+    assert (
+        only(run("vote", '"地図" = "![選挙区](images/map.png)"'), "INFOBOX-IMAGE-UNDECLARED") == []
+    )
+
+
+def test_定義にない項目名は宣言漏れの警告と重ねない() -> None:
+    findings = run(
+        "person", '"生年月日" = "1900年"\n"職業" = "作家"\n"似顔絵" = "![顔](images/x.png)"'
+    )
+    assert [f.rule for f in findings] == ["INFOBOX-UNKNOWN-FIELD"]
+
+
+# --- 任意のテンプレート（_template） ----------------------------------------------
+
+
+def test_任意のテンプレートでは定義との突き合わせをしない() -> None:
+    # 似顔絵は定義に無い項目名だが、任意のテンプレートの項目名は本家の引数名なので警告しない。
+    findings = run("person", '_template = "Infobox 人物"\n"似顔絵" = "![顔](images/x.png)"')
+
+    assert findings == ()
+
+
+def test_任意のテンプレートでも画像の項目の道を検査する() -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![顔](/tmp/x.png)"'
+    findings = only(run("person", source), "IMAGE-PATH")
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert findings[0].line == 6
+    assert "相対" in findings[0].message
+
+
+def test_任意のテンプレートでも画像のキャプションが空なら警告() -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![](images/x.png)"'
+    findings = only(run("person", source), "IMAGE-CAPTION")
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.WARNING
+    assert findings[0].line == 6
+    assert "似顔絵" in findings[0].message
+
+
+def test_任意のテンプレートでも画像の実物が無ければエラー(tmp_path: Path) -> None:
+    source = '_template = "Infobox 人物"\n"似顔絵" = "![顔](images/x.png)"'
+    findings = only(
+        check_article(article_at(tmp_path, "person", source), REGISTRY), "IMAGE-MISSING"
+    )
+
+    assert len(findings) == 1
+    assert findings[0].level is Level.ERROR
+    assert "画像が無い: images/x.png" in findings[0].message
 
 
 # --- check_article の入口 ----------------------------------------------------
