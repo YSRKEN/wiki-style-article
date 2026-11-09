@@ -1,6 +1,6 @@
 """文中の記法（太字・脚注の印・注釈の印・内部リンク・点と範囲の印・噂の範囲）を部品に分ける。
 
-使える記法は次の八つだけで、それ以外の文字はそのまま本文になる。
+使える記法は次の十一だけで、それ以外の文字はそのまま本文になる。
 
 - ``'''…'''``: 太字
 - ``[^キー]``: 出典への脚注の印
@@ -13,6 +13,10 @@
   点の印・範囲の印を書ける（噂の範囲の入れ子は書けない）。終わりの決め方は範囲の印と同じ
 - ``[!原文|言語タグ|文]``: 外国語の原文。言語タグは BCP 47 の形。文は記法を含まない文字で、
   脚注の印は原文の外に置く。太字・範囲の印の中には書けず、噂の範囲の中には書ける
+- ``[!仮リンク|言語タグ|本家の記事名|表示]``: 本家の記事への仮リンク。表示は省ける
+  （省くと本家の記事名を表示に使う）。太字・噂の範囲の中には書ける
+- ``[!言語|言語タグ]``: 言語名。言語タグは BCP 47 の形。太字・噂の範囲の中には書ける
+- ``[!節スタブ]``: 節スタブ。行に単独で置く（文中には書けない）
 
 印が指すキーが設定欄にあるかはここでは見ない。記法として壊れているものだけをエラーにする。
 """
@@ -31,7 +35,9 @@ from wikiskill.model import (
     FixRange,
     FixRangeKind,
     Inline,
+    InterlanguageLink,
     InternalLink,
+    LanguageName,
     NoteMark,
     Original,
     RefMark,
@@ -50,6 +56,9 @@ _BOLD = "'''"
 _FIX = "[!"
 _RUMOR = "噂"
 _ORIGINAL = "原文"
+_INTERLANGUAGE = "仮リンク"
+_LANGUAGE = "言語"
+_SECTION_STUB = "節スタブ"
 
 LANG_PATTERN = re.compile(
     r"[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?"
@@ -57,9 +66,20 @@ LANG_PATTERN = re.compile(
 )
 """言語タグとして使える形（BCP 47 の、言語・文字種・地域・変種の並び）。"""
 
-_BoldChild = Text | RefMark | NoteMark | InternalLink | FixMark
+_BoldChild = Text | RefMark | NoteMark | InternalLink | InterlanguageLink | LanguageName | FixMark
 _RangeChild = Text | RefMark | NoteMark | InternalLink
-_RumorChild = Text | RefMark | NoteMark | InternalLink | FixMark | FixRange | Bold | Original
+_RumorChild = (
+    Text
+    | RefMark
+    | NoteMark
+    | InternalLink
+    | InterlanguageLink
+    | LanguageName
+    | FixMark
+    | FixRange
+    | Bold
+    | Original
+)
 
 
 def parse_inline(text: str, line: int | LineOf = 1) -> tuple[Inline, ...]:
@@ -161,8 +181,10 @@ class _Parser:
         # 太字の中では太字と範囲の印を開かないので、子はそれ以外に限られる。
         return Bold(tuple(child for child in children if isinstance(child, _BoldChild)))
 
-    def _parse_fix(self, *, in_bold: bool) -> FixMark | FixRange | RumorRange | Original:
-        """点の印・範囲の印・噂の範囲 ``[!噂|…]``・原文 ``[!原文|言語タグ|文]`` を読む。"""
+    def _parse_fix(
+        self, *, in_bold: bool
+    ) -> FixMark | FixRange | RumorRange | Original | InterlanguageLink | LanguageName:
+        """点の印・範囲の印・噂の範囲・原文・仮リンク・言語名の ``[!…]`` を読む。"""
         text = self._text
         start = self._pos
         name_end = start + len(_FIX)
@@ -210,7 +232,23 @@ class _Parser:
             if in_bold:
                 raise self._error("太字の中に原文は書けない（太字の外に置く）", start)
             return self._parse_original(start, name_end, has_range=has_range)
-        names = "、".join((*FIX_MARK_KINDS, *FIX_RANGE_KINDS, _RUMOR, _ORIGINAL))
+        if name == _INTERLANGUAGE:
+            return self._parse_interlanguage(start, name_end, has_range=has_range)
+        if name == _LANGUAGE:
+            return self._parse_language(start, name_end, has_range=has_range)
+        if name == _SECTION_STUB:
+            raise self._error("節スタブは行に単独で置く（文中には書けない）", start)
+        names = "、".join(
+            (
+                *FIX_MARK_KINDS,
+                *FIX_RANGE_KINDS,
+                _RUMOR,
+                _ORIGINAL,
+                _INTERLANGUAGE,
+                _LANGUAGE,
+                _SECTION_STUB,
+            )
+        )
         raise self._error(f"未知の印 [!{name}] は使えない（使える印: {names}）", start)
 
     def _parse_range(self, kind: FixRangeKind, start: int, body_start: int) -> FixRange:
@@ -261,6 +299,52 @@ class _Parser:
                 )
         self._pos = end + 1
         return Original(lang, body)
+
+    def _parse_interlanguage(
+        self, start: int, name_end: int, *, has_range: bool
+    ) -> InterlanguageLink:
+        """仮リンク ``[!仮リンク|言語タグ|本家の記事名|表示]`` を読む。"""
+        shape = "[!仮リンク|言語タグ|本家の記事名|表示] の形で書く"
+        if not has_range:
+            raise self._error(f"仮リンクに | が足りない（{shape}）", start)
+        end = self._range_end(start, name_end + 1, "仮リンク")
+        inner = self._text[name_end + 1 : end]
+        if "[" in inner:
+            raise self._error("仮リンクの中に内部リンクや印は書けない", start)
+        fields = [part.strip() for part in inner.split("|")]
+        if len(fields) < 2:
+            raise self._error(f"仮リンクの項目が足りない（{shape}）", start)
+        if len(fields) > 3:
+            raise self._error("仮リンクの | は三つまで（言語タグ|本家の記事名|表示）", start)
+        lang, target = fields[0], fields[1]
+        label = fields[2] if len(fields) == 3 else target
+        if not LANG_PATTERN.fullmatch(lang):
+            raise self._error(
+                f"言語タグ {lang!r} は BCP 47 の形ではない（en・en-US・zh-Hans のように書く）",
+                start,
+            )
+        if not target:
+            raise self._error("仮リンクの本家の記事名が空", start)
+        if not label:
+            raise self._error("仮リンクの表示が空（表示を省くなら | ごと省く）", start)
+        self._pos = end + 1
+        return InterlanguageLink(lang, target, label)
+
+    def _parse_language(self, start: int, name_end: int, *, has_range: bool) -> LanguageName:
+        """言語名 ``[!言語|言語タグ]`` を読む。"""
+        if not has_range:
+            raise self._error("言語名に | が足りない（[!言語|言語タグ] の形で書く）", start)
+        end = self._range_end(start, name_end + 1, "言語名")
+        lang = self._text[name_end + 1 : end].strip()
+        if "|" in lang:
+            raise self._error("言語名の | は一つまで（[!言語|言語タグ]）", start)
+        if not LANG_PATTERN.fullmatch(lang):
+            raise self._error(
+                f"言語タグ {lang!r} は BCP 47 の形ではない（en・en-US・zh-Hans のように書く）",
+                start,
+            )
+        self._pos = end + 1
+        return LanguageName(lang)
 
     def _range_end(self, start: int, body_start: int, what: str) -> int:
         """範囲の文を閉じる ``]`` の位置を、``[`` と ``]`` の入れ子を数えて探す。"""

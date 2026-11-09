@@ -4,8 +4,9 @@
 - 定義にない項目は、定義の項目の後ろに原稿に書いた順で並べる（捨てない）
 - Infobox を持たない類型では出さない。値のある項目が一つもなければ出さない
 - ``[infobox]`` に ``_template`` があれば、本家のテンプレートをそのまま使う書き方として、
-  定義に関係なく書かれた項目をすべて並べる（見出しは項目名のまま）。値が
-  ``![キャプション](道)`` なら画像として埋め込む
+  定義に関係なく書かれた項目をすべて並べる。値が ``![キャプション](道)`` なら画像として
+  埋め込む。見出しは、同梱の TemplateData があれば解決した引数のラベル（無ければ引数名）、
+  解決できなければ原稿の項目名
 - 定義の ``title_field`` の項目は行にせず、表の見出し（caption）にする。原稿に書かれていなければ
   記事名が見出しになる（ウィキテキストの書き出しが記事名で埋めるのと同じ）
 - 値の空白だけの項目は「書かれていない」ものとして扱う
@@ -28,13 +29,18 @@ from wikiskill.html_inline import InlineWriter, figure_html
 from wikiskill.images import split_value
 from wikiskill.inline import parse_inline
 from wikiskill.model import Figure, InfoboxField, Settings
+from wikiskill.templatedata import TemplateData, TemplateDataRegistry, load_default_templatedata
 from wikiskill.types import ArticleType
 
 _BREAK = re.compile(r"<br\s*/?>", re.IGNORECASE)
 
 
 def build_infobox_html(
-    settings: Settings, article_type: ArticleType, *, base_dir: Path | None = None
+    settings: Settings,
+    article_type: ArticleType,
+    *,
+    base_dir: Path | None = None,
+    templatedata: TemplateDataRegistry | None = None,
 ) -> str:
     """Infobox の表を書き出す。
 
@@ -46,6 +52,8 @@ def build_infobox_html(
         記事の類型。
     base_dir : Path | None
         画像の道を解く基準のディレクトリ（原稿のあるディレクトリ）。
+    templatedata : TemplateDataRegistry or None
+        ``_template`` の引数の定義。省くと同梱の ``assets/templatedata.toml`` を使う。
 
     Returns
     -------
@@ -53,7 +61,8 @@ def build_infobox_html(
         ``<table class="infobox">``。出さないときは空文字列。
     """
     if settings.infobox_template:
-        return _generic(settings, base_dir)
+        registry = load_default_templatedata() if templatedata is None else templatedata
+        return _generic(settings, base_dir, registry.find(settings.infobox_template))
     if not article_type.has_infobox:
         return ""
     written = {f.name: f for f in settings.infobox if f.value.strip()}
@@ -74,20 +83,28 @@ def build_infobox_html(
     return f'<table class="infobox">\n<caption>{caption}</caption>{body}\n</table>'
 
 
-def _generic(settings: Settings, base_dir: Path | None) -> str:
-    """本家のテンプレートをそのまま使うときの表。項目名をそのまま見出しにする。"""
+def _generic(settings: Settings, base_dir: Path | None, data: TemplateData | None = None) -> str:
+    """本家のテンプレートをそのまま使うときの表。
+
+    見出しは、``data``（``_template`` の TemplateData）で解決できればそのラベル
+    （無ければ引数名）、解決できなければ原稿の項目名。
+    """
     written = [f for f in settings.infobox if f.value.strip()]
     if not written:
         return ""
-    rows = "\n".join(_generic_row(item, base_dir) for item in written)
+    rows = "\n".join(_generic_row(item, base_dir, data) for item in written)
     return f'<table class="infobox">\n<caption>{escape(settings.title)}</caption>\n{rows}\n</table>'
 
 
-def _generic_row(item: InfoboxField, base_dir: Path | None) -> str:
+def _generic_row(
+    item: InfoboxField, base_dir: Path | None, data: TemplateData | None = None
+) -> str:
     cell = _image_value(item, base_dir)
     if cell is None:
         cell = _value(item.value)
-    return f'<tr><th scope="row">{escape(item.name)}</th><td>{cell}</td></tr>'
+    param = data.resolve(item.name) if data is not None else None
+    heading = param.heading if param is not None else item.name
+    return f'<tr><th scope="row">{escape(heading)}</th><td>{cell}</td></tr>'
 
 
 def _row(item: InfoboxField, article_type: ArticleType, base_dir: Path | None) -> str:

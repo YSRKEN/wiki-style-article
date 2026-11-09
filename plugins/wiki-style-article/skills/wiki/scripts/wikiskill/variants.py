@@ -28,6 +28,7 @@ from wikiskill.model import (
     RefMark,
     RumorRange,
     Section,
+    SectionStub,
     Text,
 )
 
@@ -183,6 +184,9 @@ def _blocks(blocks: tuple[Block, ...], change: _InlineMap) -> tuple[Block, ...]:
                 out.append(replace(block, content=content))
             continue
         if isinstance(block, Figure):
+            out.append(block)
+            continue
+        if isinstance(block, SectionStub):
             out.append(block)
             continue
         lines = block.item_lines or (block.line,) * len(block.items)

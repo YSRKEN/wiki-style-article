@@ -4,7 +4,10 @@
   Infobox テンプレートを重ねる
 - 素の記法: テンプレートを使わず、日本語の項目名のまま ``{| class="infobox"`` の表にする
 - 本家のテンプレートをそのまま使う: ``[infobox]`` に ``_template`` があれば、残りの項目名を
-  本家の引数名として ``{{テンプレート名|引数 = 値}}`` にする（``plain`` のときは表のまま）
+  本家の引数名として ``{{テンプレート名|引数 = 値}}`` にする（``plain`` のときは表のまま）。
+  項目名は、同梱の TemplateData（``assets/templatedata.toml``）があれば引数名・別名・ラベルで
+  解決し、ウィキテキストには必ず引数名で出す。TemplateData の型が ``wiki-file-name`` の引数は、
+  ``_image_fields`` を書いていないとき ``name`` の書式（ファイル名だけを渡す）にする
 
 値が空の項目は「書かれていない」ものとして扱う。Infobox テンプレートに書き出せない項目
 （類型の定義にない項目名、Infobox を持たない類型の項目）は捨てずに HTML コメントで残す。
@@ -19,6 +22,7 @@ from dataclasses import dataclass
 
 from wikiskill.images import file_name, split_value
 from wikiskill.model import InfoboxField, Settings
+from wikiskill.templatedata import TemplateData, TemplateDataRegistry, load_default_templatedata
 from wikiskill.types import ArticleType, ImageFormat, InfoboxPart
 from wikiskill.wikitext_escape import escape_template_value, escape_text
 
@@ -65,7 +69,11 @@ def unknown_labels(settings: Settings, article_type: ArticleType) -> tuple[str, 
 
 
 def build_infobox(
-    settings: Settings, article_type: ArticleType, *, plain: bool = False
+    settings: Settings,
+    article_type: ArticleType,
+    *,
+    plain: bool = False,
+    templatedata: TemplateDataRegistry | None = None,
 ) -> InfoboxText:
     """Infobox を書き出す。
 
@@ -77,6 +85,8 @@ def build_infobox(
         記事の類型。
     plain : bool
         真なら素の記法（表）、偽なら本家の形（テンプレート）。
+    templatedata : TemplateDataRegistry or None
+        ``_template`` の引数の定義。省くと同梱の ``assets/templatedata.toml`` を使う。
 
     Returns
     -------
@@ -89,7 +99,13 @@ def build_infobox(
     if plain:
         return _plain(settings, article_type, items)
     if settings.infobox_template:
-        return _generic(settings.infobox_template, items, settings.infobox_images)
+        registry = load_default_templatedata() if templatedata is None else templatedata
+        return _generic(
+            settings.infobox_template,
+            items,
+            settings.infobox_images,
+            registry.find(settings.infobox_template),
+        )
     return _wikipedia(settings, article_type, items)
 
 
@@ -97,7 +113,10 @@ def build_infobox(
 
 
 def _generic(
-    name: str, items: tuple[InfoboxField, ...], image_names: tuple[str, ...] = ()
+    name: str,
+    items: tuple[InfoboxField, ...],
+    image_names: tuple[str, ...] = (),
+    data: TemplateData | None = None,
 ) -> InfoboxText:
     """項目名を本家の引数名として、テンプレートをそのまま組む。
 
@@ -105,12 +124,23 @@ def _generic(
     ``[[ファイル:名前|thumb|キャプション]]`` になり、素のファイル名やそのほかの値はそのまま渡る。
     ``image_names``（``[infobox]`` の ``_image_fields``）に並べた引数は ``name`` の書式にして、
     ファイル名だけを渡す（本家が ``File:`` を包む引数）。
+
+    ``data``（``_template`` の TemplateData）があれば、項目名を引数名・別名・ラベルの順に解決し、
+    ウィキテキストには引数名で出す。``_image_fields`` が無いときは、型が ``wiki-file-name`` の
+    引数を ``name`` の書式にする。
     """
+    image_fields = set(image_names)
+    if data is not None and not image_names:
+        image_fields |= set(data.image_params(item.name for item in items))
     lines = [f"{{{{{name}"]
     for item in items:
-        image_format: ImageFormat | None = "name" if item.name in image_names else "file"
+        param = data.resolve(item.name) if data is not None else None
+        arg_name = param.name if param is not None else item.name
+        image_format: ImageFormat | None = (
+            "name" if arg_name in image_fields or item.name in image_fields else "file"
+        )
         value = _render_value(image_format, item.value.strip())
-        lines.append(f"| {item.name} = {escape_template_value(value)}")
+        lines.append(f"| {arg_name} = {escape_template_value(value)}")
     lines.append("}}")
     return InfoboxText(top="\n".join(lines))
 

@@ -73,6 +73,54 @@ def number(value: float) -> str:
     return "0" if text in {"", "-0"} else text
 
 
+PALETTE: Final[tuple[str, ...]] = (
+    "#2c5aa0",
+    "#c0392b",
+    "#2e8b57",
+    "#b9770e",
+    "#6c3483",
+    "#117a65",
+    "#7f8c8d",
+    "#a04000",
+)
+
+
+def palette_color(index: int) -> str:
+    """色を指定しなかったときに使う色を、並び順から選ぶ。
+
+    Parameters
+    ----------
+    index : int
+        データの並び順（0 から）。
+
+    Returns
+    -------
+    str
+        選んだ色。
+    """
+    return PALETTE[index % len(PALETTE)]
+
+
+def format_value(value: float, digits: int, unit: str = "") -> str:
+    """グラフに書く値の文字列を作る。
+
+    Parameters
+    ----------
+    value : float
+        書く値。
+    digits : int
+        小数の桁数（0 から 2）。
+    unit : str
+        値の後ろに付ける単位（「万票」など）。
+
+    Returns
+    -------
+    str
+        3 桁区切りにした値と単位。
+    """
+    return f"{value:,.{digits}f}{unit}"
+
+
 def text_width(text: str, font_size: float) -> float:
     """凡例の幅を見積もる（日本語は 1 文字を font_size 幅とみなす）。
 

@@ -1,4 +1,4 @@
-"""図（地図・議席図）の SVG を書き出す試験。"""
+"""図（地図・議席図・グラフ）の SVG を書き出す試験。"""
 
 from __future__ import annotations
 
@@ -52,8 +52,8 @@ blue = "#0000cc"
 # --- 地図 -------------------------------------------------------------------------
 
 
-def test_図の種類は地図と議席図(tmp_path: Path) -> None:
-    assert KINDS == ("map", "seats")
+def test_図の種類は地図と議席図とグラフ(tmp_path: Path) -> None:
+    assert KINDS == ("map", "seats", "bars", "line", "pie", "pyramid")
 
 
 def test_地図は地域を色で塗り分け凡例を下に置く(tmp_path: Path) -> None:
@@ -432,8 +432,43 @@ color = "#cc0000"
 
 
 def test_知らない図の種類は誤り(tmp_path: Path) -> None:
-    with pytest.raises(FigureError, match="知らない図の種類: pie"):
-        render_figure("pie", tmp_path / "図.toml")
+    with pytest.raises(FigureError, match="知らない図の種類: histogram"):
+        render_figure("histogram", tmp_path / "図.toml")
+
+
+# --- グラフ -----------------------------------------------------------------------
+
+
+def test_グラフに形は使えない(tmp_path: Path) -> None:
+    with pytest.raises(FigureError, match="円グラフに形（shape）は使えない"):
+        render_figure("pie", tmp_path / "図.toml", shape="us-states")
+
+
+@pytest.mark.parametrize(
+    ("kind", "body", "expected"),
+    [
+        ("bars", 'title = "人口"\n[[bar]]\nlabel = "甲"\nvalue = 2', "人口"),
+        (
+            "line",
+            'title = "推移"\nlabels = ["2020", "2021"]\n[[series]]\nname = "甲"\nvalues = [1, 2]',
+            "推移",
+        ),
+        (
+            "pie",
+            'title = "得票率"\n[[slice]]\nlabel = "a"\nvalue = 60'
+            '\n[[slice]]\nlabel = "b"\nvalue = 40',
+            "<path ",
+        ),
+        ("pyramid", 'title = "年齢"\n[[band]]\nlabel = "0-4"\nmale = 100\nfemale = 50', "<rect "),
+    ],
+)
+def test_グラフは種類の名前で描ける(tmp_path: Path, kind: str, body: str, expected: str) -> None:
+    data = _write(tmp_path, body, name=f"{kind}.toml")
+
+    svg = render_figure(kind, data)
+
+    assert svg.startswith("<svg ")
+    assert expected in svg
 
 
 # --- CLI --------------------------------------------------------------------------
@@ -490,6 +525,23 @@ color = "#cc0000"
 
     assert code == 0
     assert "合計 2 議席" in out.read_text(encoding="utf-8")
+    assert capsys.readouterr().err == ""
+
+
+def test_CLI_の_figure_は円グラフを書き出す(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    data = _write(
+        tmp_path,
+        'title = "得票率"\n[[slice]]\nlabel = "a"\nvalue = 60\n[[slice]]\nlabel = "b"\nvalue = 40',
+        name="円.toml",
+    )
+    out = tmp_path / "円.svg"
+
+    code = main(["figure", "pie", str(data), "--out", str(out)])
+
+    assert code == 0
+    assert "a（60.0%）" in out.read_text(encoding="utf-8")
     assert capsys.readouterr().err == ""
 
 
