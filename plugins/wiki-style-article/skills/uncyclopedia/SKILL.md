@@ -1,7 +1,7 @@
 ---
 name: uncyclopedia
 description: 題材を百科事典の記事の形で、事実ではなく冗談として書く。「アンサイクロペディアみたいに書いて」「Wikipedia 風の嘘記事を作って」「/uncyclopedia 三時のおやつ」のように呼ばれたとき、手元の題材をパロディ記事にしたいときに使う。事実を調べて正確にまとめる用途（wiki スキル）には使わない。
-compatibility: Python 3.11 以上（無ければ uv で取ってくる）と、同じフォルダに並べた wiki スキル（原稿の読み取りと検査、見た目の雛形を借りる）。Web の検索は要らない。
+compatibility: Python 3.11 以上（無ければ uv で取ってくる）と、同じフォルダに並べた wiki スキル（原稿の読み取りと検査、wikipedia の見た目の雛形を借りる）。Web の検索は要らない。
 allowed-tools: Read Write Edit Bash(sh *uncyclopedia.sh* *)
 ---
 
@@ -29,8 +29,20 @@ allowed-tools: Read Write Edit Bash(sh *uncyclopedia.sh* *)
 1. 題材と型を決める。型は脚本の type で一覧と雛形が出る
 2. 原稿を書く。形は wiki スキルと同じ（+++ の設定欄＋Markdown）。ちがいは下の「原稿の決まり」
 3. check を流し、エラーが 0 になるまで直す
-4. build で HTML を書き出す
-5. 書き出した HTML をブラウザで開き、目次・Infobox・脚注の位置と、笑いが通るかを目で見る
+4. 見た目を利用者に聞く（下の「見た目」）。答えが無いとき、聞けない道具で動いているときは classic にする
+5. build で HTML を書き出す。wikipedia の見た目を選ばれたときだけ --look wikipedia を付ける
+6. 書き出した HTML をブラウザで開き、目次・脚注の位置と、笑いが通るかを目で見る
+
+## 見た目
+
+書き出す前に、どちらの見た目にするかをボタンの問い（Claude Code なら AskUserQuestion）で一度だけ聞く。既定は classic。
+
+| 見た目 | どうなるか | build の指定 |
+| --- | --- | --- |
+| classic（既定） | 本物のアンサイクロペディアの旧スキン風。左の欄に 🥔 のロゴと縦のメニュー、本文の中に目次の箱が出る。Infobox は出さない | 何も付けない |
+| wikipedia | wiki スキルと共通の Wikipedia 風の見た目で、文面だけアンサイクロペディア。Infobox も出る | --look wikipedia |
+
+classic は Infobox を出さないので、Infobox を見せたい原稿なら wikipedia を勧める。
 
 ## 原稿の決まり（wiki との差分）
 
@@ -70,7 +82,7 @@ references/safety.md を読む。実在の製品・団体・人物を題材に�
 ## 出力
 
 - <記事名>.html を、原稿と同じフォルダ（--out-dir を渡したときはそこ）に書く
-- 見た目は wiki スキルと共通の雛形（../wiki/assets/page-template.html）が持つ。本家に寄せた見た目のまま、見出し語だけをアンサイクロペディア向けに差し替える。デザインを変えたいときは、雛形を複製して --template で渡す（原稿は触らない）
+- 見た目は雛形が持つ。classic はこのスキルの assets/page-template.html、wikipedia は wiki スキルと共通の雛形（../wiki/assets/page-template.html）の見出し語をアンサイクロペディア向けに差し替えたもの。デザインを変えたいときは、雛形を複製して --template で渡す（--look より優先する。原稿は触らない）
 - 書き出す前に、組み立てた HTML を機械で検査する（差し込み口の残り・タグの対応・id の重複・リンク先・脚注の番号・外部の資源）。不備があれば書き出さずに止まる
 
 ## うまくいかないとき
