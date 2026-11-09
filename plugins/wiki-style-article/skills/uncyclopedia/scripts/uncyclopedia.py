@@ -10,9 +10,9 @@
 使い方::
 
     python uncyclopedia.py check 原稿.md
-    python uncyclopedia.py build 原稿.md [--out-dir 出力先] [--updated 2026-11-02]
+    python uncyclopedia.py build 原稿.md [--out-dir 出力先] [--updated 2026-11-02] [--look classic|wikipedia]
     python uncyclopedia.py type [型の ID]
-"""
+"""  # noqa: E501
 
 from __future__ import annotations
 
@@ -47,8 +47,11 @@ from wikiskill.model import Article, Block, Paragraph, Text  # noqa: E402
 from wikiskill.reader import read_article_file  # noqa: E402
 from wikiskill.types import ArticleType, InfoboxField, InfoboxPart  # noqa: E402
 
-#: 見た目は wiki スキルと共通の雛形を使う（本家ウィキペディアに寄せた骨格と CSS）。
-TEMPLATE_PATH = _SKILL_DIR.parent / "wiki" / "assets" / "page-template.html"
+#: 既定の見た目は、アンサイクロペディアの旧スキン風の雛形を使う。
+TEMPLATE_PATH = _SKILL_DIR / "assets" / "page-template.html"
+
+#: Wikipedia 風の見た目は、wiki スキルと共通の雛形を借りる。
+WIKIPEDIA_TEMPLATE_PATH = _SKILLS_DIR / "wiki" / "assets" / "page-template.html"
 
 #: 使える型と、Infobox に置くと面白い項目の候補。
 TYPES: dict[str, tuple[str, tuple[str, ...]]] = {
@@ -555,14 +558,24 @@ def main(argv: list[str]) -> int:
     p_build.add_argument("source", type=Path)
     p_build.add_argument("--out-dir", type=Path, default=None)
     p_build.add_argument("--updated", default=None)
-    p_build.add_argument("--template", type=Path, default=TEMPLATE_PATH)
+    p_build.add_argument(
+        "--look",
+        choices=("classic", "wikipedia"),
+        default="classic",
+        help="見た目。classic（アンサイクロペディアの旧スキン風、既定）か "
+        "wikipedia（wiki と共通の Wikipedia 風）",
+    )
+    p_build.add_argument("--template", type=Path, default=None)
     p_type = sub.add_parser("type", help="型の一覧と雛形を出す")
     p_type.add_argument("type_id", nargs="?")
     args = parser.parse_args(argv)
     if args.command == "check":
         return cmd_check(args.source)
     if args.command == "build":
-        return cmd_build(args.source, args.out_dir, args.updated or _today(), args.template)
+        template_path = args.template or (
+            WIKIPEDIA_TEMPLATE_PATH if args.look == "wikipedia" else TEMPLATE_PATH
+        )
+        return cmd_build(args.source, args.out_dir, args.updated or _today(), template_path)
     if args.command == "type":
         return cmd_type(args.type_id)
     parser.print_help()
