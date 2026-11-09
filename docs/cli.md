@@ -172,13 +172,13 @@ sh plugins/wiki-style-article/skills/wiki/scripts/wiki.sh figure map 選挙地�
 - `--out` は必ず付ける（省くと終了コード 2）
 - `--shape` は `map` だけの指定で、データの `shape` より優先する。`seats` に付けると「議席図に形（shape）は使えない」で終了コード 1
 - データか形が正しくないときは標準エラーに「[エラー] FIGURE: …」を出して終了コード 1、書き出せないときは「[エラー] WRITE: …」で 1
-- 形を同梱のぶんだけにして、図のデータは原稿と同じ TOML で渡す。本家のテンプレートが求める図（選挙の州別の結果・議会の勢力）を、外から画像を取ってこずに作れる
+- 図のデータは原稿と同じ TOML で渡す。議席図は外から何も取らずに作れる。地図は形（塗る元の SVG）を同梱しないので、利用者が用意した SVG の道を渡す
 
 ### 地図（map）
 
 ```toml
 title = "2004年アメリカ合衆国大統領選挙の州別の結果"
-shape = "us-states"
+shape = "maps/us-states.svg"
 background = "#ffffff"
 legend = true
 
@@ -192,7 +192,8 @@ CA = "democrat"
 ```
 
 - `title` は図の題。SVG の `<title>` と `aria-label` に入る。省くと付けない
-- `shape` は色を塗る元の SVG。同梱は `us-states`（アメリカ合衆国の州の地図。`TX`・`DC` などの 2 文字のコードで塗れる）だけで、ほかの地図は SVG の道を書く。同梱の地図は Wikimedia Commons の CC0 のもの（出典と作者は `skills/wiki/assets/maps/README.md`）
+- `shape` は色を塗る元の SVG の道で、必ず書く（データの `shape` か `--shape` のどちらか）。相対の道はデータの TOML のあるフォルダから探す。地図は同梱しないので、利用者が用意し、使ってよい許諾か（パブリックドメイン・CC0 など）を自分で確かめる。PR #11 では米国の州の白地図（Commons の `Blank US Map (states only).svg`）を同梱していた。Commons の許諾欄は CC0 だが、説明の出どころが CC BY-SA 4.0 の図を経てその白地図に戻る輪になっていて、出どころを確かめきれないので、2026-11-09 に依頼者の判断で外した
+- Windows でも道の区切りは `/` で書く（`地図/州.svg`）。TOML の `"…"` の中では `\` がエスケープになり、`\` を含む道は読めない（`地図\州.svg` は `Unescaped '\'`）か、`\n`・`\t` のような組が別の文字に変わる
 - `background` は地図の下地の色。`none` か `transparent` で無し
 - `legend` は下に付ける凡例。省くと付ける。凡例には `regions` で使った色だけを、`colors` の並び順で出す
 - `colors` は色の名前と `#rrggbb`。`regions` の値はこの名前で書く（色そのものは書けない）

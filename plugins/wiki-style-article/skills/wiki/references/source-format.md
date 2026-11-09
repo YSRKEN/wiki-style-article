@@ -165,7 +165,7 @@ sh <スキルのフォルダ>/scripts/wiki.sh figure map 選挙地図.toml --out
 
 ```toml
 title = "2004年アメリカ合衆国大統領選挙の州別の結果"
-shape = "us-states"
+shape = "maps/us-states.svg"
 
 [colors]
 republican = "#c0392b"
@@ -176,7 +176,8 @@ TX = "republican"
 CA = "democrat"
 ```
 
-- `shape` は塗る元の SVG。同梱は `us-states`（アメリカ合衆国の州。`TX`・`DC` などの 2 文字のコードで塗れる）だけ。ほかの地図は SVG の道を書くか、`--shape` で渡す（`--shape` は `map` だけの指定で、データの `shape` より優先する）。同梱の地図は Commons の CC0 のもの（`assets/maps/README.md` に出典）
+- `shape` は塗る元の SVG の道で、必ず書く。データに書くか `--shape` で渡す（`--shape` は `map` だけの指定で、データの `shape` より優先する）。地図は同梱しない。利用者が用意した SVG を使い、その許諾（パブリックドメイン・CC0 など、記事に載せてよいか）を利用者に確かめる。見つからないときは、地図を作らず本文の表で書く
+- Windows の道は `/` で区切って書く。TOML の `"…"` の中の `\` はエスケープになる
 - `colors` は色の名前と `#rrggbb`、`regions` は地域と色の名前。`colors` に無い名前や、形に無い地域はエラー。大文字小文字だけ違えば形の側の書き方に合わせる（`tx` は `TX` に当たる）
 - 形の SVG は、塗りたい要素に `class`（`tx` のような 3 文字までか `region-tx`）か `data-region="tx"` を付けておく。付いていない要素は塗れない
 - ほかに `title`（図の題。`<title>` と読み上げの名になる）・`background`（下地の色。`none`・`transparent` で無し）・`legend`（下に付ける凡例。省くと付ける）が書ける。凡例には使った色だけを `colors` の順で出す
