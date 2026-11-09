@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import re
 import subprocess
 import sys
@@ -347,4 +348,39 @@ def test_infobox_のある原稿も通り_classic_には箱を出さない(tmp_p
     else:
         assert "おやつ協会" in html
         assert '<table class="infobox"' in html
+    assert not check_html(html)
+
+
+@pytest.mark.parametrize("definition", [True, False])
+def test_導入部の先頭の画像を読み飛ばして次の段落の定義を検査する(
+    tmp_path: Path, definition: bool
+) -> None:
+    text = SAMPLE.replace(
+        "'''三時のおやつ'''とは、", "![定義ではない図。](zu.png)\n\n'''三時のおやつ'''とは、"
+    )
+    if not definition:
+        text = text.replace("'''三時のおやつ'''とは、", "午後三時ごろ。")
+    path = _write(tmp_path, "sample.md", text)
+
+    checked = _run("check", str(path))
+
+    assert checked.returncode == 0, checked.stdout + checked.stderr
+    assert ("LEAD-DEFINITION" in checked.stdout) is not definition
+
+
+@pytest.mark.parametrize("look", ["classic", "wikipedia"])
+def test_本文の画像をdataのURIで埋め込みHTMLの検査を通る(tmp_path: Path, look: str) -> None:
+    data = base64.b64decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    )
+    (tmp_path / "zu.png").write_bytes(data)
+    text = SAMPLE.replace("## 歴史", "![おやつの図](zu.png)\n\n## 歴史")
+    path = _write(tmp_path, "sample.md", text)
+
+    built = _run("build", str(path), "--updated", "2026-11-02", "--look", look)
+
+    assert built.returncode == 0, built.stdout + built.stderr
+    html = (tmp_path / "三時のおやつ.html").read_text(encoding="utf-8")
+    assert f'src="data:image/png;base64,{base64.b64encode(data).decode("ascii")}"' in html
+    assert "<figcaption>おやつの図</figcaption>" in html
     assert not check_html(html)
