@@ -1,6 +1,8 @@
 """画像（![キャプション](画像の道)）の読み取り・書き出し・検査の試験。"""
 
 import base64
+import os
+import subprocess
 from dataclasses import replace
 from pathlib import Path
 
@@ -13,7 +15,7 @@ from wikiskill.cli import main
 from wikiskill.errors import MarkupError
 from wikiskill.html_check import check_html
 from wikiskill.html_writer import HtmlError, write_html
-from wikiskill.images import MAX_BYTES, split_value
+from wikiskill.images import MAX_BYTES, ImageError, find_issue, read_image, split_value
 from wikiskill.model import Article, BulletList, Figure, Paragraph
 from wikiskill.reader import read_article, read_article_file
 from wikiskill.types import load_default_registry
@@ -311,6 +313,41 @@ def test_検査でも絶対の道はエラー() -> None:
     assert [(f.rule, f.line) for f in check_article(article)] == [("IMAGE-PATH", 7)]
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "/tmp/zu.png",
+        r"\tmp\zu.png",
+        "C:/x.png",
+        r"C:\x.png",
+        "C:x.png",
+        r"\\server\share\x.png",
+        "../x.png",
+        "images/../../x.png",
+        r"images\..\x.png",
+        r"images/..\x.png",
+    ],
+)
+@pytest.mark.parametrize("with_base_dir", [False, True])
+def test_原稿の外を指す画像の道はOSによらず弾く(
+    tmp_path: Path, source: str, with_base_dir: bool
+) -> None:
+    assert find_issue(source, tmp_path if with_base_dir else None) == (
+        "IMAGE-PATH",
+        f"画像は原稿からの相対の道で指す: {source}",
+    )
+
+
+@pytest.mark.parametrize("source", ["images/zu.png", "zu.png", r"images\zu.png"])
+@pytest.mark.parametrize("with_base_dir", [False, True])
+def test_原稿からの相対の画像の道は弾かない(
+    tmp_path: Path, source: str, with_base_dir: bool
+) -> None:
+    issue = find_issue(source, tmp_path if with_base_dir else None)
+
+    assert issue is None or issue[0] != "IMAGE-PATH"
+
+
 def test_画像が大きすぎればエラー(tmp_path: Path) -> None:
     (tmp_path / "big.png").write_bytes(b"x" * (MAX_BYTES + 1))
     path = _file(tmp_path, "'''試験'''は本文。\n\n![図](big.png)\n")
@@ -387,3 +424,68 @@ def test_buildは画像を埋め込んだhtmlとファイル名のウィキテ�
     assert "data:image/png;base64," in html
     assert "[[ファイル:zu.png|thumb|図]]" in wikitext
     assert [f.rule for f in check_html(html) if f.rule == "HTML-EXTERNAL-RESOURCE"] == []
+
+
+def _image_link(link: Path, target: Path, kind: str) -> None:
+    """試験用のリンクを作り、環境が対応していなければ飛ばす。
+
+    Parameters
+    ----------
+    link
+        作るリンクの道。
+    target
+        リンク先の道。
+    kind
+        directory・file はシンボリックリンク、junction はジャンクション。
+    """
+    try:
+        if kind == "junction":
+            if os.name != "nt":
+                pytest.skip("ジャンクションは Windows でのみ試す")
+            result = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(link), str(target)],
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode:
+                pytest.skip("この環境ではジャンクションを作れない")
+        else:
+            link.symlink_to(target, target_is_directory=kind == "directory")
+    except (OSError, NotImplementedError) as error:
+        pytest.skip(f"この環境ではリンクを作れない: {error}")
+    assert link.resolve() == target.resolve()
+
+
+@pytest.mark.parametrize("kind", ["directory", "file", "junction"])
+def test_原稿の外を指すリンクの画像は弾く(tmp_path: Path, kind: str) -> None:
+    base_dir = tmp_path / "原稿"
+    base_dir.mkdir()
+    outside = tmp_path / "原稿の外"
+    outside.mkdir()
+    image = outside / "zu.png"
+    image.write_bytes(PNG)
+    link = base_dir / ("link.png" if kind == "file" else "images")
+    _image_link(link, image if kind == "file" else outside, kind)
+    source = "link.png" if kind == "file" else "images/zu.png"
+
+    assert find_issue(source, base_dir) == (
+        "IMAGE-PATH",
+        f"画像は原稿からの相対の道で指す: {source}",
+    )
+    with pytest.raises(ImageError) as caught:
+        read_image(source, base_dir)
+    assert str(caught.value) == f"画像は原稿からの相対の道で指す: {source}"
+
+
+@pytest.mark.parametrize("kind", ["directory", "file", "junction"])
+def test_原稿の中を指すリンクの画像は読める(tmp_path: Path, kind: str) -> None:
+    inside = tmp_path / "images"
+    inside.mkdir()
+    image = inside / "zu.png"
+    image.write_bytes(PNG)
+    link = tmp_path / ("link.png" if kind == "file" else "link")
+    _image_link(link, image if kind == "file" else inside, kind)
+    source = "link.png" if kind == "file" else "link/zu.png"
+
+    assert find_issue(source, tmp_path) is None
+    assert read_image(source, tmp_path) == ("image/png", PNG)

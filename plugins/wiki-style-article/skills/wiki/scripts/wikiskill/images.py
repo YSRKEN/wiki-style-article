@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import base64
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Final
 
 MEDIA_TYPES: Final[dict[str, str]] = {
@@ -68,16 +68,27 @@ def find_issue(source: str, base_dir: Path | None) -> tuple[str, str] | None:
     ``base_dir`` が None（原稿の置き場が分からない）ときは、道と種類だけを見て、
     実物の有無と大きさは見ない。
     """
-    if Path(source).is_absolute():
+    windows_path = PureWindowsPath(source)
+    if (
+        PurePosixPath(source).is_absolute()
+        or windows_path.root
+        or windows_path.drive
+        or ".." in windows_path.parts
+    ):
         return ("IMAGE-PATH", f"画像は原稿からの相対の道で指す: {source}")
+    path = None
+    if base_dir is not None:
+        resolved_base = base_dir.resolve()
+        path = (base_dir / source).resolve()
+        if not path.is_relative_to(resolved_base):
+            return ("IMAGE-PATH", f"画像は原稿からの相対の道で指す: {source}")
     if media_type(source) is None:
         return (
             "IMAGE-TYPE",
             f"埋め込める画像の種類ではない（{_EXTENSIONS} のどれかにする）",
         )
-    if base_dir is None:
+    if path is None:
         return None
-    path = base_dir / source
     if not path.is_file():
         return ("IMAGE-MISSING", f"画像が無い: {source}")
     size = path.stat().st_size
@@ -96,11 +107,15 @@ def read_image(source: str, base_dir: Path | None) -> tuple[str, bytes]:
     issue = find_issue(source, base_dir)
     if issue is not None:
         raise ImageError(issue[1])
+    resolved_base = base_dir.resolve()
+    path = (base_dir / source).resolve()
+    if not path.is_relative_to(resolved_base):
+        raise ImageError(f"画像は原稿からの相対の道で指す: {source}")
     kind = media_type(source)
     if kind is None:  # find_issue が弾いているので、ここへは来ない。
         raise ImageError(f"埋め込める画像の種類ではない（{_EXTENSIONS} のどれかにする）")
     try:
-        data = (base_dir / source).read_bytes()
+        data = path.read_bytes()
     except OSError as error:
         raise ImageError(f"画像を読めない: {source}（{error.strerror}）") from error
     return kind, data
