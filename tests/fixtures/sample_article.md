@@ -53,6 +53,8 @@ url = "https://example.com/hoshikuzu"
 夜の街に現れる屋台のラーメン店を舞台にした作品。
 客の悩みを一杯のラーメンが解きほぐす、一話完結の形をとる[^official][^vol1]。
 
+![夜の屋台の挿絵](sample_figure.png)
+
 ## 登場する店
 
 ### 屋台「天の川」

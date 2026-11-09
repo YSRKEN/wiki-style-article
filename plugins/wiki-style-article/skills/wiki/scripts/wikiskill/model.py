@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal, TypeAlias
 
 RefKind = Literal["web", "book", "news"]
@@ -163,7 +164,20 @@ class BulletList:
     item_lines: tuple[int, ...] = field(default=(), compare=False)
 
 
-Block: TypeAlias = Paragraph | BulletList
+@dataclass(frozen=True)
+class Figure:
+    """画像。`source` は原稿からの相対の道、`caption` は図の説明。
+
+    画像そのものは HTML を書き出すときに読み、`data:` の URI として埋め込む。
+    ウィキテキストにはファイルの名前だけを書く。`line` は `![...](...)` を置いた行。
+    """
+
+    caption: str
+    source: str
+    line: int = field(default=0, compare=False)
+
+
+Block: TypeAlias = Paragraph | BulletList | Figure
 """節や導入部の直下に置けるまとまり。"""
 
 
@@ -277,3 +291,5 @@ class Article:
     settings: Settings
     lead: tuple[Block, ...]
     sections: tuple[Section, ...]
+    # 原稿ファイルの置き場。画像の道を解決するのに使う（文字列から読んだときは None）。
+    base_dir: Path | None = field(default=None, compare=False, repr=False)

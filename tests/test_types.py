@@ -775,3 +775,84 @@ def test_記事名を既定値にする項目を必須にすると専用の例�
             "作品名" = "作品名"
             """
         )
+
+
+def test_画像の項目と書式を指定できる() -> None:
+    registry = parse(
+        """
+        [[type]]
+        id = "election"
+        name = "選挙"
+        [[type.infobox]]
+        template = "Infobox Election"
+        [type.infobox.fields]
+        "候補者" = "candidate"
+        "地図" = "map_image"
+        "写真" = "image"
+        [type.infobox.image_fields]
+        "地図" = "name"
+        "写真" = "file"
+        """
+    )
+
+    images = {f.label: f.image for f in registry["election"].fields}
+    assert images == {"候補者": None, "地図": "name", "写真": "file"}
+
+
+def test_同梱の選挙の地図は素のファイル名で書く() -> None:
+    field = load_default_registry()["election"].find_field("地図")
+
+    assert field is not None
+    assert field.image == "name"
+
+
+def test_画像の書式がnameでもfileでもなければ専用の例外() -> None:
+    with pytest.raises(TypeSchemaError, match="書式"):
+        parse(
+            """
+            [[type]]
+            id = "election"
+            name = "選挙"
+            [[type.infobox]]
+            template = "Infobox Election"
+            [type.infobox.fields]
+            "地図" = "map_image"
+            [type.infobox.image_fields]
+            "地図" = "thumb"
+            """
+        )
+
+
+def test_画像の項目が並びに無いと専用の例外() -> None:
+    with pytest.raises(InfoboxError, match="地図"):
+        parse(
+            """
+            [[type]]
+            id = "election"
+            name = "選挙"
+            [[type.infobox]]
+            template = "Infobox Election"
+            [type.infobox.fields]
+            "候補者" = "candidate"
+            [type.infobox.image_fields]
+            "地図" = "name"
+            """
+        )
+
+
+def test_記事名を既定値にする項目を画像にすると専用の例外() -> None:
+    with pytest.raises(InfoboxError, match="作品名"):
+        parse(
+            """
+            [[type]]
+            id = "film"
+            name = "映画"
+            [[type.infobox]]
+            template = "Infobox Film"
+            title_field = "作品名"
+            [type.infobox.fields]
+            "作品名" = "作品名"
+            [type.infobox.image_fields]
+            "作品名" = "name"
+            """
+        )

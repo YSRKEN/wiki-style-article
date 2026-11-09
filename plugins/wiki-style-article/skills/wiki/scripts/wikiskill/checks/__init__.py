@@ -20,6 +20,7 @@ import re
 from collections.abc import Iterable
 
 from wikiskill.checks.finding import Finding, Level
+from wikiskill.checks.images import check_images
 from wikiskill.checks.infobox import check_infobox
 from wikiskill.checks.notation import check_notation
 from wikiskill.checks.references import check_references
@@ -58,6 +59,7 @@ def check_article(article: Article, registry: TypeRegistry | None = None) -> tup
         *check_structure(article),
         *check_notation(article),
         *check_wording(article),
+        *check_images(article),
     ]
     if registry is not None:
         findings.extend(check_infobox(article, registry))
